@@ -4,6 +4,8 @@
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.5';
+// Optional price-per-1k-tokens override (USD). If unset, estimatedCost will be 0.0.
+const OPENAI_PRICE_PER_1K = process.env.OPENAI_PRICE_PER_1K ? Number(process.env.OPENAI_PRICE_PER_1K) : null;
 
 // Required keys — server will guarantee these are present in the returned fields
 const REQUIRED_KEYS = [
@@ -135,7 +137,7 @@ exports.handler = async (event) => {
   let lastRespJson = null;
   let requestId = null;
   let processingTimeMs = 0;
-  let usageMeta = { promptTokens: 0, completionTokens: 0, totalTokens: 0, costEstimate: 0 };
+  let usageMeta = { promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0 };
 
   while (attempt < 2) {
     attempt++;
@@ -184,21 +186,24 @@ exports.handler = async (event) => {
           usageMeta.completionTokens = Number(json.usage.completion_tokens || 0);
           usageMeta.totalTokens = Number(json.usage.total_tokens || (usageMeta.promptTokens + usageMeta.completionTokens));
         }
-        // costEstimate unknown without pricing table — leave as 0.0000
+        // estimated cost calculation: use OPENAI_PRICE_PER_1K if provided, otherwise 0
+        const pricePer1k = (typeof OPENAI_PRICE_PER_1K === 'number' && !isNaN(OPENAI_PRICE_PER_1K)) ? OPENAI_PRICE_PER_1K : 0;
+        usageMeta.estimatedCost = pricePer1k > 0 ? (usageMeta.totalTokens / 1000) * pricePer1k : 0;
       } catch (e) {
         // ignore
       }
 
       // Ensure structured object contains required keys
       const structured = ensureStructured(parsed);
-      // Attach meta
+      // Attach meta (match requested shape)
       structured.meta = {
+        timestamp: new Date().toISOString(),
         model,
+        processingTimeMs: processingTimeMs || 0,
         promptTokens: usageMeta.promptTokens || 0,
         completionTokens: usageMeta.completionTokens || 0,
         totalTokens: usageMeta.totalTokens || 0,
-        costEstimate: usageMeta.costEstimate || 0.0,
-        processingTimeMs: processingTimeMs || 0,
+        estimatedCost: usageMeta.estimatedCost || 0,
         requestId: requestId || null,
       };
 
