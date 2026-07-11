@@ -270,10 +270,10 @@
         <div>
           <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">PHOTOS OF ISSUE</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            <sc-if value="{{ hasIntakePhotos }}" hint-placeholder-val="{{ false }}">
-            <sc-for list="{{ intakePhotos }}" as="photo" hint-placeholder-count="0">
+            <sc-if value="{{ hasIntakeStagedPhotos }}" hint-placeholder-val="{{ false }}">
+            <sc-for list="{{ intakeStagedPhotosDisplay }}" as="photo" hint-placeholder-count="0">
               <div style="position:relative;width:56px;height:56px;">
-                <img src="{{ photo.url }}" style="width:56px;height:56px;object-fit:cover;border-radius:4px;border:1px solid rgba(22,40,61,.2);"/>
+                <img src="{{ photo.previewUrl }}" style="width:56px;height:56px;object-fit:cover;border-radius:4px;border:1px solid rgba(22,40,61,.2);"/>
                 <div style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#C0392B;color:#fff;font:700 11px 'Public Sans',sans-serif;display:flex;align-items:center;justify-content:center;cursor:pointer;" onClick="{{ photo.onRemove }}">&times;</div>
               </div>
             </sc-for>
@@ -281,14 +281,15 @@
             <label style="width:56px;height:56px;border:1px dashed rgba(22,40,61,.35);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;">
               <div style="font:700 18px 'Archivo',sans-serif;color:rgba(22,40,61,.4);">&#128247;</div>
               <div style="font:700 7px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);">CAMERA</div>
-              <input type="file" accept="image/*" capture="environment" style="display:none;" onChange="{{ addIntakePhoto }}"/>
+              <input type="file" accept="image/*" capture="environment" style="display:none;" onChange="{{ stageIntakePhoto }}"/>
             </label>
             <label style="width:56px;height:56px;border:1px dashed rgba(22,40,61,.35);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;">
               <div style="font:700 18px 'Archivo',sans-serif;color:rgba(22,40,61,.4);">+</div>
               <div style="font:700 7px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);">LIBRARY</div>
-              <input type="file" accept="image/*" style="display:none;" onChange="{{ addIntakePhoto }}"/>
+              <input type="file" accept="image/*" style="display:none;" onChange="{{ stageIntakePhoto }}"/>
             </label>
           </div>
+          <div style="font:500 10.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.4);margin-top:4px;">Tap CAMERA/LIBRARY to enhance a photo before saving &mdash; it uploads to the job's gallery once the job is created.</div>
         </div>
 
         <sc-if value="{{ hasIntakeSaveError }}" hint-placeholder-val="{{ false }}">
@@ -334,6 +335,44 @@
             <div style="flex:1;background:#FBEAEA;color:#C0392B;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ archiveSelectedJob }}">ARCHIVE</div>
           </sc-if>
         </div>
+      </div>
+    </div>
+
+    <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);margin-top:14px;">
+      <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">PHOTOS <span style="font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);">({{ jobPhotoCountLabel }})</span></div>
+        <div class="no-print" style="display:flex;gap:8px;">
+          <label style="background:#EDE6D6;color:#16283D;font:700 11px 'IBM Plex Mono',monospace;padding:9px 12px;border-radius:4px;cursor:pointer;">
+            &#128247; CAMERA
+            <input type="file" accept="image/*" capture="environment" style="display:none;" onChange="{{ pickGalleryPhotoCamera }}"/>
+          </label>
+          <label style="background:#D97706;color:#fff;font:700 11px 'IBM Plex Mono',monospace;padding:9px 12px;border-radius:4px;cursor:pointer;">
+            + LIBRARY
+            <input type="file" accept="image/*" style="display:none;" onChange="{{ pickGalleryPhotoLibrary }}"/>
+          </label>
+        </div>
+      </div>
+      <div class="no-print" style="padding:12px 20px 4px;display:flex;gap:6px;flex-wrap:wrap;">
+        <sc-for list="{{ categoryFilterChips }}" as="chip" hint-placeholder-count="9">
+          <div style="{{ chip.style }}" onClick="{{ chip.onSelect }}">{{ chip.label }}</div>
+        </sc-for>
+      </div>
+      <div style="padding:12px 20px 18px;">
+        <sc-if value="{{ hasJobPhotos }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;">
+          <sc-for list="{{ jobPhotosDisplay }}" as="photo" hint-placeholder-count="4">
+            <div style="position:relative;cursor:pointer;" onClick="{{ photo.onOpen }}">
+              <img src="{{ photo.thumbUrl }}" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1px solid rgba(22,40,61,.15);display:block;"/>
+              <sc-if value="{{ photo.hiddenFromCustomer }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;top:4px;right:4px;background:rgba(22,40,61,.75);color:#fff;font:700 8px 'IBM Plex Mono',monospace;padding:2px 5px;border-radius:2px;">PRIVATE</div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        </sc-if>
+        <sc-if value="{{ noJobPhotos }}" hint-placeholder-val="{{ false }}">
+          <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);text-align:center;padding:8px 0;">No photos yet.</div>
+        </sc-if>
       </div>
     </div>
 
@@ -407,25 +446,20 @@
           </div>
         </div>
         <div>
-          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">PHOTOS</div>
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">ATTACH PHOTOS FROM GALLERY</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            <sc-if value="{{ hasLogPhotos }}" hint-placeholder-val="{{ false }}">
-            <sc-for list="{{ logPhotos }}" as="photo" hint-placeholder-count="0">
-              <div style="position:relative;width:52px;height:52px;">
-                <img src="{{ photo.url }}" style="width:52px;height:52px;object-fit:cover;border-radius:4px;border:1px solid rgba(22,40,61,.2);"/>
-                <div style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#C0392B;color:#fff;font:700 11px 'Public Sans',sans-serif;display:flex;align-items:center;justify-content:center;cursor:pointer;" onClick="{{ photo.onRemove }}">&times;</div>
+            <sc-for list="{{ logPhotoPickerDisplay }}" as="photo" hint-placeholder-count="0">
+              <div style="{{ photo.wrapStyle }}" onClick="{{ photo.onToggle }}">
+                <img src="{{ photo.thumbUrl }}" loading="lazy" style="width:52px;height:52px;object-fit:cover;display:block;"/>
+                <sc-if value="{{ photo.selected }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;inset:0;background:rgba(31,111,120,.55);display:flex;align-items:center;justify-content:center;color:#fff;font:700 16px 'Public Sans',sans-serif;">&#10003;</div>
+                </sc-if>
               </div>
             </sc-for>
-            </sc-if>
-            <label style="width:52px;height:52px;border:1px dashed rgba(22,40,61,.35);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;">
-              <div style="font:700 16px 'Archivo',sans-serif;color:rgba(22,40,61,.4);">&#128247;</div>
-              <div style="font:700 6.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);">CAMERA</div>
-              <input type="file" accept="image/*" capture="environment" style="display:none;" onChange="{{ addLogPhoto }}"/>
-            </label>
             <label style="width:52px;height:52px;border:1px dashed rgba(22,40,61,.35);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;">
               <div style="font:700 16px 'Archivo',sans-serif;color:rgba(22,40,61,.4);">+</div>
-              <div style="font:700 6.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);">LIBRARY</div>
-              <input type="file" accept="image/*" style="display:none;" onChange="{{ addLogPhoto }}"/>
+              <div style="font:700 6.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);">NEW</div>
+              <input type="file" accept="image/*" style="display:none;" onChange="{{ pickLogNewPhoto }}"/>
             </label>
           </div>
         </div>
@@ -762,6 +796,88 @@
   </div>
   </sc-if>
 
+  <!-- ============ PHOTO ENHANCEMENT EDITOR ============ -->
+  <sc-if value="{{ showPhotoEditor }}" hint-placeholder-val="{{ false }}">
+  <div class="no-print" style="position:fixed;inset:0;background:rgba(22,40,61,.7);display:flex;align-items:center;justify-content:center;z-index:300;padding:16px;overflow:auto;">
+    <div style="background:#fff;border-radius:10px;width:100%;max-width:420px;overflow:hidden;">
+      <div style="background:#16283D;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font:800 14px 'Archivo',sans-serif;color:#fff;">ENHANCE PHOTO</div>
+        <div style="color:#8FBFAE;font:700 18px 'Public Sans',sans-serif;cursor:pointer;" onClick="{{ cancelPhotoEditor }}">&times;</div>
+      </div>
+      <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px;max-height:78vh;overflow:auto;">
+        <div style="background:#EDE6D6;border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:200px;padding:12px;">
+          <img src="{{ photoEditorPreviewUrl }}" style="{{ photoEditorPreviewStyle }}"/>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1;background:#EDE6D6;color:#16283D;text-align:center;font:700 10.5px 'IBM Plex Mono',monospace;padding:10px 4px;border-radius:4px;cursor:pointer;" onClick="{{ rotatePhotoEditor }}">&#8635; ROTATE</div>
+          <div style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 10.5px 'IBM Plex Mono',monospace;padding:10px 4px;border-radius:4px;cursor:pointer;" onClick="{{ autoEnhancePhotoEditor }}">&#10024; AUTO-ENHANCE</div>
+          <div style="flex:1;background:#EDE6D6;color:#16283D;text-align:center;font:700 10.5px 'IBM Plex Mono',monospace;padding:10px 4px;border-radius:4px;cursor:pointer;" onClick="{{ resetPhotoEditor }}">RESET</div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);margin-bottom:2px;"><span>BRIGHTNESS</span><span>{{ photoEditorBrightnessLabel }}</span></div>
+          <input type="range" min="60" max="150" value="{{ photoEditorBrightness }}" onChange="{{ setPhotoEditorBrightness }}" style="width:100%;"/>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);margin-bottom:2px;"><span>CONTRAST</span><span>{{ photoEditorContrastLabel }}</span></div>
+          <input type="range" min="60" max="150" value="{{ photoEditorContrast }}" onChange="{{ setPhotoEditorContrast }}" style="width:100%;"/>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);margin-bottom:2px;"><span>SATURATION</span><span>{{ photoEditorSaturationLabel }}</span></div>
+          <input type="range" min="40" max="170" value="{{ photoEditorSaturation }}" onChange="{{ setPhotoEditorSaturation }}" style="width:100%;"/>
+        </div>
+        <div>
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">CAPTION</div>
+          <input style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:9px 10px;font:500 13px 'Public Sans',sans-serif;color:#16283D;" placeholder="Optional caption" value="{{ photoEditorCaption }}" onChange="{{ setPhotoEditorCaption }}"/>
+        </div>
+        <div>
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">CATEGORIES</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <sc-for list="{{ photoEditorCategoryOptions }}" as="cat" hint-placeholder-count="9">
+              <div style="{{ cat.style }}" onClick="{{ cat.onToggle }}">{{ cat.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="font:600 12px 'Public Sans',sans-serif;color:#16283D;">Visible to customer</div>
+          <div style="{{ photoEditorVisibleTrackStyle }}" onClick="{{ togglePhotoEditorVisible }}">
+            <div style="{{ photoEditorVisibleKnobStyle }}"></div>
+          </div>
+        </div>
+        <sc-if value="{{ photoEditorError }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ photoEditorErrorMessage }}</div>
+        </sc-if>
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1;{{ photoEditorSaveButtonStyle }}" onClick="{{ savePhotoEditor }}">{{ photoEditorSaveLabel }}</div>
+          <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 13px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ cancelPhotoEditor }}">CANCEL</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ PHOTO LIGHTBOX ============ -->
+  <sc-if value="{{ showLightbox }}" hint-placeholder-val="{{ false }}">
+  <div class="no-print" style="position:fixed;inset:0;background:rgba(22,40,61,.85);display:flex;align-items:center;justify-content:center;z-index:250;padding:16px;" onClick="{{ closeLightbox }}">
+    <div style="background:#fff;border-radius:10px;width:100%;max-width:480px;overflow:hidden;" onClick="{{ stopPropagation }}">
+      <img src="{{ lightboxUrl }}" style="width:100%;max-height:50vh;object-fit:contain;background:#16283D;display:block;"/>
+      <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <sc-for list="{{ lightboxCategories }}" as="cat" hint-placeholder-count="2">
+            <div style="background:#EDE6D6;color:#16283D;font:700 9px 'IBM Plex Mono',monospace;padding:4px 8px;border-radius:2px;">{{ cat }}</div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ lightboxHasCaption }}" hint-placeholder-val="{{ false }}">
+          <div style="font:500 13px 'Public Sans',sans-serif;color:#16283D;">{{ lightboxCaption }}</div>
+        </sc-if>
+        <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);">{{ lightboxMeta }}</div>
+        <sc-if value="{{ canDeleteLightboxPhoto }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FBEAEA;color:#C0392B;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ deleteLightboxPhoto }}">DELETE PHOTO</div>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
 </div>
 
 </x-dc>
@@ -831,7 +947,7 @@ class Component extends DCLogic {
     intakePriority: 'normal',
     phoneFieldError: false,
     intakeMechanic: '',
-    intakePhotos: [],
+    intakeStagedPhotos: [],
     intakeSaving: false,
     intakeSaveError: '',
 
@@ -844,7 +960,13 @@ class Component extends DCLogic {
     logRawNotesFinal: '',
     logAiLoading: false,
     logFields: { findings: '', fix: '', timeSpent: '', materials: '' },
-    logPhotos: [],
+    logSelectedPhotoIds: [],
+
+    jobPhotos: [],
+    jobPhotosLoading: false,
+    photoCategoryFilter: 'all',
+    photoEditor: null,
+    lightboxPhotoId: null,
   };
 
   async componentDidMount() {
@@ -1078,13 +1200,14 @@ class Component extends DCLogic {
     intakeFields: { customerName: '', phone: '', boatYear: '', boatMake: '', boatModel: '', issue: '' },
     phoneFieldError: false,
     intakeSize: 'M', intakePriority: 'normal', intakeMechanic: (this.state.mechanics[0] || {}).id || '',
-    intakePhotos: [], intakeRecording: false, intakeMicError: '', intakeRawNotesFinal: '', showScanModal: false,
+    intakeStagedPhotos: [], intakeRecording: false, intakeMicError: '', intakeRawNotesFinal: '', showScanModal: false,
     intakeSaving: false, intakeSaveError: '', intakeRecBusy: false,
   });
   goRoster = () => this.setState({ screen: 'roster', showScanModal: false });
   openJob = (id) => {
-    this.setState({ screen: 'jobDetail', selectedJobId: id, logStep: 'closed', showScanModal: false, comments: [], newComment: '' });
+    this.setState({ screen: 'jobDetail', selectedJobId: id, logStep: 'closed', showScanModal: false, comments: [], newComment: '', photoCategoryFilter: 'all', logSelectedPhotoIds: [] });
     this.loadComments(id);
+    this.loadJobPhotos(id);
   };
   backToJob = () => this.setState({ screen: 'jobDetail' });
   goToTag = () => this.setState({ screen: 'tag' });
@@ -1099,8 +1222,9 @@ class Component extends DCLogic {
     const code = (this.state.scanInput || '').trim().toUpperCase();
     const job = this.state.jobs.find(j => j.id === code);
     if (job) {
-      this.setState({ screen: 'jobDetail', selectedJobId: job.id, showScanModal: false, logStep: 'closed', comments: [], newComment: '' });
+      this.setState({ screen: 'jobDetail', selectedJobId: job.id, showScanModal: false, logStep: 'closed', comments: [], newComment: '', photoCategoryFilter: 'all', logSelectedPhotoIds: [] });
       this.loadComments(job.id);
+      this.loadJobPhotos(job.id);
     } else {
       this.setState({ scanError: true });
     }
@@ -1288,42 +1412,180 @@ class Component extends DCLogic {
   setIntakePriority = (p) => this.setState({ intakePriority: p });
   setIntakeMechanic = (e) => this.setState({ intakeMechanic: e.target.value });
 
-  compressPhoto(file) {
-    return new Promise((resolve) => {
+  // ---------- unified photo gallery + enhancement editor ----------
+  // Local mirror of supabase-client's PHOTO_CATEGORIES — kept as a plain
+  // constant here so the UI renders instantly before the data module import
+  // resolves (categories are just labels; the module is the source of truth
+  // for what actually gets validated/stored).
+  static PHOTO_CATEGORIES = ['Intake', 'Before Repair', 'During Repair', 'After Repair', 'Damage', 'Parts', 'Warranty', 'Serial Number', 'Other'];
+
+  loadJobPhotos = async (jobId) => {
+    this.setState({ jobPhotosLoading: true });
+    try {
+      const jobPhotos = await this._dataMod.fetchWorkOrderPhotos(jobId);
+      this.setState({ jobPhotos, jobPhotosLoading: false });
+    } catch (e) {
+      console.error('Failed to load job photos', e);
+      this.setState({ jobPhotosLoading: false });
+    }
+  };
+  setPhotoCategoryFilter = (cat) => this.setState({ photoCategoryFilter: cat });
+
+  // Draws the source image to canvas with rotation + a CSS-filter-equivalent
+  // brightness/contrast/saturation baked in, producing a full-res JPEG and a
+  // small thumbnail JPEG. Nothing here ever touches the DB — pure pixels in,
+  // two Blobs out.
+  processPhotoFile(file, opts) {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const img = new Image();
         img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const maxW = 480;
-          const scale = Math.min(1, maxW / img.width);
-          canvas.width = img.width * scale;
-          canvas.height = img.height * scale;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/jpeg', 0.7));
+          const swap = opts.rotation === 90 || opts.rotation === 270;
+          const srcW = img.width, srcH = img.height;
+          const filterStr = `brightness(${opts.brightness}%) contrast(${opts.contrast}%) saturate(${opts.saturation}%)`;
+          const draw = (maxDim) => {
+            const scale = Math.min(1, maxDim / Math.max(srcW, srcH));
+            const dw = srcW * scale, dh = srcH * scale;
+            const canvas = document.createElement('canvas');
+            canvas.width = swap ? dh : dw;
+            canvas.height = swap ? dw : dh;
+            const ctx = canvas.getContext('2d');
+            ctx.filter = filterStr;
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate((opts.rotation * Math.PI) / 180);
+            ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+            return canvas;
+          };
+          const origCanvas = draw(1600);
+          const thumbCanvas = draw(360);
+          origCanvas.toBlob((blobOrig) => {
+            thumbCanvas.toBlob((blobThumb) => {
+              resolve({ blobOrig, blobThumb, width: origCanvas.width, height: origCanvas.height });
+            }, 'image/jpeg', 0.72);
+          }, 'image/jpeg', 0.85);
         };
+        img.onerror = reject;
         img.src = reader.result;
       };
+      reader.onerror = reject;
       reader.readAsDataURL(file);
     });
   }
-  addIntakePhoto = async (e) => {
+
+  openPhotoEditorWithFile(file, context, defaultCategories) {
+    const previewObjectUrl = URL.createObjectURL(file);
+    this.setState({
+      photoEditor: {
+        context, file, previewObjectUrl,
+        rotation: 0, brightness: 100, contrast: 100, saturation: 100,
+        caption: '', categories: defaultCategories || [], customerVisible: true,
+        saving: false, error: '',
+      },
+    });
+  }
+  stageIntakePhoto = (e) => {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    const dataUrl = await this.compressPhoto(file);
-    this.setState({ intakePhotos: [...this.state.intakePhotos, dataUrl] });
+    this.openPhotoEditorWithFile(file, 'intake', ['Intake']);
   };
-  removeIntakePhoto = (idx) => this.setState({ intakePhotos: this.state.intakePhotos.filter((_, i) => i !== idx) });
-  addLogPhoto = async (e) => {
+  pickGalleryPhotoCamera = (e) => {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    const dataUrl = await this.compressPhoto(file);
-    this.setState({ logPhotos: [...this.state.logPhotos, dataUrl] });
+    this.openPhotoEditorWithFile(file, 'gallery', []);
   };
-  removeLogPhoto = (idx) => this.setState({ logPhotos: this.state.logPhotos.filter((_, i) => i !== idx) });
+  pickGalleryPhotoLibrary = (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    this.openPhotoEditorWithFile(file, 'gallery', []);
+  };
+  pickLogNewPhoto = (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    this.openPhotoEditorWithFile(file, 'log', ['During Repair']);
+  };
+  removeStagedIntakePhoto = (idx) => this.setState({ intakeStagedPhotos: this.state.intakeStagedPhotos.filter((_, i) => i !== idx) });
+
+  rotatePhotoEditor = () => {
+    if (!this.state.photoEditor) return;
+    this.setState({ photoEditor: { ...this.state.photoEditor, rotation: (this.state.photoEditor.rotation + 90) % 360 } });
+  };
+  autoEnhancePhotoEditor = () => {
+    if (!this.state.photoEditor) return;
+    this.setState({ photoEditor: { ...this.state.photoEditor, brightness: 108, contrast: 118, saturation: 114 } });
+  };
+  resetPhotoEditor = () => {
+    if (!this.state.photoEditor) return;
+    this.setState({ photoEditor: { ...this.state.photoEditor, brightness: 100, contrast: 100, saturation: 100, rotation: 0 } });
+  };
+  setPhotoEditorBrightness = (e) => this.setState({ photoEditor: { ...this.state.photoEditor, brightness: Number(e.target.value) } });
+  setPhotoEditorContrast = (e) => this.setState({ photoEditor: { ...this.state.photoEditor, contrast: Number(e.target.value) } });
+  setPhotoEditorSaturation = (e) => this.setState({ photoEditor: { ...this.state.photoEditor, saturation: Number(e.target.value) } });
+  setPhotoEditorCaption = (e) => this.setState({ photoEditor: { ...this.state.photoEditor, caption: e.target.value } });
+  toggleEditorCategory = (cat) => {
+    const pe = this.state.photoEditor;
+    if (!pe) return;
+    const has = pe.categories.includes(cat);
+    const categories = has ? pe.categories.filter(c => c !== cat) : [...pe.categories, cat];
+    this.setState({ photoEditor: { ...pe, categories } });
+  };
+  togglePhotoEditorVisible = () => {
+    const pe = this.state.photoEditor;
+    if (!pe) return;
+    this.setState({ photoEditor: { ...pe, customerVisible: !pe.customerVisible } });
+  };
+  cancelPhotoEditor = () => {
+    const pe = this.state.photoEditor;
+    if (pe && pe.previewObjectUrl) { try { URL.revokeObjectURL(pe.previewObjectUrl); } catch (e) {} }
+    this.setState({ photoEditor: null });
+  };
+  savePhotoEditor = async () => {
+    const pe = this.state.photoEditor;
+    if (!pe || pe.saving) return;
+    this.setState({ photoEditor: { ...pe, saving: true, error: '' } });
+    try {
+      const processed = await this.processPhotoFile(pe.file, { rotation: pe.rotation, brightness: pe.brightness, contrast: pe.contrast, saturation: pe.saturation });
+      const meta = { caption: pe.caption, categories: pe.categories, customerVisible: pe.customerVisible };
+      if (pe.context === 'intake') {
+        const previewUrl = URL.createObjectURL(processed.blobThumb);
+        this.setState({
+          intakeStagedPhotos: [...this.state.intakeStagedPhotos, { ...processed, ...meta, previewUrl }],
+          photoEditor: null,
+        });
+      } else {
+        if (!this._dataMod || !this.state.selectedJobId) throw new Error('No job selected \u2014 cannot upload photo.');
+        const saved = await this._dataMod.uploadWorkOrderPhoto(this.state.selectedJobId, { ...processed, ...meta }, this.state.profile && this.state.profile.id);
+        const jobPhotos = [...this.state.jobPhotos, saved];
+        const logSelectedPhotoIds = pe.context === 'log' ? [...this.state.logSelectedPhotoIds, saved.id] : this.state.logSelectedPhotoIds;
+        this.setState({ jobPhotos, logSelectedPhotoIds, photoEditor: null });
+      }
+      if (pe.previewObjectUrl) { try { URL.revokeObjectURL(pe.previewObjectUrl); } catch (e) {} }
+    } catch (e) {
+      console.error('Failed to save enhanced photo', e);
+      this.setState({ photoEditor: { ...this.state.photoEditor, saving: false, error: (e && e.message) || 'Could not save photo.' } });
+    }
+  };
+
+  openLightbox = (photoId) => this.setState({ lightboxPhotoId: photoId });
+  closeLightbox = () => this.setState({ lightboxPhotoId: null });
+  deleteLightboxPhoto = async () => {
+    const photo = this.state.jobPhotos.find(p => p.id === this.state.lightboxPhotoId);
+    if (!photo) return;
+    try {
+      if (this._dataMod) await this._dataMod.deleteWorkOrderPhoto(photo.id, this.state.profile && this.state.profile.id);
+      this.setState({ jobPhotos: this.state.jobPhotos.filter(p => p.id !== photo.id), lightboxPhotoId: null });
+    } catch (e) {
+      console.error('Failed to delete photo', e);
+    }
+  };
+  toggleLogPhotoSelection = (id) => {
+    const has = this.state.logSelectedPhotoIds.includes(id);
+    this.setState({ logSelectedPhotoIds: has ? this.state.logSelectedPhotoIds.filter(x => x !== id) : [...this.state.logSelectedPhotoIds, id] });
+  };
 
   phoneFieldRef = { current: null };
   saveIntake = async () => {
@@ -1357,7 +1619,6 @@ class Component extends DCLogic {
       boatMake: f.boatMake.trim(),
       boatModel: (f.boatModel || '').trim(),
       issue: f.issue.trim(),
-      photos: this.state.intakePhotos,
       size: this.state.intakeSize,
       priority: this.state.intakePriority,
       assignedMechanic: mechanicId,
@@ -1369,11 +1630,21 @@ class Component extends DCLogic {
 
     try {
       const savedJob = await this._dataMod.insertJob(draftJob, this.state.profile && this.state.profile.id);
+      const staged = this.state.intakeStagedPhotos || [];
+      for (const sp of staged) {
+        try {
+          await this._dataMod.uploadWorkOrderPhoto(savedJob.id, sp, this.state.profile && this.state.profile.id);
+        } catch (e2) {
+          console.error('Failed to upload staged intake photo', e2);
+        }
+        if (sp.previewUrl) { try { URL.revokeObjectURL(sp.previewUrl); } catch (e3) {} }
+      }
       this.setState({
         jobs: [savedJob, ...this.state.jobs],
         selectedJobId: savedJob.id,
         intakeSaving: false,
         intakeSaveError: '',
+        intakeStagedPhotos: [],
         screen: 'tag',
       });
     } catch (e) {
@@ -1386,7 +1657,7 @@ class Component extends DCLogic {
   };
 
   // ---------- log work ----------
-  openLogWork = () => this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRecording: false, logRecBusy: false, logMicError: '', logRawNotesFinal: '', logPhotos: [] });
+  openLogWork = () => this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRecording: false, logRecBusy: false, logMicError: '', logRawNotesFinal: '', logSelectedPhotoIds: [] });
   closeLogWork = () => {
     if (this._logRec) { try { this._logRec.stop(); } catch (e) {} }
     this.setState({ logStep: 'closed', logRecording: false, logRecBusy: false });
@@ -1493,7 +1764,7 @@ class Component extends DCLogic {
       timeSpent: this.state.logFields.timeSpent || '',
       materials: this.state.logFields.materials || '',
       rawNotes: this.state.logRawNotesFinal || '',
-      photos: this.state.logPhotos,
+      photoIds: this.state.logSelectedPhotoIds || [],
     };
     let newEntries = [];
     let newStatus = null;
@@ -1503,7 +1774,7 @@ class Component extends DCLogic {
       newStatus = j.status === 'open' ? 'in progress' : j.status;
       return { ...j, entries: newEntries, status: newStatus };
     });
-    this.setState({ jobs, logStep: 'closed', logTranscript: '', logTyped: '', logRawNotesFinal: '', logPhotos: [] });
+    this.setState({ jobs, logStep: 'closed', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [] });
     try {
       if (this._dataMod) await this._dataMod.appendJobEntry(jobId, newEntries, newStatus);
     } catch (e) {
@@ -1667,17 +1938,23 @@ class Component extends DCLogic {
         noEntries: sj.entries.length === 0,
         hasIntakeNote: !!sj.intakeRawNotes,
         intakeNoteDisplay: sj.intakeRawNotes || '',
-        entriesDisplay: sj.entries.slice().reverse().map(e => ({
-          dateLabel: new Date(e.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + new Date(e.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
-          timeSpent: e.timeSpent || '\u2014',
-          findings: e.findings || '\u2014',
-          fix: e.fix || '\u2014',
-          materials: e.materials || 'None',
-          hasRawNotes: !!e.rawNotes,
-          rawNotes: e.rawNotes || '',
-          hasPhotos: (e.photos || []).length > 0,
-          photos: e.photos || [],
-        })),
+        entriesDisplay: sj.entries.slice().reverse().map(e => {
+          const photos = (e.photoIds || []).map(id => {
+            const p = s.jobPhotos.find(x => x.id === id);
+            return p ? p.thumbUrl : null;
+          }).filter(Boolean);
+          return {
+            dateLabel: new Date(e.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + new Date(e.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
+            timeSpent: e.timeSpent || '\u2014',
+            findings: e.findings || '\u2014',
+            fix: e.fix || '\u2014',
+            materials: e.materials || 'None',
+            hasRawNotes: !!e.rawNotes,
+            rawNotes: e.rawNotes || '',
+            hasPhotos: photos.length > 0,
+            photos,
+          };
+        }),
       };
     }
 
@@ -1751,6 +2028,41 @@ class Component extends DCLogic {
 
     const intakeRaw = (s.intakeTranscript + (s._intakeInterim ? ' ' + s._intakeInterim : ''));
     const logRaw = (s.logTranscript + (s._logInterim ? ' ' + s._logInterim : ''));
+
+    // ---------- unified photo gallery / editor / lightbox render data ----------
+    const CATS = Component.PHOTO_CATEGORIES;
+    const filterCat = s.photoCategoryFilter;
+    const filteredPhotos = s.jobPhotos.filter(p => filterCat === 'all' || (p.categories || []).includes(filterCat));
+    const categoryFilterChips = ['all', ...CATS].map(cat => ({
+      label: cat === 'all' ? 'ALL' : cat.toUpperCase(),
+      style: `font:700 9.5px 'IBM Plex Mono',monospace;padding:6px 10px;border-radius:12px;cursor:pointer;background:${filterCat === cat ? '#16283D' : '#F6F1E4'};color:${filterCat === cat ? '#fff' : '#16283D'};`,
+      onSelect: () => this.setPhotoCategoryFilter(cat),
+    }));
+    const jobPhotosDisplay = filteredPhotos.map(p => ({
+      thumbUrl: p.thumbUrl,
+      hiddenFromCustomer: !p.customerVisible,
+      onOpen: () => this.openLightbox(p.id),
+    }));
+    const logPhotoPickerDisplay = s.jobPhotos.map(p => {
+      const selected = (s.logSelectedPhotoIds || []).includes(p.id);
+      return {
+        thumbUrl: p.thumbUrl,
+        selected,
+        wrapStyle: `position:relative;width:52px;height:52px;border-radius:4px;overflow:hidden;cursor:pointer;border:2px solid ${selected ? '#1F6F78' : 'transparent'};`,
+        onToggle: () => this.toggleLogPhotoSelection(p.id),
+      };
+    });
+    const lbPhoto = s.jobPhotos.find(p => p.id === s.lightboxPhotoId);
+    const isShopOwnerForPhotos = this.isShopOwner();
+
+    const pe = s.photoEditor;
+    const editorCategories = pe ? pe.categories : [];
+    const photoEditorCategoryOptions = CATS.map(cat => ({
+      label: cat,
+      style: `font:700 9.5px 'IBM Plex Mono',monospace;padding:6px 10px;border-radius:12px;cursor:pointer;background:${editorCategories.includes(cat) ? '#1F6F78' : '#EDE6D6'};color:${editorCategories.includes(cat) ? '#fff' : '#16283D'};`,
+      onToggle: () => this.toggleEditorCategory(cat),
+    }));
+    const intakeStagedPhotosDisplay = (s.intakeStagedPhotos || []).map((p, i) => ({ previewUrl: p.previewUrl, onRemove: () => this.removeStagedIntakePhoto(i) }));
 
     return {
       navVisible: true,
@@ -1852,9 +2164,9 @@ class Component extends DCLogic {
       phoneFieldContainerStyle: `background:#F6F1E4;border:1px solid ${s.phoneFieldError ? '#C0392B' : 'rgba(22,40,61,.15)'};border-radius:4px;padding:10px 12px;`,
       sizeChoiceOptions, priorityChoiceOptions,
       intakeMechanic: s.intakeMechanic, setIntakeMechanic: this.setIntakeMechanic, mechanicChoiceOptions,
-      intakePhotos: s.intakePhotos.map((photo, i) => ({ url: photo, onRemove: () => this.removeIntakePhoto(i) })),
-      hasIntakePhotos: s.intakePhotos.length > 0,
-      addIntakePhoto: this.addIntakePhoto,
+      intakeStagedPhotosDisplay,
+      hasIntakeStagedPhotos: (s.intakeStagedPhotos || []).length > 0,
+      stageIntakePhoto: this.stageIntakePhoto,
       saveIntake: this.saveIntake,
       hasIntakeSaveError: !!s.intakeSaveError, intakeSaveErrorLabel: s.intakeSaveError,
       confirmSaveButtonStyle: `flex:1;text-align:center;font:700 13px 'Public Sans',sans-serif;padding:13px;border-radius:4px;cursor:${s.intakeSaving ? 'default' : 'pointer'};color:#fff;background:${s.intakeSaving ? '#B9C0C4' : '#1F6F78'};`,
@@ -1877,10 +2189,50 @@ class Component extends DCLogic {
       logFields: s.logFields,
       setLogFieldFindings: this.setLogFieldFindings, setLogFieldFix: this.setLogFieldFix,
       setLogFieldTime: this.setLogFieldTime, setLogFieldMaterials: this.setLogFieldMaterials,
-      logPhotos: s.logPhotos.map((photo, i) => ({ url: photo, onRemove: () => this.removeLogPhoto(i) })),
-      hasLogPhotos: s.logPhotos.length > 0,
-      addLogPhoto: this.addLogPhoto,
+      logPhotoPickerDisplay,
+      pickLogNewPhoto: this.pickLogNewPhoto,
       saveLogEntry: this.saveLogEntry,
+
+      jobPhotoCountLabel: `${s.jobPhotos.length}`,
+      categoryFilterChips,
+      jobPhotosDisplay,
+      hasJobPhotos: jobPhotosDisplay.length > 0,
+      noJobPhotos: jobPhotosDisplay.length === 0,
+      pickGalleryPhotoCamera: this.pickGalleryPhotoCamera,
+      pickGalleryPhotoLibrary: this.pickGalleryPhotoLibrary,
+
+      showPhotoEditor: !!pe,
+      photoEditorPreviewUrl: pe ? pe.previewObjectUrl : '',
+      photoEditorPreviewStyle: pe ? `max-width:100%;max-height:280px;display:block;margin:0 auto;filter:brightness(${pe.brightness}%) contrast(${pe.contrast}%) saturate(${pe.saturation}%);transform:rotate(${pe.rotation}deg);` : '',
+      rotatePhotoEditor: this.rotatePhotoEditor,
+      autoEnhancePhotoEditor: this.autoEnhancePhotoEditor,
+      resetPhotoEditor: this.resetPhotoEditor,
+      photoEditorBrightness: pe ? pe.brightness : 100, photoEditorBrightnessLabel: (pe ? pe.brightness : 100) + '%',
+      setPhotoEditorBrightness: this.setPhotoEditorBrightness,
+      photoEditorContrast: pe ? pe.contrast : 100, photoEditorContrastLabel: (pe ? pe.contrast : 100) + '%',
+      setPhotoEditorContrast: this.setPhotoEditorContrast,
+      photoEditorSaturation: pe ? pe.saturation : 100, photoEditorSaturationLabel: (pe ? pe.saturation : 100) + '%',
+      setPhotoEditorSaturation: this.setPhotoEditorSaturation,
+      photoEditorCaption: pe ? pe.caption : '', setPhotoEditorCaption: this.setPhotoEditorCaption,
+      photoEditorCategoryOptions,
+      photoEditorVisibleTrackStyle: `width:46px;height:26px;border-radius:14px;cursor:pointer;position:relative;background:${pe && pe.customerVisible ? '#1F6F78' : '#B9C0C4'};`,
+      photoEditorVisibleKnobStyle: `width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${pe && pe.customerVisible ? '23px' : '3px'};transition:left .15s;`,
+      togglePhotoEditorVisible: this.togglePhotoEditorVisible,
+      photoEditorError: !!(pe && pe.error), photoEditorErrorMessage: pe ? pe.error : '',
+      photoEditorSaveButtonStyle: `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:${pe && pe.saving ? 'default' : 'pointer'};color:#fff;background:${pe && pe.saving ? '#B9C0C4' : '#1F6F78'};`,
+      photoEditorSaveLabel: pe && pe.saving ? 'SAVING\u2026' : (pe && pe.context === 'intake' ? 'ADD TO JOB' : 'SAVE PHOTO'),
+      savePhotoEditor: this.savePhotoEditor,
+      cancelPhotoEditor: this.cancelPhotoEditor,
+
+      showLightbox: !!lbPhoto,
+      lightboxUrl: lbPhoto ? lbPhoto.url : BLANK_IMG,
+      lightboxCategories: lbPhoto ? lbPhoto.categories : [],
+      lightboxHasCaption: !!(lbPhoto && lbPhoto.caption),
+      lightboxCaption: lbPhoto ? lbPhoto.caption : '',
+      lightboxMeta: lbPhoto ? (new Date(lbPhoto.createdAt).toLocaleDateString() + (lbPhoto.customerVisible ? '' : ' \u00b7 PRIVATE')) : '',
+      canDeleteLightboxPhoto: !!lbPhoto && (isShopOwnerForPhotos || (lbPhoto.createdBy === (s.profile && s.profile.id))),
+      closeLightbox: this.closeLightbox,
+      deleteLightboxPhoto: this.deleteLightboxPhoto,
 
       mechanicsDisplay,
 

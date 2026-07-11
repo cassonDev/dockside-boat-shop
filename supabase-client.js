@@ -112,6 +112,10 @@ function jobFromRow(row) {
       timeSpent: e.timeSpent || '',
       materials: e.materials || '',
       rawNotes: e.rawNotes || '',
+      // Work-log entries reference photos from the unified gallery by id —
+      // they never own their own image data. `photos` (legacy inline array)
+      // is read as a fallback only for rows written before this migration.
+      photoIds: e.photoIds || [],
       photos: e.photos || [],
     })),
   };
@@ -254,6 +258,100 @@ export async function fetchAuditLog(limit) {
     recordId: r.record_id,
     createdAt: new Date(r.created_at).getTime(),
   }));
+}
+
+// ---------- unified work-order photo gallery ----------
+// Every photo lives in ONE place per work order — the work_order_photos
+// table + the 'work-order-photos' Storage bucket — tagged with categories
+// instead of being duplicated into separate intake/log-work JSON blobs.
+// Only metadata + storage paths are ever kept in Postgres/JSON; image bytes
+// live in Storage, so this scales to hundreds of photos per job without
+// bloating rows, and thumb/full-res are separate objects for lazy loading.
+export const PHOTO_CATEGORIES = ['Intake', 'Before Repair', 'During Repair', 'After Repair', 'Damage', 'Parts', 'Warranty', 'Serial Number', 'Other'];
+const PHOTO_BUCKET = 'work-order-photos';
+
+function publicPhotoUrl(path) {
+  if (!path) return '';
+  const { data } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path);
+  return data && data.publicUrl;
+}
+
+function photoFromRow(row) {
+  return {
+    id: row.id,
+    workOrderId: row.work_order_id,
+    url: publicPhotoUrl(row.storage_path),
+    thumbUrl: publicPhotoUrl(row.thumb_path),
+    width: row.width || null,
+    height: row.height || null,
+    caption: row.caption || '',
+    categories: row.categories || [],
+    displayOrder: row.display_order || 0,
+    customerVisible: row.customer_visible !== false,
+    createdAt: new Date(row.created_at).getTime(),
+    createdBy: row.created_by,
+  };
+}
+
+export async function fetchWorkOrderPhotos(workOrderId) {
+  const { data, error } = await supabase
+    .from('work_order_photos')
+    .select('*')
+    .eq('work_order_id', workOrderId)
+    .eq('active', true)
+    .order('display_order')
+    .order('created_at');
+  if (error) throw error;
+  return (data || []).map(photoFromRow);
+}
+
+// blobOrig / blobThumb: already-enhanced JPEG Blobs produced client-side
+// (rotation + brightness/contrast/saturation baked in via canvas) — this
+// function only handles the upload + row insert, never touches pixels.
+export async function uploadWorkOrderPhoto(workOrderId, photo, userId) {
+  const photoId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const origPath = `${workOrderId}/${photoId}-orig.jpg`;
+  const thumbPath = `${workOrderId}/${photoId}-thumb.jpg`;
+
+  const upOrig = await supabase.storage.from(PHOTO_BUCKET).upload(origPath, photo.blobOrig, { contentType: 'image/jpeg', upsert: false });
+  if (upOrig.error) throw upOrig.error;
+  const upThumb = await supabase.storage.from(PHOTO_BUCKET).upload(thumbPath, photo.blobThumb, { contentType: 'image/jpeg', upsert: false });
+  if (upThumb.error) throw upThumb.error;
+
+  const row = {
+    id: photoId,
+    work_order_id: workOrderId,
+    storage_path: origPath,
+    thumb_path: thumbPath,
+    width: photo.width || null,
+    height: photo.height || null,
+    mime_type: 'image/jpeg',
+    size_bytes: photo.blobOrig ? photo.blobOrig.size : null,
+    caption: photo.caption || '',
+    categories: photo.categories || [],
+    customer_visible: photo.customerVisible !== false,
+    created_by: userId || null,
+  };
+  const { data, error } = await supabase.from('work_order_photos').insert(row).select().single();
+  if (error) throw error;
+  return photoFromRow(data);
+}
+
+export async function updateWorkOrderPhoto(photoId, patch) {
+  const row = {};
+  if (patch.caption !== undefined) row.caption = patch.caption;
+  if (patch.categories !== undefined) row.categories = patch.categories;
+  if (patch.customerVisible !== undefined) row.customer_visible = patch.customerVisible;
+  if (patch.displayOrder !== undefined) row.display_order = patch.displayOrder;
+  const { error } = await supabase.from('work_order_photos').update(row).eq('id', photoId);
+  if (error) throw error;
+}
+
+export async function deleteWorkOrderPhoto(photoId, userId) {
+  const { error } = await supabase.from('work_order_photos').update({
+    active: false, archived_at: new Date().toISOString(), archived_by: userId || null,
+  }).eq('id', photoId);
+  if (error) throw error;
 }
 
 // ---------- one-time shop-owner bootstrap (no session required) ----------

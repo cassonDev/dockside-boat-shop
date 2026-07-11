@@ -345,7 +345,106 @@ create policy "audit_log: shop_owner read only" on public.audit_log
 -- Intentionally: no insert/update/delete policy exists for any client role.
 
 -- ---------------------------------------------------------------------------
--- 10. Seed data note
+-- 10. work_order_photos + Storage bucket
+--    Unified photo gallery for a work order. Every photo captured anywhere in
+--    the app (intake, work log, ad-hoc) lands here as ONE row, tagged with
+--    one or more categories, instead of being duplicated into separate
+--    intake-photo / log-photo JSON blobs. Only metadata + storage paths live
+--    in Postgres — actual image bytes live in the 'work-order-photos'
+--    Storage bucket (never base64/data-URLs in the DB or in JSON payloads),
+--    so this scales to hundreds of photos per work order without bloating
+--    rows or slowing down `select *` on work_orders.
+-- ---------------------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('work-order-photos', 'work-order-photos', true)
+on conflict (id) do nothing;
+
+create table if not exists public.work_order_photos (
+  id uuid primary key default gen_random_uuid(),
+  work_order_id text not null references public.work_orders(id) on delete cascade,
+  storage_path text not null,          -- full-resolution original, e.g. "<job_id>/<photo_id>-orig.jpg"
+  thumb_path text not null,            -- small thumbnail used everywhere in-app, e.g. "<job_id>/<photo_id>-thumb.jpg"
+  width int,
+  height int,
+  mime_type text not null default 'image/jpeg',
+  size_bytes int,
+  caption text not null default '',
+  categories text[] not null default '{}',   -- e.g. {"Before Repair","Damage"} — free-form, app-validated list
+  display_order int not null default 0,
+  customer_visible boolean not null default true,
+  annotations jsonb not null default '[]'::jsonb,   -- reserved for future markup/drawing overlays
+  created_at timestamptz not null default now(),
+  created_by uuid references public.profiles(id),
+  active boolean not null default true,        -- soft delete, same pattern as work_orders/comments
+  archived_at timestamptz,
+  archived_by uuid references public.profiles(id)
+);
+
+create index if not exists work_order_photos_wo_idx on public.work_order_photos (work_order_id, active, display_order, created_at);
+create index if not exists work_order_photos_categories_idx on public.work_order_photos using gin (categories);
+
+alter table public.work_order_photos enable row level security;
+
+drop trigger if exists audit_work_order_photos on public.work_order_photos;
+create trigger audit_work_order_photos
+  after insert or update on public.work_order_photos
+  for each row execute function public.write_audit_log();
+
+-- work_order_photos RLS ------------------------------------------------------
+drop policy if exists "photos: shop_owner full access" on public.work_order_photos;
+drop policy if exists "photos: read active" on public.work_order_photos;
+drop policy if exists "photos: mechanic insert own job" on public.work_order_photos;
+drop policy if exists "photos: uploader update own" on public.work_order_photos;
+
+create policy "photos: shop_owner full access" on public.work_order_photos
+  for all using (public.is_shop_owner()) with check (public.is_shop_owner());
+
+create policy "photos: read active" on public.work_order_photos
+  for select using (public.is_active_user() and active = true);
+
+create policy "photos: mechanic insert own job" on public.work_order_photos
+  for insert
+  with check (
+    public.is_active_user()
+    and created_by = auth.uid()
+    and exists (
+      select 1 from public.work_orders wo
+      where wo.id = work_order_id and wo.assigned_mechanic = auth.uid()
+    )
+  );
+
+-- Uploader can edit/soft-delete their own photo's metadata (caption,
+-- categories, customer_visible, active) but never reassign it to another job.
+create policy "photos: uploader update own" on public.work_order_photos
+  for update using (public.is_active_user() and created_by = auth.uid())
+  with check (public.is_active_user() and created_by = auth.uid());
+
+-- Storage RLS -----------------------------------------------------------------
+-- The bucket is public for READS (simplest way to serve thumbnails/full-res
+-- images fast without signed-URL churn — nothing in it is more sensitive than
+-- what a customer walking the lot could photograph themselves). Writes are
+-- still locked down: only a shop_owner, or the mechanic assigned to the work
+-- order named by the object's own path prefix ("<job_id>/..."), may upload.
+drop policy if exists "work-order-photos: shop_owner full access" on storage.objects;
+drop policy if exists "work-order-photos: mechanic insert own job" on storage.objects;
+
+create policy "work-order-photos: shop_owner full access" on storage.objects
+  for all using (bucket_id = 'work-order-photos' and public.is_shop_owner())
+  with check (bucket_id = 'work-order-photos' and public.is_shop_owner());
+
+create policy "work-order-photos: mechanic insert own job" on storage.objects
+  for insert
+  with check (
+    bucket_id = 'work-order-photos'
+    and public.is_active_user()
+    and exists (
+      select 1 from public.work_orders wo
+      where wo.id = (storage.foldername(name))[1] and wo.assigned_mechanic = auth.uid()
+    )
+  );
+
+-- ---------------------------------------------------------------------------
+-- 11. Seed data note
 -- ---------------------------------------------------------------------------
 -- No anonymous seed rows are inserted here on purpose — every work_order and
 -- profile must be tied to a real authenticated user. Create your first

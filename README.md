@@ -135,7 +135,30 @@ reachable yet — this fallback does nothing once deployed for real users.)
   "Archive" in a job's detail view, "Restore" from the Archive screen —
   so full history is preserved.
 
-## 6. Testing checklist
+## 8. Unified photo gallery (Supabase Storage)
+Every photo — from New Job Intake, Log Work, or added directly on a job's
+page — lands in ONE gallery per work order instead of being duplicated into
+separate intake/log-work blobs:
+- `work_order_photos` table (metadata: caption, categories, display order,
+  customer visibility, timestamps, and an `annotations` jsonb column
+  reserved for future markup) and the `work-order-photos` Storage bucket
+  (actual image bytes) are both created by `supabase-schema.sql` section 10
+  — re-run that file in the SQL Editor to pick this up if you set the
+  project up before this feature existed.
+- The bucket is public for reads (fast thumbnails/full-res without signed
+  URLs) but writes are RLS-locked to the shop_owner or the mechanic
+  assigned to that work order.
+- Photos are captured client-side through a canvas-based enhancement step
+  (rotate, auto-enhance, brightness/contrast/saturation) before upload —
+  a full-resolution JPEG and a small thumbnail are generated and stored;
+  the database only ever holds metadata + storage paths, never base64 image
+  data, so a work order can hold hundreds of photos without bloating rows.
+- Work-log entries reference gallery photos by id (`entries[].photoIds`)
+  rather than owning their own images.
+No additional Netlify environment variables are needed for this — it uses
+the same `SUPABASE_URL` / `SUPABASE_ANON_KEY` already configured in section 3.
+
+## 9. Testing checklist
 1. Sign up a new email → confirm the confirmation email flow → sign in.
    Confirm a `profiles` row was created with `role = mechanic`.
 2. Promote that user to `shop_owner` via SQL, sign in — confirm you now see
