@@ -898,6 +898,13 @@ class Component extends DCLogic {
     try {
       await this._dataMod.inviteMechanic(this.state.inviteEmail, this.state.inviteFullName);
       this.setState({ inviteMessage: 'Invite sent to ' + this.state.inviteEmail + '.', inviteError: false, inviteEmail: '', inviteFullName: '' });
+      try {
+        const mechanics = await this._dataMod.fetchMechanics();
+        this.setState({ mechanics });
+      } catch (e2) {
+        // invite itself succeeded; a stale roster list until next reload is a minor issue
+        console.error('Failed to refresh mechanics after invite', e2);
+      }
     } catch (e) {
       this.setState({ inviteMessage: (e && e.message) || 'Could not send invite.', inviteError: true });
     }
