@@ -1036,6 +1036,7 @@ class Component extends DCLogic {
   componentWillUnmount() {
     if (this._authSub) { try { this._authSub.unsubscribe(); } catch (e) {} }
     if (this._onResize) window.removeEventListener('resize', this._onResize);
+    this.unsubscribeComments();
   }
   _initResizeListener() {
     if (this._onResize || typeof window === 'undefined') return;
@@ -1092,6 +1093,7 @@ class Component extends DCLogic {
   };
 
   handleSignOut = async () => {
+    this.unsubscribeComments();
     try { await this._dataMod.signOut(); } catch (e) {}
     this.setState({ screen: 'dashboard', profile: null });
   };
@@ -1138,6 +1140,7 @@ class Component extends DCLogic {
     }
   };
   goArchive = async () => {
+    this.unsubscribeComments();
     this.setState({ screen: 'archive' });
     try {
       const archivedJobs = await this._dataMod.fetchArchivedJobs();
@@ -1157,6 +1160,7 @@ class Component extends DCLogic {
 
   // ---------- audit log ----------
   goAudit = async () => {
+    this.unsubscribeComments();
     this.setState({ screen: 'auditLog' });
     try {
       const auditLog = await this._dataMod.fetchAuditLog(200);
@@ -1170,6 +1174,19 @@ class Component extends DCLogic {
       const comments = await this._dataMod.fetchComments(jobId);
       this.setState({ comments });
     } catch (e) { console.error(e); }
+  };
+  subscribeComments = (jobId) => {
+    this.unsubscribeComments();
+    if (!this._dataMod) return;
+    this._commentsChannel = this._dataMod.subscribeToComments(jobId, (comment) => {
+      this.setState(s => s.comments.some(c => c.id === comment.id) ? s : { comments: [...s.comments, comment] });
+    });
+  };
+  unsubscribeComments = () => {
+    if (this._commentsChannel && this._dataMod && this._dataMod.supabase) {
+      try { this._dataMod.supabase.removeChannel(this._commentsChannel); } catch (e) {}
+    }
+    this._commentsChannel = null;
   };
   setNewComment = (e) => this.setState({ newComment: e.target.value });
   submitComment = async () => {
@@ -1194,20 +1211,21 @@ class Component extends DCLogic {
   };
 
   // ---------- navigation ----------
-  goDashboard = () => this.setState({ screen: 'dashboard', showScanModal: false });
-  goIntake = () => this.setState({
+  goDashboard = () => { this.unsubscribeComments(); this.setState({ screen: 'dashboard', showScanModal: false }); };
+  goIntake = () => { this.unsubscribeComments(); this.setState({
     screen: 'intake', intakeStep: 'dictate', intakeTranscript: '', intakeTyped: '',
     intakeFields: { customerName: '', phone: '', boatYear: '', boatMake: '', boatModel: '', issue: '' },
     phoneFieldError: false,
     intakeSize: 'M', intakePriority: 'normal', intakeMechanic: (this.state.mechanics[0] || {}).id || '',
     intakeStagedPhotos: [], intakeRecording: false, intakeMicError: '', intakeRawNotesFinal: '', showScanModal: false,
     intakeSaving: false, intakeSaveError: '', intakeRecBusy: false,
-  });
-  goRoster = () => this.setState({ screen: 'roster', showScanModal: false });
+  }); };
+  goRoster = () => { this.unsubscribeComments(); this.setState({ screen: 'roster', showScanModal: false }); };
   openJob = (id) => {
     this.setState({ screen: 'jobDetail', selectedJobId: id, logStep: 'closed', showScanModal: false, comments: [], newComment: '', photoCategoryFilter: 'all', logSelectedPhotoIds: [] });
     this.loadComments(id);
     this.loadJobPhotos(id);
+    this.subscribeComments(id);
   };
   backToJob = () => this.setState({ screen: 'jobDetail' });
   goToTag = () => this.setState({ screen: 'tag' });
@@ -1225,6 +1243,7 @@ class Component extends DCLogic {
       this.setState({ screen: 'jobDetail', selectedJobId: job.id, showScanModal: false, logStep: 'closed', comments: [], newComment: '', photoCategoryFilter: 'all', logSelectedPhotoIds: [] });
       this.loadComments(job.id);
       this.loadJobPhotos(job.id);
+      this.subscribeComments(job.id);
     } else {
       this.setState({ scanError: true });
     }

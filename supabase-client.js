@@ -160,6 +160,21 @@ export async function fetchComments(workOrderId) {
   return (data || []).map(commentFromRow);
 }
 
+// Live sync so a comment posted from one device (e.g. a laptop) shows up
+// immediately on another device already viewing the same job (e.g. a phone),
+// instead of only appearing the next time that device reopens the job.
+// Returns the channel — call supabase.removeChannel(channel) when leaving
+// the job's screen or on unmount.
+export function subscribeToComments(workOrderId, onInsert) {
+  const channel = supabase
+    .channel(`comments-${workOrderId}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'work_order_comments', filter: `work_order_id=eq.${workOrderId}` }, (payload) => {
+      onInsert(commentFromRow(payload.new));
+    })
+    .subscribe();
+  return channel;
+}
+
 // ---------- writes ----------
 export function newJobCode(existingIds) {
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';

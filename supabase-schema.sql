@@ -444,6 +444,19 @@ create policy "work-order-photos: mechanic insert own job" on storage.objects
   );
 
 -- ---------------------------------------------------------------------------
+-- 12. Realtime: work_order_comments
+--    Without this, a comment posted from one device only appears on another
+--    device the next time that device opens the job (comments are fetched
+--    once on open, not pushed). Adding the table to the supabase_realtime
+--    publication lets the client subscribe to live INSERTs instead.
+-- ---------------------------------------------------------------------------
+do $$
+begin
+  alter publication supabase_realtime add table public.work_order_comments;
+exception when duplicate_object then null;
+end $$;
+
+-- ---------------------------------------------------------------------------
 -- 11. Seed data note
 -- ---------------------------------------------------------------------------
 -- No anonymous seed rows are inserted here on purpose — every work_order and
