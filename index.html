@@ -299,8 +299,11 @@
         </sc-if>
         <div style="display:flex;gap:8px;margin-top:4px;">
           <input placeholder="Add a comment&hellip;" style="flex:1;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:9px 11px;font:500 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ newComment }}" onChange="{{ setNewComment }}"/>
-          <div style="background:#1F6F78;color:#fff;font:700 12px 'Public Sans',sans-serif;padding:10px 16px;border-radius:4px;cursor:pointer;" onClick="{{ submitComment }}">POST</div>
+          <div style="{{ postButtonStyle }}" onClick="{{ submitComment }}">{{ postButtonLabel }}</div>
         </div>
+        <sc-if value="{{ hasCommentError }}" hint-placeholder-val="{{ false }}">
+          <div style="font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ commentError }}</div>
+        </sc-if>
       </div>
     </div>
 
@@ -742,6 +745,8 @@ class Component extends DCLogic {
     auditLog: [],
     comments: [],
     newComment: '',
+    commentBusy: false,
+    commentError: '',
 
     loaded: false,
     loadError: '',
@@ -968,15 +973,23 @@ class Component extends DCLogic {
   };
   setNewComment = (e) => this.setState({ newComment: e.target.value });
   submitComment = async () => {
+    console.log('Comment POST clicked');
+    if (this.state.commentBusy) return;
     const body = (this.state.newComment || '').trim();
     const jobId = this.state.selectedJobId;
     const p = this.state.profile;
-    if (!body || !jobId || !p) return;
+
+    if (!body) { this.setState({ commentError: 'Type a comment before posting.' }); return; }
+    if (!jobId) { this.setState({ commentError: 'No job is selected — could not post comment.' }); return; }
+    if (!p) { this.setState({ commentError: 'You are not signed in — could not post comment.' }); return; }
+
+    this.setState({ commentBusy: true, commentError: '' });
     try {
       const comment = await this._dataMod.addComment(jobId, body, { id: p.id, name: p.name, role: p.role });
-      this.setState({ comments: [...this.state.comments, comment], newComment: '' });
+      this.setState({ comments: [...this.state.comments, comment], newComment: '', commentBusy: false, commentError: '' });
     } catch (e) {
       console.error('Failed to post comment', e);
+      this.setState({ commentBusy: false, commentError: (e && e.message) || 'Could not post comment. Please try again.' });
     }
   };
 
@@ -1580,6 +1593,9 @@ class Component extends DCLogic {
 
       commentsDisplay, noComments: commentsDisplay.length === 0,
       newComment: s.newComment, setNewComment: this.setNewComment, submitComment: this.submitComment,
+      hasCommentError: !!s.commentError, commentError: s.commentError,
+      postButtonLabel: s.commentBusy ? 'POSTING\u2026' : 'POST',
+      postButtonStyle: `background:${s.commentBusy ? 'rgba(31,111,120,.5)' : '#1F6F78'};color:#fff;font:700 12px 'Public Sans',sans-serif;padding:10px 16px;border-radius:4px;cursor:${s.commentBusy ? 'default' : 'pointer'};flex:none;`,
       archiveSelectedJob: this.archiveSelectedJob,
 
       stats: {
