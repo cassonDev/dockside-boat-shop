@@ -213,13 +213,26 @@
           <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">CUSTOMER NAME</div>
           <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ intakeFields.customerName }}" onChange="{{ setFieldCustomerName }}"/>
         </div>
-        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
-          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">PHONE</div>
+        <div style="{{ phoneFieldContainerStyle }}" ref="{{ phoneFieldRef }}">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">PHONE *</div>
           <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ intakeFields.phone }}" onChange="{{ setFieldPhone }}"/>
         </div>
+        <sc-if value="{{ phoneFieldError }}" hint-placeholder-val="{{ false }}">
+          <div style="font:600 11.5px 'Public Sans',sans-serif;color:#C0392B;margin-top:-4px;">Phone number is required.</div>
+        </sc-if>
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1;background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">YEAR</div>
+            <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ intakeFields.boatYear }}" onChange="{{ setFieldBoatYear }}"/>
+          </div>
+          <div style="flex:2;background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">MAKE *</div>
+            <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ intakeFields.boatMake }}" onChange="{{ setFieldBoatMake }}"/>
+          </div>
+        </div>
         <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
-          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">BOAT MAKE / MODEL</div>
-          <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ intakeFields.boatMakeModel }}" onChange="{{ setFieldBoat }}"/>
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">MODEL (LEAVE BLANK IF UNKNOWN)</div>
+          <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ intakeFields.boatModel }}" onChange="{{ setFieldBoatModel }}"/>
         </div>
         <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
           <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">ISSUE</div>
@@ -813,9 +826,10 @@ class Component extends DCLogic {
     intakeTyped: '',
     intakeRawNotesFinal: '',
     intakeAiLoading: false,
-    intakeFields: { customerName: '', phone: '', boatMakeModel: '', issue: '' },
+    intakeFields: { customerName: '', phone: '', boatYear: '', boatMake: '', boatModel: '', issue: '' },
     intakeSize: 'M',
     intakePriority: 'normal',
+    phoneFieldError: false,
     intakeMechanic: '',
     intakePhotos: [],
     intakeSaving: false,
@@ -1061,7 +1075,8 @@ class Component extends DCLogic {
   goDashboard = () => this.setState({ screen: 'dashboard', showScanModal: false });
   goIntake = () => this.setState({
     screen: 'intake', intakeStep: 'dictate', intakeTranscript: '', intakeTyped: '',
-    intakeFields: { customerName: '', phone: '', boatMakeModel: '', issue: '' },
+    intakeFields: { customerName: '', phone: '', boatYear: '', boatMake: '', boatModel: '', issue: '' },
+    phoneFieldError: false,
     intakeSize: 'M', intakePriority: 'normal', intakeMechanic: (this.state.mechanics[0] || {}).id || '',
     intakePhotos: [], intakeRecording: false, intakeMicError: '', intakeRawNotesFinal: '', showScanModal: false,
     intakeSaving: false, intakeSaveError: '', intakeRecBusy: false,
@@ -1232,25 +1247,42 @@ class Component extends DCLogic {
     this.setState({ intakeAiLoading: true });
     const fields = await this.runExtraction(
       raw,
-      ['customerName', 'phone', 'boatMakeModel', 'issue'],
-      'phone should be formatted like (555) 010-0142 if a number is present. boatMakeModel is the boat brand/model, e.g. "Cobalt 24 Cuddy Cabin". issue should be rewritten as a short, clean, customer-facing phrase describing the problem (professional tone, no shop slang or filler words) \u2014 the mechanic\u2019s raw wording is kept separately as a private note, so feel free to tidy it up here.'
+      ['customerName', 'phone', 'boatYear', 'boatMake', 'boatModel', 'issue'],
+      'boatYear is the 4-digit model year if mentioned (e.g. "2016"), otherwise an empty string. boatMake is ONLY the boat/engine brand (e.g. "Sea-Doo", "Yamaha", "Bayliner", "Mercury", "Lund") \u2014 normalize common spellings ("sea doo" or "seadoo" \u2192 "Sea-Doo"). boatModel is the specific model name or number ONLY if it was explicitly said (e.g. "24 Cuddy Cabin"); if no model was mentioned, leave boatModel completely EMPTY \u2014 never guess or invent a model. phone should be formatted like (555) 010-0142 if a number is present. issue should be rewritten as a short, clean, customer-facing phrase describing the problem (professional tone, no shop slang or filler words) \u2014 the mechanic\u2019s raw wording is kept separately as a private note, so feel free to tidy it up here.'
     );
     this.setState({
       intakeAiLoading: false,
       intakeStep: 'review',
       intakeRawNotesFinal: raw,
+      phoneFieldError: false,
       intakeFields: {
         customerName: fields.customerName || '',
         phone: fields.phone || '',
-        boatMakeModel: fields.boatMakeModel || '',
+        boatYear: (fields.boatYear || '').trim(),
+        boatMake: this.normalizeBoatMake(fields.boatMake || ''),
+        boatModel: (fields.boatModel || '').trim(),
         issue: fields.issue || '',
       },
     });
   };
 
+  // Normalizes common marine-brand spelling variants a mechanic might dictate
+  // ("sea doo", "seadoo") into their proper brand name. Falls back to a plain
+  // title-cased version of whatever was said for brands not in the list —
+  // never invents a brand that wasn't mentioned.
+  normalizeBoatMake(make) {
+    if (!make || !make.trim()) return '';
+    const BRANDS = { seadoo: 'Sea-Doo', yamaha: 'Yamaha', bayliner: 'Bayliner', mercury: 'Mercury', lund: 'Lund' };
+    const collapsed = make.trim().toLowerCase().replace(/[-\s]+/g, '');
+    if (BRANDS[collapsed]) return BRANDS[collapsed];
+    return make.trim().replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+  }
+
   setFieldCustomerName = (e) => this.setState({ intakeFields: { ...this.state.intakeFields, customerName: e.target.value } });
-  setFieldPhone = (e) => this.setState({ intakeFields: { ...this.state.intakeFields, phone: e.target.value } });
-  setFieldBoat = (e) => this.setState({ intakeFields: { ...this.state.intakeFields, boatMakeModel: e.target.value } });
+  setFieldPhone = (e) => this.setState({ intakeFields: { ...this.state.intakeFields, phone: e.target.value }, phoneFieldError: false });
+  setFieldBoatYear = (e) => this.setState({ intakeFields: { ...this.state.intakeFields, boatYear: e.target.value } });
+  setFieldBoatMake = (e) => this.setState({ intakeFields: { ...this.state.intakeFields, boatMake: e.target.value } });
+  setFieldBoatModel = (e) => this.setState({ intakeFields: { ...this.state.intakeFields, boatModel: e.target.value } });
   setFieldIssue = (e) => this.setState({ intakeFields: { ...this.state.intakeFields, issue: e.target.value } });
   setIntakeSize = (size) => this.setState({ intakeSize: size });
   setIntakePriority = (p) => this.setState({ intakePriority: p });
@@ -1293,25 +1325,37 @@ class Component extends DCLogic {
   };
   removeLogPhoto = (idx) => this.setState({ logPhotos: this.state.logPhotos.filter((_, i) => i !== idx) });
 
+  phoneFieldRef = { current: null };
   saveIntake = async () => {
     if (this.state.intakeSaving) return;
     const f = this.state.intakeFields;
-    if (!f.customerName || !f.customerName.trim()) { this.setState({ intakeSaveError: 'Customer name is required.' }); return; }
-    if (!f.boatMakeModel || !f.boatMakeModel.trim()) { this.setState({ intakeSaveError: 'Boat make/model is required.' }); return; }
-    if (!f.issue || !f.issue.trim()) { this.setState({ intakeSaveError: 'Issue description is required.' }); return; }
+    if (!f.phone || !f.phone.trim()) {
+      this.setState({ intakeSaveError: 'Phone number is required.', phoneFieldError: true });
+      const el = this.phoneFieldRef.current;
+      if (el && typeof el.getBoundingClientRect === 'function') {
+        const rect = el.getBoundingClientRect();
+        window.scrollTo({ top: window.scrollY + rect.top - 100, behavior: 'smooth' });
+      }
+      return;
+    }
+    if (!f.customerName || !f.customerName.trim()) { this.setState({ intakeSaveError: 'Customer name is required.', phoneFieldError: false }); return; }
+    if (!f.boatMake || !f.boatMake.trim()) { this.setState({ intakeSaveError: 'Boat make is required.', phoneFieldError: false }); return; }
+    if (!f.issue || !f.issue.trim()) { this.setState({ intakeSaveError: 'Issue description is required.', phoneFieldError: false }); return; }
     const mechanicId = this.state.intakeMechanic || (this.state.mechanics[0] || {}).id;
-    if (!mechanicId) { this.setState({ intakeSaveError: 'Assign a mechanic before saving.' }); return; }
-    if (!this._dataMod) { this.setState({ intakeSaveError: 'Not connected to the database \u2014 cannot save job.' }); return; }
+    if (!mechanicId) { this.setState({ intakeSaveError: 'Assign a mechanic before saving.', phoneFieldError: false }); return; }
+    if (!this._dataMod) { this.setState({ intakeSaveError: 'Not connected to the database \u2014 cannot save job.', phoneFieldError: false }); return; }
 
-    this.setState({ intakeSaving: true, intakeSaveError: '' });
+    this.setState({ intakeSaving: true, intakeSaveError: '', phoneFieldError: false });
 
     const existingIds = this.state.jobs.map(j => j.id);
     const id = this._dataMod.newJobCode(existingIds);
     const draftJob = {
       id,
       customerName: f.customerName.trim(),
-      phone: f.phone || '',
-      boatMakeModel: f.boatMakeModel.trim(),
+      phone: f.phone.trim(),
+      boatYear: (f.boatYear || '').trim(),
+      boatMake: f.boatMake.trim(),
+      boatModel: (f.boatModel || '').trim(),
       issue: f.issue.trim(),
       photos: this.state.intakePhotos,
       size: this.state.intakeSize,
@@ -1801,7 +1845,11 @@ class Component extends DCLogic {
       toggleIntakeRecording: this.toggleIntakeRecording,
       intakeFields: s.intakeFields,
       setFieldCustomerName: this.setFieldCustomerName, setFieldPhone: this.setFieldPhone,
-      setFieldBoat: this.setFieldBoat, setFieldIssue: this.setFieldIssue,
+      setFieldBoatYear: this.setFieldBoatYear, setFieldBoatMake: this.setFieldBoatMake, setFieldBoatModel: this.setFieldBoatModel,
+      setFieldIssue: this.setFieldIssue,
+      phoneFieldRef: this.phoneFieldRef,
+      phoneFieldError: !!s.phoneFieldError,
+      phoneFieldContainerStyle: `background:#F6F1E4;border:1px solid ${s.phoneFieldError ? '#C0392B' : 'rgba(22,40,61,.15)'};border-radius:4px;padding:10px 12px;`,
       sizeChoiceOptions, priorityChoiceOptions,
       intakeMechanic: s.intakeMechanic, setIntakeMechanic: this.setIntakeMechanic, mechanicChoiceOptions,
       intakePhotos: s.intakePhotos.map((photo, i) => ({ url: photo, onRemove: () => this.removeIntakePhoto(i) })),

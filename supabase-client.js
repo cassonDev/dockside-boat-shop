@@ -87,7 +87,14 @@ function jobFromRow(row) {
     id: row.id,
     customerName: row.customer_name,
     phone: row.phone,
-    boatMakeModel: row.boat_make_model,
+    boatYear: row.boat_year || '',
+    boatMake: row.boat_make || '',
+    boatModel: row.boat_model || '',
+    // Older rows written before the year/make/model split only have
+    // boat_make_model — fall back to it so existing jobs still display fine.
+    boatMakeModel: (row.boat_year || row.boat_make || row.boat_model)
+      ? [row.boat_year, row.boat_make, row.boat_model].map(v => (v || '').trim()).filter(Boolean).join(' ')
+      : (row.boat_make_model || ''),
     issue: row.issue,
     photos: row.photos || [],
     size: row.size,
@@ -160,12 +167,24 @@ export function newJobCode(existingIds) {
   return code;
 }
 
+// Boat details are captured as three separate columns (year / make / model)
+// so the AI extractor and the review form never have to guess how to split
+// a combined string back apart. boat_make_model is kept as a derived,
+// human-readable column (populated here, and used as a fallback by
+// jobFromRow for any pre-migration rows that only ever had that column).
+function composeBoatMakeModel(year, make, model) {
+  return [year, make, model].map(v => (v || '').trim()).filter(Boolean).join(' ');
+}
+
 export async function insertJob(job, createdByUserId) {
   const row = {
     id: job.id,
     customer_name: job.customerName,
     phone: job.phone,
-    boat_make_model: job.boatMakeModel,
+    boat_year: job.boatYear || '',
+    boat_make: job.boatMake || '',
+    boat_model: job.boatModel || '',
+    boat_make_model: job.boatMakeModel || composeBoatMakeModel(job.boatYear, job.boatMake, job.boatModel),
     issue: job.issue,
     photos: job.photos || [],
     size: job.size,

@@ -32,7 +32,10 @@ create table if not exists public.work_orders (
   id text primary key,                            -- short job/tag code, e.g. "7G2MH"
   customer_name text not null default '',
   phone text not null default '',
-  boat_make_model text not null default '',
+  boat_year text not null default '',
+  boat_make text not null default '',
+  boat_model text not null default '',
+  boat_make_model text not null default '',        -- derived display string (year + make + model)
   issue text not null default '',
   photos jsonb not null default '[]'::jsonb,
   size text not null default 'M' check (size in ('S','M','L')),
@@ -52,6 +55,12 @@ create table if not exists public.work_orders (
 create index if not exists work_orders_status_idx on public.work_orders (status);
 create index if not exists work_orders_mechanic_idx on public.work_orders (assigned_mechanic);
 create index if not exists work_orders_active_idx on public.work_orders (active);
+
+-- Safe to re-run against a database created before the year/make/model split:
+-- adds the new columns without touching any existing data.
+alter table public.work_orders add column if not exists boat_year text not null default '';
+alter table public.work_orders add column if not exists boat_make text not null default '';
+alter table public.work_orders add column if not exists boat_model text not null default '';
 
 alter table public.work_orders enable row level security;
 
@@ -300,6 +309,19 @@ create policy "work_orders: mechanic read active" on public.work_orders
 create policy "work_orders: mechanic update own" on public.work_orders
   for update using (public.is_active_user() and assigned_mechanic = auth.uid())
   with check (public.is_active_user() and assigned_mechanic = auth.uid());
+
+-- THE FIX: no insert policy existed for non-shop-owner users at all. Only
+-- "work_orders: shop_owner full access" (a `for all` policy) covered inserts,
+-- so any authenticated mechanic creating a job from New Job Intake hit
+-- "new row violates row-level security policy for table work_orders" —
+-- Postgres's generic message for "no policy permitted this row". This grants
+-- active mechanics insert rights, scoped so they can only ever create rows
+-- attributed to themselves (created_by must match their own auth uid) —
+-- they still cannot read/update anything the read/update policies above
+-- don't already allow.
+create policy "work_orders: mechanic insert" on public.work_orders
+  for insert
+  with check (public.is_active_user() and created_by = auth.uid());
 
 -- work_order_comments ---------------------------------------------------------
 drop policy if exists "comments: shop_owner full access" on public.work_order_comments;
