@@ -14,8 +14,8 @@ create extension if not exists pgcrypto;
 -- ---------------------------------------------------------------------------
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  email text not null,
-  full_name text not null default '',
+  email text not null unique,
+  full_name text not null check (char_length(trim(full_name)) > 0),
   role text not null default 'mechanic' check (role in ('shop_owner', 'mechanic')),
   active boolean not null default true,
   out_of_office boolean not null default false,

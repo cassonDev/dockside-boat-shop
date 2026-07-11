@@ -423,7 +423,7 @@
     <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:14px 16px;margin-bottom:14px;">
       <div style="font:700 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;margin-bottom:8px;">INVITE MECHANIC</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input placeholder="Full name" style="flex:1;min-width:120px;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:9px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ inviteFullName }}" onChange="{{ setInviteFullName }}"/>
+        <input placeholder="Full name *" style="flex:1;min-width:120px;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:9px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ inviteFullName }}" onChange="{{ setInviteFullName }}"/>
         <input type="email" placeholder="Email" style="flex:1;min-width:160px;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:9px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ inviteEmail }}" onChange="{{ setInviteEmail }}"/>
         <div style="background:#1F6F78;color:#fff;font:700 12px 'Public Sans',sans-serif;padding:10px 16px;border-radius:4px;cursor:pointer;" onClick="{{ sendInvite }}">SEND INVITE</div>
       </div>
@@ -583,8 +583,8 @@
 
         <sc-if value="{{ isSignUpMode }}" hint-placeholder-val="{{ false }}">
         <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
-          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">FULL NAME</div>
-          <input name="name" autocomplete="name" style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ authFullName }}" onChange="{{ setAuthFullName }}"/>
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">FULL NAME *</div>
+          <input name="name" required="{{ isSignUpMode }}" autocomplete="name" style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ authFullName }}" onChange="{{ setAuthFullName }}"/>
         </div>
         </sc-if>
 
@@ -871,6 +871,7 @@ class Component extends DCLogic {
     if (e && e.preventDefault) e.preventDefault();
     const { authMode, authEmail, authPassword, authFullName } = this.state;
     if (!authEmail || !authPassword) { this.setState({ authError: 'Email and password are required.' }); return; }
+    if (authMode === 'signup' && !authFullName.trim()) { this.setState({ authError: 'Full name is required.' }); return; }
     this.setState({ authBusy: true, authError: '', authNotice: '' });
     try {
       if (authMode === 'signup') {
@@ -895,6 +896,7 @@ class Component extends DCLogic {
   setInviteEmail = (e) => this.setState({ inviteEmail: e.target.value });
   sendInvite = async () => {
     if (!this.state.inviteEmail) { this.setState({ inviteMessage: 'Enter an email address.', inviteError: true }); return; }
+    if (!this.state.inviteFullName.trim()) { this.setState({ inviteMessage: 'Enter a full name.', inviteError: true }); return; }
     try {
       await this._dataMod.inviteMechanic(this.state.inviteEmail, this.state.inviteFullName);
       this.setState({ inviteMessage: 'Invite sent to ' + this.state.inviteEmail + '.', inviteError: false, inviteEmail: '', inviteFullName: '' });
