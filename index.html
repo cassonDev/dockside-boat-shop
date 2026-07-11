@@ -18,6 +18,7 @@
   @keyframes dk-spin{to{transform:rotate(360deg)}}
   @media print{.no-print{display:none !important}.dk-print-page{box-shadow:none !important;margin:0 !important}}
 </style>
+<script src="./config.js"></script>
 </helmet>
 
 <div style="min-height:100vh;background:#EDE6D6;font-family:'Public Sans',sans-serif;color:#16283D;">
@@ -782,6 +783,11 @@ class Component extends DCLogic {
     const mod = await import('./supabase-client.js');
     this._dataMod = mod;
 
+    if (mod.configError) {
+      this.setState({ authChecking: false, loaded: false, loadError: mod.configError });
+      return;
+    }
+
     this._authSub = mod.onAuthStateChange(async (_event, session) => {
       this.setState({ session });
       if (session) { await this.loadForSession(); }
@@ -1317,6 +1323,9 @@ class Component extends DCLogic {
 
     if (s.authChecking) {
       return { ...blankScreens, isAuthChecking: true, isAuthScreen: false };
+    }
+    if (s.loadError && !s.session) {
+      return { ...blankScreens, isAuthChecking: false, isAuthScreen: false, loadErrorMessage: s.loadError };
     }
     if (!s.session || !s.profile) {
       const isSignUpMode = s.authMode === 'signup';

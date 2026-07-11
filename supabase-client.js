@@ -1,8 +1,14 @@
 // Supabase connection + data + auth access for the Dockside job tracker.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const SUPABASE_URL = 'https://cnxvweejgfmfcrjpfxxm.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_Mpnoi6htg4TJzeytQPTN3Q_nDm0_iw_';
+// Config comes from window.__SUPABASE_CONFIG__, which is generated at BUILD
+// TIME (see scripts/generate-config.js + netlify.toml) from the Netlify
+// environment variables SUPABASE_URL / SUPABASE_ANON_KEY. Nothing is
+// hardcoded here or committed to the repo — this keeps real values out of
+// source control and out of Netlify's secret scanner.
+const _cfg = (typeof window !== 'undefined' && window.__SUPABASE_CONFIG__) || {};
+const SUPABASE_URL = _cfg.url || '';
+const SUPABASE_ANON_KEY = _cfg.anonKey || '';
 
 // The Netlify Function that performs privileged user-management actions.
 // Same-origin relative path — works once deployed to Netlify; during local
@@ -10,7 +16,11 @@ const SUPABASE_ANON_KEY = 'sb_publishable_Mpnoi6htg4TJzeytQPTN3Q_nDm0_iw_';
 // as a normal error message.
 const MANAGE_USERS_ENDPOINT = '/.netlify/functions/manage-users';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const configError = (!SUPABASE_URL || !SUPABASE_ANON_KEY)
+  ? 'Supabase is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY in your Netlify environment variables and redeploy.'
+  : null;
+
+export const supabase = configError ? null : createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: true,      // keeps the user signed in between visits
     autoRefreshToken: true,

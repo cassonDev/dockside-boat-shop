@@ -4,7 +4,10 @@
 - `index.html` — the live app (Supabase Auth, roles, RLS-backed data, comments,
   archive/restore, audit log). Kept in sync with the design source — no
   hand-editing needed before deploy.
-- `supabase-client.js` — auth + data access.
+- `supabase-client.js` — auth + data access. Reads its Supabase URL/key from
+  `window.__SUPABASE_CONFIG__`, which is generated at **build time** by
+  `scripts/generate-config.js` from your Netlify environment variables —
+  no value is ever committed to the repo.
 - `netlify/functions/manage-users.js` — privileged user management
   (bootstrap first shop owner, invites, role/active changes) using the
   service_role key.
@@ -12,11 +15,14 @@
   New Job Intake and Log Work dictation flows (see section 7).
 
 ## 1. Supabase project config
-Already pointed at your project in `supabase-client.js`:
-- URL: `https://cnxvweejgfmfcrjpfxxm.supabase.co`
-- Anon/publishable key: embedded (safe for the frontend — RLS protects data)
+In the Supabase dashboard, go to **Project Settings → API** and copy:
+- **Project URL**
+- **anon / publishable key**
 
-In the Supabase dashboard:
+You'll set both as Netlify environment variables in section 3 — nothing
+Supabase-related is hardcoded anywhere in this repo.
+
+Then:
 1. **SQL Editor → New query** → paste all of `supabase-schema.sql` → Run.
    This creates `profiles`, `work_orders`, `work_order_comments`, `audit_log`,
    every trigger/function, and RLS policies. Safe to re-run.
@@ -51,9 +57,13 @@ existing shop_owner — never created by hand or by public signup.
 
 ## 3. Netlify deployment
 1. Deploy the `netlify-deploy/` folder as your site root (it includes
-   `netlify.toml` and `netlify/functions/manage-users.js`).
+   `netlify.toml`, `scripts/generate-config.js`, and
+   `netlify/functions/{manage-users,ai-extract}.js`).
 2. **Site settings → Environment variables**, add:
-   - `SUPABASE_URL` — same project URL as above
+   - `SUPABASE_URL` — your Supabase project URL (section 1)
+   - `SUPABASE_ANON_KEY` — the anon/publishable key (section 1). Read into
+     the browser bundle at build time by `scripts/generate-config.js` —
+     never committed to source.
    - `SUPABASE_SERVICE_ROLE_KEY` — Project Settings → API → `service_role`
      secret key. **Never** put this in frontend code or commit it.
    - `SHOP_OWNER_BOOTSTRAP_CODE` — a strong random string used once to
@@ -69,7 +79,10 @@ existing shop_owner — never created by hand or by public signup.
 
 Note: `netlify-deploy/index.html` and `netlify-deploy/supabase-client.js` are
 kept in sync with the design source on every update — this is what you
-deploy as-is, no manual copying needed.
+deploy as-is, no manual copying needed. The Netlify build step
+(`node scripts/generate-config.js`, wired in `netlify.toml`) writes
+`config.js` from your environment variables on every deploy — it is
+`.gitignore`d and never committed.
 
 ## 7. AI extraction (voice/typed intake & log work)
 Both the New Job Intake and Log Work screens let a mechanic dictate or type
