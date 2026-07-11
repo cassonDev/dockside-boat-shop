@@ -1,10 +1,6 @@
 [build]
+  functions = "netlify/functions"
   publish = "."
 
 [functions]
-  # Prefer the latest LTS Node for functions to ensure global fetch() support
   node_bundler = "esbuild"
-
-[functions.node]
-  # Use the Node LTS family (20). Netlify expects node settings in the [functions.node] table.
-  version = "20"

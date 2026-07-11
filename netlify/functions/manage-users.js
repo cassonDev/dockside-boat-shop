@@ -9,7 +9,7 @@
 // and is reachable at /.netlify/functions/manage-users once deployed.
 //
 // Required Netlify environment variables (Site settings → Environment):
-//   SUPABASE_URL              const SUPABASE_URL = process.env.SUPABASE_URL;
+//   SUPABASE_URL              e.g. https://cnxvweejgfmfcrjpfxxm.supabase.co
 //   SUPABASE_SERVICE_ROLE_KEY the "service_role" secret key (Project Settings → API)
 //
 // The caller must send their own Supabase session access token in the

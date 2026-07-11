@@ -32,13 +32,24 @@
           <div style="font:600 9.5px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.6px;">JOB TRACKER</div>
         </div>
       </div>
-      <div style="display:flex;gap:6px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
         <div style="{{ navDashboardStyle }}" onClick="{{ goDashboard }}">DASHBOARD</div>
         <div style="{{ navIntakeStyle }}" onClick="{{ goIntake }}">+ NEW JOB</div>
         <div style="{{ navRosterStyle }}" onClick="{{ goRoster }}">MECHANICS</div>
+        <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ navArchiveStyle }}" onClick="{{ goArchive }}">ARCHIVE</div>
+        <div style="{{ navAuditStyle }}" onClick="{{ goAudit }}">AUDIT LOG</div>
+        </sc-if>
       </div>
     </div>
-    <div style="background:#D97706;color:#fff;font:700 12px 'IBM Plex Mono',monospace;padding:9px 16px;border-radius:3px;cursor:pointer;letter-spacing:.4px;" onClick="{{ openScanModal }}">&#9635; SCAN TAG</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="text-align:right;">
+        <div style="font:700 12px 'Public Sans',sans-serif;color:#F6F1E4;">{{ currentUserName }}</div>
+        <div style="font:600 9px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.5px;">{{ currentUserRoleLabel }}</div>
+      </div>
+      <div style="background:#D97706;color:#fff;font:700 12px 'IBM Plex Mono',monospace;padding:9px 16px;border-radius:3px;cursor:pointer;letter-spacing:.4px;" onClick="{{ openScanModal }}">&#9635; SCAN TAG</div>
+      <div style="background:rgba(255,255,255,.08);color:#F6F1E4;font:700 11px 'IBM Plex Mono',monospace;padding:9px 14px;border-radius:3px;cursor:pointer;letter-spacing:.4px;" onClick="{{ handleSignOut }}">SIGN OUT</div>
+    </div>
   </div>
   </sc-if>
 
@@ -264,6 +275,30 @@
         <div class="no-print" style="display:flex;gap:8px;margin-top:6px;">
           <div style="flex:1;background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ goToTag }}">PRINT TAG</div>
           <div style="flex:1;background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ goToInvoice }}">PRINT INVOICE</div>
+          <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;background:#FBEAEA;color:#C0392B;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ archiveSelectedJob }}">ARCHIVE</div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);margin-top:14px;">
+      <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);">
+        <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">COMMENTS &amp; NOTES</div>
+      </div>
+      <div style="padding:14px 20px;display:flex;flex-direction:column;gap:10px;">
+        <sc-for list="{{ commentsDisplay }}" as="c" hint-placeholder-count="1">
+          <div style="border-left:3px solid #8FBFAE;padding:2px 0 2px 12px;">
+            <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);">{{ c.authorName }} ({{ c.authorRole }}) &middot; {{ c.dateLabel }}</div>
+            <div style="font:500 13px 'Public Sans',sans-serif;color:#16283D;margin-top:2px;">{{ c.body }}</div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ noComments }}" hint-placeholder-val="{{ false }}">
+          <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No comments yet.</div>
+        </sc-if>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <input placeholder="Add a comment&hellip;" style="flex:1;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:9px 11px;font:500 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ newComment }}" onChange="{{ setNewComment }}"/>
+          <div style="background:#1F6F78;color:#fff;font:700 12px 'Public Sans',sans-serif;padding:10px 16px;border-radius:4px;cursor:pointer;" onClick="{{ submitComment }}">POST</div>
         </div>
       </div>
     </div>
@@ -382,15 +417,36 @@
   <sc-if value="{{ isRoster }}" hint-placeholder-val="{{ false }}">
   <div style="max-width:480px;margin:0 auto;padding:20px 16px 60px;">
     <div style="font:800 20px 'Archivo',sans-serif;color:#16283D;margin-bottom:14px;">Mechanics</div>
+
+    <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:14px 16px;margin-bottom:14px;">
+      <div style="font:700 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;margin-bottom:8px;">INVITE MECHANIC</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input placeholder="Full name" style="flex:1;min-width:120px;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:9px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ inviteFullName }}" onChange="{{ setInviteFullName }}"/>
+        <input type="email" placeholder="Email" style="flex:1;min-width:160px;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:9px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ inviteEmail }}" onChange="{{ setInviteEmail }}"/>
+        <div style="background:#1F6F78;color:#fff;font:700 12px 'Public Sans',sans-serif;padding:10px 16px;border-radius:4px;cursor:pointer;" onClick="{{ sendInvite }}">SEND INVITE</div>
+      </div>
+      <sc-if value="{{ hasInviteMessage }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:8px;font:600 12px 'Public Sans',sans-serif;color:{{ inviteMessageColor }};">{{ inviteMessage }}</div>
+      </sc-if>
+    </div>
+    </sc-if>
+
     <div style="display:flex;flex-direction:column;gap:8px;">
       <sc-for list="{{ mechanicsDisplay }}" as="mech" hint-placeholder-count="5">
-        <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
           <div>
-            <div style="font:700 14px 'Public Sans',sans-serif;color:#16283D;">{{ mech.name }}</div>
+            <div style="font:700 14px 'Public Sans',sans-serif;color:#16283D;">{{ mech.name }} <span style="{{ mech.activeLabelStyle }}">{{ mech.activeLabel }}</span></div>
             <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-top:2px;">{{ mech.jobCountLabel }}</div>
           </div>
-          <div style="{{ mech.toggleTrackStyle }}" onClick="{{ mech.onToggle }}">
-            <div style="{{ mech.toggleKnobStyle }}"></div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);">OOO</div>
+            <div style="{{ mech.toggleTrackStyle }}" onClick="{{ mech.onToggle }}">
+              <div style="{{ mech.toggleKnobStyle }}"></div>
+            </div>
+            <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
+              <div style="{{ mech.disableButtonStyle }}" onClick="{{ mech.onToggleActive }}">{{ mech.disableButtonLabel }}</div>
+            </sc-if>
           </div>
         </div>
       </sc-for>
@@ -493,15 +549,156 @@
   </div>
   </sc-if>
 
+  <!-- ============ LOAD ERROR ============ -->
+  <sc-if value="{{ loadErrorMessage }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:480px;margin:60px auto;padding:0 16px;">
+    <div style="background:#fff;border:1px solid #C0392B;border-radius:8px;padding:20px;">
+      <div style="font:800 15px 'Archivo',sans-serif;color:#C0392B;margin-bottom:6px;">Couldn&rsquo;t reach Supabase</div>
+      <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);line-height:1.5;">{{ loadErrorMessage }}</div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ AUTH: CHECKING SESSION ============ -->
+  <sc-if value="{{ isAuthChecking }}" hint-placeholder-val="{{ true }}">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
+    <div style="font:600 12px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;">LOADING&hellip;</div>
+  </div>
+  </sc-if>
+
+  <!-- ============ AUTH: LOGIN / SIGN UP ============ -->
+  <sc-if value="{{ isAuthScreen }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <form style="width:100%;max-width:380px;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(22,40,61,.12);overflow:hidden;" onSubmit="{{ submitAuthForm }}">
+      <div style="background:#16283D;padding:22px 24px;display:flex;align-items:center;gap:10px;">
+        <img src="https://lessardmarineworks.com/wp-content/uploads/2022/11/cropped-lessard-marine-works-logo.png" style="width:34px;height:34px;border-radius:6px;object-fit:contain;background:#fff;padding:2px;"/>
+        <div>
+          <div style="font:900 15px 'Archivo',sans-serif;color:#F6F1E4;letter-spacing:.3px;">LESSARD MARINE WORKS</div>
+          <div style="font:600 9.5px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.6px;">JOB TRACKER</div>
+        </div>
+      </div>
+      <div style="padding:22px 24px;display:flex;flex-direction:column;gap:12px;">
+        <div style="font:800 17px 'Archivo',sans-serif;color:#16283D;">{{ authTitle }}</div>
+
+        <sc-if value="{{ isSignUpMode }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">FULL NAME</div>
+          <input name="name" autocomplete="name" style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ authFullName }}" onChange="{{ setAuthFullName }}"/>
+        </div>
+        </sc-if>
+
+        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">EMAIL</div>
+          <input type="email" name="username" autocomplete="username" inputmode="email" style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ authEmail }}" onChange="{{ setAuthEmail }}"/>
+        </div>
+        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">PASSWORD</div>
+          <input type="password" name="password" autocomplete="{{ authPasswordAutocomplete }}" style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ authPassword }}" onChange="{{ setAuthPassword }}"/>
+        </div>
+
+        <sc-if value="{{ hasAuthError }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ authErrorMessage }}</div>
+        </sc-if>
+        <sc-if value="{{ hasAuthNotice }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#EFF6F5;border:1px solid #1F6F78;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#1F6F78;">{{ authNoticeMessage }}</div>
+        </sc-if>
+
+        <button type="submit" style="{{ authSubmitStyle }}">{{ authSubmitLabel }}</button>
+        <div style="text-align:center;font:600 12.5px 'Public Sans',sans-serif;color:#1F6F78;cursor:pointer;" onClick="{{ toggleAuthMode }}">{{ authToggleLabel }}</div>
+
+        <sc-if value="{{ showBootstrapLink }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center;font:600 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);cursor:pointer;border-top:1px solid rgba(22,40,61,.1);padding-top:10px;margin-top:2px;" onClick="{{ toggleBootstrapForm }}">First time setting up this shop? Create the owner account &rarr;</div>
+        </sc-if>
+      </div>
+    </form>
+  </div>
+  </sc-if>
+
+  <!-- ============ AUTH: ONE-TIME SHOP OWNER BOOTSTRAP ============ -->
+  <sc-if value="{{ showBootstrapForm }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;inset:0;background:rgba(22,40,61,.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px;" onClick="{{ toggleBootstrapForm }}">
+    <form style="width:100%;max-width:380px;background:#fff;border-radius:10px;overflow:hidden;" onClick="{{ stopPropagation }}" onSubmit="{{ submitBootstrapForm }}">
+      <div style="background:#D97706;padding:18px 22px;">
+        <div style="font:800 15px 'Archivo',sans-serif;color:#fff;">Create the Shop Owner account</div>
+        <div style="font:500 11.5px 'Public Sans',sans-serif;color:rgba(255,255,255,.85);margin-top:2px;">One-time setup &mdash; disabled forever after this succeeds.</div>
+      </div>
+      <div style="padding:20px 22px;display:flex;flex-direction:column;gap:10px;">
+        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">FULL NAME</div>
+          <input autocomplete="name" style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ bootstrapFullName }}" onChange="{{ setBootstrapFullName }}"/>
+        </div>
+        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">EMAIL</div>
+          <input type="email" autocomplete="email" style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ bootstrapEmail }}" onChange="{{ setBootstrapEmail }}"/>
+        </div>
+        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">PASSWORD</div>
+          <input type="password" autocomplete="new-password" style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ bootstrapPassword }}" onChange="{{ setBootstrapPassword }}"/>
+        </div>
+        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">SHOP SETUP CODE</div>
+          <input type="password" style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ bootstrapCode }}" onChange="{{ setBootstrapCode }}" placeholder="Given to you by whoever deployed this app"/>
+        </div>
+        <sc-if value="{{ hasBootstrapError }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ bootstrapErrorMessage }}</div>
+        </sc-if>
+        <button type="submit" style="{{ bootstrapSubmitStyle }}">{{ bootstrapSubmitLabel }}</button>
+        <div style="text-align:center;font:600 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);cursor:pointer;" onClick="{{ toggleBootstrapForm }}">Cancel</div>
+      </div>
+    </form>
+  </div>
+  </sc-if>
+
+  <!-- ============ ARCHIVED WORK ORDERS (shop_owner) ============ -->
+  <sc-if value="{{ isArchive }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:900px;margin:0 auto;padding:20px 16px 60px;">
+    <div style="font:800 20px 'Archivo',sans-serif;color:#16283D;margin-bottom:14px;">Archived Work Orders</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <sc-for list="{{ archivedJobsDisplay }}" as="job" hint-placeholder-count="3">
+        <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div style="font:600 12px 'IBM Plex Mono',monospace;color:#16283D;width:64px;flex:none;">{{ job.id }}</div>
+          <div style="flex:1;min-width:200px;font:600 13px 'Public Sans',sans-serif;color:#16283D;">{{ job.title }}</div>
+          <div style="font:600 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">{{ job.archivedLabel }}</div>
+          <div style="background:#1F6F78;color:#fff;font:700 11px 'Public Sans',sans-serif;padding:8px 14px;border-radius:4px;cursor:pointer;" onClick="{{ job.onRestore }}">RESTORE</div>
+        </div>
+      </sc-for>
+      <sc-if value="{{ noArchivedJobs }}" hint-placeholder-val="{{ false }}">
+        <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No archived work orders.</div>
+      </sc-if>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ AUDIT LOG (shop_owner) ============ -->
+  <sc-if value="{{ isAuditLog }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:900px;margin:0 auto;padding:20px 16px 60px;">
+    <div style="font:800 20px 'Archivo',sans-serif;color:#16283D;margin-bottom:14px;">Audit History</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <sc-for list="{{ auditLogDisplay }}" as="row" hint-placeholder-count="8">
+        <div style="background:#fff;border:1px solid rgba(22,40,61,.12);border-radius:4px;padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font:600 12px 'Public Sans',sans-serif;">
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);white-space:nowrap;">{{ row.dateLabel }}</div>
+          <div style="color:#16283D;">{{ row.actorName }} <span style="color:rgba(22,40,61,.4);">({{ row.actorRole }})</span></div>
+          <div style="background:#EDE6D6;padding:3px 8px;border-radius:2px;font:700 10px 'IBM Plex Mono',monospace;color:#16283D;">{{ row.action }}</div>
+          <div style="color:rgba(22,40,61,.6);">{{ row.tableName }} &middot; {{ row.recordId }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  </sc-if>
+
   <!-- ============ SCAN MODAL ============ -->
   <sc-if value="{{ showScanModal }}" hint-placeholder-val="{{ false }}">
   <div class="no-print" style="position:fixed;inset:0;background:rgba(22,40,61,.55);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px;" onClick="{{ closeScanModal }}">
     <div style="background:#fff;border-radius:10px;padding:24px;width:100%;max-width:380px;" onClick="{{ stopPropagation }}">
       <div style="font:800 16px 'Archivo',sans-serif;color:#16283D;margin-bottom:4px;">Scan Job Tag</div>
-      <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-bottom:16px;">Point your camera at a job code tag</div>
-      <input type="text" style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:11px 13px;font:500 14px 'Public Sans',sans-serif;color:#16283D;" placeholder="or paste code here..." value="{{ scanInput }}" onChange="{{ setScanInput }}" onKeyDown="{{ handleScanKeyDown }}"/>
+      <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);margin-bottom:14px;">Simulating a camera scan &mdash; enter the tag code printed on the boat.</div>
+      <input style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.25);border-radius:4px;padding:11px 12px;font:700 16px 'IBM Plex Mono',monospace;color:#16283D;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;" placeholder="e.g. AB3K9" value="{{ scanInput }}" onChange="{{ setScanInput }}"/>
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 13px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ submitScan }}">GO TO JOB</div>
+        <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 13px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ closeScanModal }}">CANCEL</div>
+      </div>
       <sc-if value="{{ scanError }}" hint-placeholder-val="{{ false }}">
-        <div style="margin-top:8px;background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">Job not found. Check the code and try again.</div>
+        <div style="font:600 12px 'Public Sans',sans-serif;color:#C0392B;margin-top:10px;">No job found with that code.</div>
       </sc-if>
     </div>
   </div>
@@ -513,7 +710,40 @@
 <script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
   state = {
+    authChecking: true,
+    session: null,
+    profile: null,
+    authMode: 'login',
+    authEmail: '',
+    authPassword: '',
+    authFullName: '',
+    authError: '',
+    authNotice: '',
+    authBusy: false,
+
+    bootstrapChecked: false,
+    bootstrapNeeded: false,
+    showBootstrapForm: false,
+    bootstrapFullName: '',
+    bootstrapEmail: '',
+    bootstrapPassword: '',
+    bootstrapCode: '',
+    bootstrapBusy: false,
+    bootstrapError: '',
+    bootstrapNotice: '',
+
+    inviteFullName: '',
+    inviteEmail: '',
+    inviteMessage: '',
+    inviteError: false,
+
+    archivedJobs: [],
+    auditLog: [],
+    comments: [],
+    newComment: '',
+
     loaded: false,
+    loadError: '',
     mechanics: [],
     jobs: [],
     screen: 'dashboard',
@@ -536,10 +766,6 @@ class Component extends DCLogic {
     intakePriority: 'normal',
     intakeMechanic: '',
     intakePhotos: [],
-    // new: store AI extraction result and status
-    intakeAiResult: null,
-    intakeAiError: null,
-    intakeAiBanner: '',
 
     logStep: 'closed',
     logRecording: false,
@@ -550,193 +776,395 @@ class Component extends DCLogic {
     logAiLoading: false,
     logFields: { findings: '', fix: '', timeSpent: '', materials: '' },
     logPhotos: [],
-    logAiResult: null,
-    logAiError: null,
-    logAiBanner: '',
   };
 
   async componentDidMount() {
-    const mod = await import('./dockside-data.js');
+    const mod = await import('./supabase-client.js');
     this._dataMod = mod;
-    this.setState({
-      mechanics: mod.MECHANICS.map(m => ({ ...m })),
-      jobs: mod.generateJobs(),
-      loaded: true,
+
+    this._authSub = mod.onAuthStateChange(async (_event, session) => {
+      this.setState({ session });
+      if (session) { await this.loadForSession(); }
+      else { this.setState({ authChecking: false, loaded: false, profile: null, mechanics: [], jobs: [] }); }
+    });
+
+    try {
+      const session = await mod.getSession();
+      this.setState({ session });
+      if (session) { await this.loadForSession(); }
+      else { this.setState({ authChecking: false }); }
+    } catch (e) {
+      this.setState({ authChecking: false });
+    }
+
+    if (!this.state.session) { this.refreshBootstrapStatus(); }
+  }
+
+  refreshBootstrapStatus = async () => {
+    try {
+      const needsBootstrap = await this._dataMod.checkBootstrapStatus();
+      this.setState({ bootstrapChecked: true, bootstrapNeeded: needsBootstrap });
+    } catch (e) {
+      this.setState({ bootstrapChecked: true, bootstrapNeeded: false });
+    }
+  };
+
+  toggleBootstrapForm = () => this.setState({ showBootstrapForm: !this.state.showBootstrapForm, bootstrapError: '', bootstrapNotice: '' });
+  setBootstrapFullName = (e) => this.setState({ bootstrapFullName: e.target.value });
+  setBootstrapEmail = (e) => this.setState({ bootstrapEmail: e.target.value });
+  setBootstrapPassword = (e) => this.setState({ bootstrapPassword: e.target.value });
+  setBootstrapCode = (e) => this.setState({ bootstrapCode: e.target.value });
+
+  submitBootstrapForm = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const { bootstrapEmail, bootstrapPassword, bootstrapCode, bootstrapFullName } = this.state;
+    if (!bootstrapEmail || !bootstrapPassword || !bootstrapCode) {
+      this.setState({ bootstrapError: 'Full name, email, password, and setup code are all required.' });
+      return;
+    }
+    this.setState({ bootstrapBusy: true, bootstrapError: '' });
+    try {
+      await this._dataMod.bootstrapShopOwner(bootstrapEmail, bootstrapPassword, bootstrapFullName, bootstrapCode);
+      this.setState({
+        bootstrapBusy: false, showBootstrapForm: false, bootstrapNeeded: false,
+        authMode: 'login', authEmail: bootstrapEmail, authPassword: '',
+        authNotice: 'Shop owner account created \u2014 sign in below. Bootstrap is now disabled for all future accounts.',
+        bootstrapFullName: '', bootstrapEmail: '', bootstrapPassword: '', bootstrapCode: '',
+      });
+    } catch (err) {
+      this.setState({ bootstrapBusy: false, bootstrapError: (err && err.message) || 'Could not create the shop owner account.' });
+    }
+  }
+
+  componentWillUnmount() {
+    if (this._authSub) { try { this._authSub.unsubscribe(); } catch (e) {} }
+  }
+
+  loadForSession = async () => {
+    const mod = this._dataMod;
+    try {
+      const profile = await mod.fetchMyProfile();
+      if (!profile || !profile.active) {
+        this.setState({ authChecking: false, loaded: false, profile: null, loadError: profile ? 'Your account has been disabled. Contact your shop owner.' : '' });
+        return;
+      }
+      const [mechanics, jobs] = await Promise.all([mod.fetchMechanics(), mod.fetchJobs()]);
+      this.setState({ profile, mechanics, jobs, loaded: true, authChecking: false, loadError: '' });
+    } catch (e) {
+      this.setState({ authChecking: false, loaded: true, loadError: (e && e.message) || 'Could not reach Supabase.' });
+    }
+  };
+
+  // ---------- auth ----------
+  setAuthEmail = (e) => this.setState({ authEmail: e.target.value });
+  setAuthPassword = (e) => this.setState({ authPassword: e.target.value });
+  setAuthFullName = (e) => this.setState({ authFullName: e.target.value });
+  toggleAuthMode = () => this.setState({ authMode: this.state.authMode === 'login' ? 'signup' : 'login', authError: '', authNotice: '' });
+
+  submitAuthForm = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const { authMode, authEmail, authPassword, authFullName } = this.state;
+    if (!authEmail || !authPassword) { this.setState({ authError: 'Email and password are required.' }); return; }
+    this.setState({ authBusy: true, authError: '', authNotice: '' });
+    try {
+      if (authMode === 'signup') {
+        await this._dataMod.signUp(authEmail, authPassword, authFullName);
+        this.setState({ authBusy: false, authNotice: 'Account created \u2014 check your email to confirm, then sign in.', authMode: 'login', authPassword: '' });
+      } else {
+        await this._dataMod.signIn(authEmail, authPassword);
+        this.setState({ authBusy: false, authPassword: '' });
+      }
+    } catch (err) {
+      this.setState({ authBusy: false, authError: (err && err.message) || 'Something went wrong.' });
+    }
+  };
+
+  handleSignOut = async () => {
+    try { await this._dataMod.signOut(); } catch (e) {}
+    this.setState({ screen: 'dashboard', profile: null });
+  };
+
+  // ---------- roster / user management (shop_owner) ----------
+  setInviteFullName = (e) => this.setState({ inviteFullName: e.target.value });
+  setInviteEmail = (e) => this.setState({ inviteEmail: e.target.value });
+  sendInvite = async () => {
+    if (!this.state.inviteEmail) { this.setState({ inviteMessage: 'Enter an email address.', inviteError: true }); return; }
+    try {
+      await this._dataMod.inviteMechanic(this.state.inviteEmail, this.state.inviteFullName);
+      this.setState({ inviteMessage: 'Invite sent to ' + this.state.inviteEmail + '.', inviteError: false, inviteEmail: '', inviteFullName: '' });
+    } catch (e) {
+      this.setState({ inviteMessage: (e && e.message) || 'Could not send invite.', inviteError: true });
+    }
+  };
+  toggleMechanicActive = async (mech) => {
+    try {
+      await this._dataMod.setUserActive(mech.id, !mech.active);
+      const mechanics = this.state.mechanics.map(m => m.id === mech.id ? { ...m, active: !mech.active } : m);
+      this.setState({ mechanics });
+    } catch (e) {
+      console.error('Failed to toggle mechanic access', e);
+    }
+  };
+
+  // ---------- archive / restore ----------
+  archiveSelectedJob = async () => {
+    const jobId = this.state.selectedJobId;
+    if (!jobId) return;
+    try {
+      await this._dataMod.archiveJob(jobId, this.state.profile && this.state.profile.id);
+      this.setState({ jobs: this.state.jobs.filter(j => j.id !== jobId), screen: 'dashboard' });
+    } catch (e) {
+      console.error('Failed to archive work order', e);
+    }
+  };
+  goArchive = async () => {
+    this.setState({ screen: 'archive' });
+    try {
+      const archivedJobs = await this._dataMod.fetchArchivedJobs();
+      this.setState({ archivedJobs });
+    } catch (e) { console.error(e); }
+  };
+  restoreArchivedJob = async (jobId) => {
+    try {
+      await this._dataMod.restoreJob(jobId);
+      const job = this.state.archivedJobs.find(j => j.id === jobId);
+      this.setState({
+        archivedJobs: this.state.archivedJobs.filter(j => j.id !== jobId),
+        jobs: job ? [job, ...this.state.jobs] : this.state.jobs,
+      });
+    } catch (e) { console.error(e); }
+  };
+
+  // ---------- audit log ----------
+  goAudit = async () => {
+    this.setState({ screen: 'auditLog' });
+    try {
+      const auditLog = await this._dataMod.fetchAuditLog(200);
+      this.setState({ auditLog });
+    } catch (e) { console.error(e); }
+  };
+
+  // ---------- comments ----------
+  loadComments = async (jobId) => {
+    try {
+      const comments = await this._dataMod.fetchComments(jobId);
+      this.setState({ comments });
+    } catch (e) { console.error(e); }
+  };
+  setNewComment = (e) => this.setState({ newComment: e.target.value });
+  submitComment = async () => {
+    const body = (this.state.newComment || '').trim();
+    const jobId = this.state.selectedJobId;
+    const p = this.state.profile;
+    if (!body || !jobId || !p) return;
+    try {
+      const comment = await this._dataMod.addComment(jobId, body, { id: p.id, name: p.name, role: p.role });
+      this.setState({ comments: [...this.state.comments, comment], newComment: '' });
+    } catch (e) {
+      console.error('Failed to post comment', e);
+    }
+  };
+
+  // ---------- navigation ----------
+  goDashboard = () => this.setState({ screen: 'dashboard', showScanModal: false });
+  goIntake = () => this.setState({
+    screen: 'intake', intakeStep: 'dictate', intakeTranscript: '', intakeTyped: '',
+    intakeFields: { customerName: '', phone: '', boatMakeModel: '', issue: '' },
+    intakeSize: 'M', intakePriority: 'normal', intakeMechanic: (this.state.mechanics[0] || {}).id || '',
+    intakePhotos: [], intakeRecording: false, intakeMicError: '', intakeRawNotesFinal: '', showScanModal: false,
+  });
+  goRoster = () => this.setState({ screen: 'roster', showScanModal: false });
+  openJob = (id) => {
+    this.setState({ screen: 'jobDetail', selectedJobId: id, logStep: 'closed', showScanModal: false, comments: [], newComment: '' });
+    this.loadComments(id);
+  };
+  backToJob = () => this.setState({ screen: 'jobDetail' });
+  goToTag = () => this.setState({ screen: 'tag' });
+  goToInvoice = () => this.setState({ screen: 'invoice' });
+  printPage = () => window.print();
+  stopPropagation = (e) => e && e.stopPropagation && e.stopPropagation();
+
+  openScanModal = () => this.setState({ showScanModal: true, scanInput: '', scanError: false });
+  closeScanModal = () => this.setState({ showScanModal: false });
+  setScanInput = (e) => this.setState({ scanInput: e.target.value, scanError: false });
+  submitScan = () => {
+    const code = (this.state.scanInput || '').trim().toUpperCase();
+    const job = this.state.jobs.find(j => j.id === code);
+    if (job) {
+      this.setState({ screen: 'jobDetail', selectedJobId: job.id, showScanModal: false, logStep: 'closed', comments: [], newComment: '' });
+      this.loadComments(job.id);
+    } else {
+      this.setState({ scanError: true });
+    }
+  };
+
+  // ---------- dashboard ----------
+  setViewList = () => this.setState({ dashboardView: 'list' });
+  setViewMap = () => this.setState({ dashboardView: 'map' });
+  setStatusFilter = (e) => this.setState({ filters: { ...this.state.filters, status: e.target.value } });
+  setSizeFilter = (e) => this.setState({ filters: { ...this.state.filters, size: e.target.value } });
+  setPriorityFilter = (e) => this.setState({ filters: { ...this.state.filters, priority: e.target.value } });
+  setMechanicFilter = (e) => this.setState({ filters: { ...this.state.filters, mechanic: e.target.value } });
+
+  mechanicById(id) { return this.state.mechanics.find(m => m.id === id); }
+  isAtRisk(job) {
+    const m = this.mechanicById(job.assignedMechanic);
+    return !!(m && m.outOfOffice && job.status !== 'done');
+  }
+
+  filteredJobs() {
+    const f = this.state.filters;
+    return this.state.jobs.filter(j => {
+      if (f.status !== 'all' && j.status !== f.status) return false;
+      if (f.size !== 'all' && j.size !== f.size) return false;
+      if (f.priority !== 'all' && j.priority !== f.priority) return false;
+      if (f.mechanic !== 'all' && j.assignedMechanic !== f.mechanic) return false;
+      return true;
     });
   }
 
-  // ---------- helper: show banner based on confidence ----------
-  bannerForConfidence(score) {
-    if (score == null || isNaN(Number(score))) return '';
-    const n = Number(score);
-    if (n >= 90) return '';
-    if (n >= 70) return 'AI extraction completed. Please review before saving.';
-    return 'AI had low confidence extracting this job. Please review carefully.';
-  }
-
-  // ---------- unified extraction caller (both intake & log call this) ----------
-  async runExtraction(rawText, schemaFields, schemaHint) {
-    const url = '/.netlify/functions/ai-extract';
-    const payload = { rawText: rawText || '', schemaFields: schemaFields || [], schemaHint: schemaHint || '' };
-    let attempt = 0;
-    let lastErr = null;
-    while (attempt < 2) {
-      attempt++;
-      try {
-        const resp = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const j = await resp.json().catch(() => null);
-        if (!resp.ok) {
-          lastErr = (j && j.error) ? j.error : `AI function returned status ${resp.status}`;
-          // retry once
-          continue;
-        }
-        if (!j || typeof j !== 'object') {
-          lastErr = 'AI function returned invalid JSON';
-          continue;
-        }
-        if (j.error) {
-          lastErr = j.error;
-          continue;
-        }
-        // Expect `fields` object per server contract
-        const rawFields = j.fields || j;
-        if (!rawFields || typeof rawFields !== 'object') {
-          lastErr = 'AI response missing fields object';
-          continue;
-        }
-
-        // Normalize and validate keys per contract
-        const keys = ['customerConcern','customerSummary','privateShopNotes','workPerformed','priority','jobSize','estimatedLaborHours','suggestedParts','followUpQuestions','confidenceScore','originalTranscript'];
-        const out = {};
-        for (const k of keys) {
-          let v = rawFields[k];
-          // For arrays, ensure array or empty array
-          if (k === 'suggestedParts' || k === 'followUpQuestions') {
-            if (Array.isArray(v)) out[k] = v;
-            else if (v == null) out[k] = [];
-            else if (typeof v === 'string') out[k] = v.trim() ? v.split(/\n|,/) .map(s=>s.trim()).filter(Boolean) : [];
-            else out[k] = [];
-            continue;
-          }
-          if (k === 'confidenceScore') {
-            const n = Number(v);
-            out[k] = Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : null;
-            continue;
-          }
-          if (k === 'estimatedLaborHours') {
-            const n = Number(v);
-            out[k] = Number.isFinite(n) ? n : (v == null ? null : (typeof v === 'string' && v.trim() === '' ? null : null));
-            continue;
-          }
-          // strings or null
-          out[k] = v == null ? null : String(v);
-        }
-
-        // Keep original raw model output if present for debugging
-        const rawModel = j.raw || null;
-        return { ok: true, fields: out, raw: rawModel };
-      } catch (e) {
-        lastErr = e && e.message ? e.message : String(e);
-        // retry once
+  // ---------- intake ----------
+  toggleIntakeRecording = () => {
+    if (this.state.intakeRecording) { this.stopIntakeRecording(); } else { this.startIntakeRecording(); }
+  };
+  startIntakeRecording = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { this.setState({ intakeRecording: false, intakeMicError: 'Voice dictation isn\u2019t supported in this browser \u2014 type below instead.' }); return; }
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+    let finalText = this.state.intakeTranscript || '';
+    rec.onresult = (ev) => {
+      let interim = '';
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const t = ev.results[i][0].transcript;
+        if (ev.results[i].isFinal) finalText += (finalText ? ' ' : '') + t;
+        else interim += t;
       }
+      this.setState({ intakeTranscript: finalText, _intakeInterim: interim });
+    };
+    rec.onerror = (ev) => this.setState({ intakeRecording: false, intakeMicError: this.micErrorMessage(ev.error) });
+    rec.onend = () => this.setState({ intakeRecording: false, _intakeInterim: '' });
+    this._intakeRec = rec;
+    this.setState({ intakeRecording: true, intakeMicError: '' });
+    try { rec.start(); } catch (e) { this.setState({ intakeRecording: false, intakeMicError: this.micErrorMessage(e.name) }); }
+  };
+  micErrorMessage(code) {
+    const map = {
+      'not-allowed': 'Microphone permission blocked \u2014 allow mic access or type below instead.',
+      'service-not-allowed': 'Microphone permission blocked \u2014 allow mic access or type below instead.',
+      'no-speech': 'Didn\u2019t catch any speech \u2014 try again or type below instead.',
+      'audio-capture': 'No microphone found \u2014 type below instead.',
+      'NotAllowedError': 'Microphone permission blocked \u2014 allow mic access or type below instead.',
+    };
+    return map[code] || 'Mic dictation hit a snag \u2014 type below instead.';
+  }
+  stopIntakeRecording = () => {
+    if (this._intakeRec) { try { this._intakeRec.stop(); } catch (e) {} }
+    this.setState({ intakeRecording: false });
+  };
+  setIntakeTyped = (e) => this.setState({ intakeTyped: e.target.value });
+
+  // Real extraction runs through the deployed Netlify Function (ai-extract.js),
+  // which calls OpenAI server-side — this is what actually works once the app
+  // is live for real users. window.claude.complete only exists inside this
+  // design tool's own preview, so it's kept as a fallback purely so the
+  // feature still demos here while you're iterating on the design.
+  async runExtraction(rawText, schemaFields, schemaHint) {
+    try {
+      const res = await fetch('/.netlify/functions/ai-extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawText, schemaFields, schemaHint }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.ok && json.fields) return json.fields;
+      }
+    } catch (e) { /* function not reachable (e.g. in-editor preview) — fall back below */ }
+
+    try {
+      const system = `You extract structured shop-intake data from a mechanic's spoken or typed notes. Return ONLY a single JSON object with exactly these keys: ${schemaFields.join(', ')}. ${schemaHint} If a field isn't mentioned, use an empty string. No commentary, no markdown fences, just the JSON object.`;
+      const result = await window.claude.complete({
+        messages: [{ role: 'user', content: rawText }],
+        system,
+      });
+      const match = result.match(/\{[\s\S]*\}/);
+      return match ? JSON.parse(match[0]) : {};
+    } catch (e) {
+      return {};
     }
-    return { ok: false, error: lastErr || 'Unknown AI error' };
   }
 
-  // ---------- intake: call unified extraction and populate intake UI fields ----------
   runIntakeExtraction = async () => {
     const raw = [this.state.intakeTranscript, this.state.intakeTyped].filter(Boolean).join('. ');
     if (!raw.trim()) return;
-    this.setState({ intakeAiLoading: true, intakeAiError: null, intakeAiResult: null, intakeAiBanner: '' });
-
-    const schemaFields = ['customerConcern','customerSummary','privateShopNotes','workPerformed','priority','jobSize','estimatedLaborHours','suggestedParts','followUpQuestions','confidenceScore','originalTranscript'];
-    const res = await this.runExtraction(raw, schemaFields, 'Extract the exact JSON schema requested; do not invent values.');
-
-    if (!res.ok) {
-      this.setState({ intakeAiLoading: false, intakeAiError: res.error || 'AI extraction failed' });
-      return;
-    }
-
-    const f = res.fields;
-    // Map some returned fields into existing intakeFields where appropriate
-    const intakeFields = { ...this.state.intakeFields };
-    if (f.customerConcern) intakeFields.issue = intakeFields.issue || f.customerConcern;
-    // preserve backwards compatibility: try to parse customer name/phone/boat from originalTranscript if possible
-    // (best-effort, do not invent) — leave as-is otherwise
-
-    // Map priority -> intakePriority (legacy 'normal'/'high')
-    let intakePriority = this.state.intakePriority;
-    if (f.priority) {
-      const p = String(f.priority).toLowerCase();
-      if (p === 'critical' || p === 'high') intakePriority = 'high';
-      else intakePriority = 'normal';
-    }
-
-    // Map jobSize to intakeSize (legacy S/M/L)
-    let intakeSize = this.state.intakeSize;
-    if (f.jobSize) {
-      const sz = String(f.jobSize).toUpperCase();
-      if (['XS','S'].includes(sz)) intakeSize = 'S';
-      else if (sz === 'M') intakeSize = 'M';
-      else if (['L','XL'].includes(sz)) intakeSize = 'L';
-      else intakeSize = this.state.intakeSize;
-    }
-
-    const banner = this.bannerForConfidence(f.confidenceScore);
-
+    this.setState({ intakeAiLoading: true });
+    const fields = await this.runExtraction(
+      raw,
+      ['customerName', 'phone', 'boatMakeModel', 'issue'],
+      'phone should be formatted like (555) 010-0142 if a number is present. boatMakeModel is the boat brand/model, e.g. "Cobalt 24 Cuddy Cabin". issue should be rewritten as a short, clean, customer-facing phrase describing the problem (professional tone, no shop slang or filler words) \u2014 the mechanic\u2019s raw wording is kept separately as a private note, so feel free to tidy it up here.'
+    );
     this.setState({
       intakeAiLoading: false,
       intakeStep: 'review',
       intakeRawNotesFinal: raw,
-      intakeFields,
-      intakePriority,
-      intakeSize,
-      intakeAiResult: f,
-      intakeAiBanner: banner,
-      intakeAiError: null,
+      intakeFields: {
+        customerName: fields.customerName || '',
+        phone: fields.phone || '',
+        boatMakeModel: fields.boatMakeModel || '',
+        issue: fields.issue || '',
+      },
     });
   };
 
-  // ---------- log extraction: unified call and populate log UI ----------
-  runLogExtraction = async () => {
-    const raw = [this.state.logTranscript, this.state.logTyped].filter(Boolean).join('. ');
-    if (!raw.trim()) return;
-    this.setState({ logAiLoading: true, logAiError: null, logAiResult: null, logAiBanner: '' });
+  setFieldCustomerName = (e) => this.setState({ intakeFields: { ...this.state.intakeFields, customerName: e.target.value } });
+  setFieldPhone = (e) => this.setState({ intakeFields: { ...this.state.intakeFields, phone: e.target.value } });
+  setFieldBoat = (e) => this.setState({ intakeFields: { ...this.state.intakeFields, boatMakeModel: e.target.value } });
+  setFieldIssue = (e) => this.setState({ intakeFields: { ...this.state.intakeFields, issue: e.target.value } });
+  setIntakeSize = (size) => this.setState({ intakeSize: size });
+  setIntakePriority = (p) => this.setState({ intakePriority: p });
+  setIntakeMechanic = (e) => this.setState({ intakeMechanic: e.target.value });
 
-    const schemaFields = ['customerConcern','customerSummary','privateShopNotes','workPerformed','priority','jobSize','estimatedLaborHours','suggestedParts','followUpQuestions','confidenceScore','originalTranscript'];
-    const res = await this.runExtraction(raw, schemaFields, 'Extract the exact JSON schema requested; do not invent values.');
-
-    if (!res.ok) {
-      this.setState({ logAiLoading: false, logAiError: res.error || 'AI extraction failed' });
-      return;
-    }
-
-    const f = res.fields;
-    const logFields = { ...this.state.logFields };
-    // Prefer `workPerformed` for findings/fix if present
-    if (f.workPerformed) logFields.findings = f.workPerformed;
-    if (f.estimatedLaborHours != null) logFields.timeSpent = String(f.estimatedLaborHours);
-    if (f.suggestedParts && f.suggestedParts.length) logFields.materials = (Array.isArray(f.suggestedParts) ? f.suggestedParts.join(', ') : String(f.suggestedParts));
-
-    const banner = this.bannerForConfidence(f.confidenceScore);
-
-    this.setState({
-      logAiLoading: false,
-      logStep: 'review',
-      logRawNotesFinal: f.originalTranscript || raw,
-      logFields,
-      logAiResult: f,
-      logAiBanner: banner,
-      logAiError: null,
+  compressPhoto(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxW = 480;
+          const scale = Math.min(1, maxW / img.width);
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
     });
+  }
+  addIntakePhoto = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const dataUrl = await this.compressPhoto(file);
+    this.setState({ intakePhotos: [...this.state.intakePhotos, dataUrl] });
   };
+  removeIntakePhoto = (idx) => this.setState({ intakePhotos: this.state.intakePhotos.filter((_, i) => i !== idx) });
+  addLogPhoto = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const dataUrl = await this.compressPhoto(file);
+    this.setState({ logPhotos: [...this.state.logPhotos, dataUrl] });
+  };
+  removeLogPhoto = (idx) => this.setState({ logPhotos: this.state.logPhotos.filter((_, i) => i !== idx) });
 
-  // ---------- save intake: persist AI fields onto the job object ----------
-  saveIntake = () => {
+  saveIntake = async () => {
     const existingIds = this.state.jobs.map(j => j.id);
     const id = this._dataMod ? this._dataMod.newJobCode(existingIds) : ('J' + Date.now()).slice(0, 5).toUpperCase();
     const job = {
@@ -753,20 +1181,85 @@ class Component extends DCLogic {
       createdAt: Date.now(),
       intakeRawNotes: this.state.intakeRawNotesFinal || '',
       entries: [],
-      // persist AI result (if any) under `ai` key using the exact property names requested
-      ai: this.state.intakeAiResult || null,
     };
     this.setState({
       jobs: [job, ...this.state.jobs],
       selectedJobId: job.id,
       screen: 'tag',
-      // clear intake state
-      intakeStep: 'dictate', intakeTranscript: '', intakeTyped: '', intakeRawNotesFinal: '', intakeAiResult: null, intakeAiError: null, intakeAiBanner: '', intakePhotos: [],
+    });
+    try {
+      if (this._dataMod) await this._dataMod.insertJob(job, this.state.profile && this.state.profile.id);
+    } catch (e) {
+      console.error('Failed to save job to Supabase', e);
+    }
+  };
+
+  // ---------- log work ----------
+  openLogWork = () => this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRecording: false, logMicError: '', logRawNotesFinal: '', logPhotos: [] });
+  closeLogWork = () => {
+    if (this._logRec) { try { this._logRec.stop(); } catch (e) {} }
+    this.setState({ logStep: 'closed', logRecording: false });
+  };
+  toggleLogRecording = () => {
+    if (this.state.logRecording) { this.stopLogRecording(); } else { this.startLogRecording(); }
+  };
+  startLogRecording = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { this.setState({ logRecording: false, logMicError: 'Voice dictation isn\u2019t supported in this browser \u2014 type below instead.' }); return; }
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+    let finalText = this.state.logTranscript || '';
+    rec.onresult = (ev) => {
+      let interim = '';
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const t = ev.results[i][0].transcript;
+        if (ev.results[i].isFinal) finalText += (finalText ? ' ' : '') + t;
+        else interim += t;
+      }
+      this.setState({ logTranscript: finalText, _logInterim: interim });
+    };
+    rec.onerror = (ev) => this.setState({ logRecording: false, logMicError: this.micErrorMessage(ev.error) });
+    rec.onend = () => this.setState({ logRecording: false, _logInterim: '' });
+    this._logRec = rec;
+    this.setState({ logRecording: true, logMicError: '' });
+    try { rec.start(); } catch (e) { this.setState({ logRecording: false, logMicError: this.micErrorMessage(e.name) }); }
+  };
+  stopLogRecording = () => {
+    if (this._logRec) { try { this._logRec.stop(); } catch (e) {} }
+    this.setState({ logRecording: false });
+  };
+  setLogTyped = (e) => this.setState({ logTyped: e.target.value });
+
+  runLogExtraction = async () => {
+    const raw = [this.state.logTranscript, this.state.logTyped].filter(Boolean).join('. ');
+    if (!raw.trim()) return;
+    this.setState({ logAiLoading: true });
+    const fields = await this.runExtraction(
+      raw,
+      ['findings', 'fix', 'timeSpent', 'materials'],
+      'Rewrite findings and fix as clean, professional, customer-facing sentences (no shop slang, no filler words like "uh" or "so basically") suitable to print on an invoice the customer will read. timeSpent is a short duration like "1.5 hrs". materials is a short comma-separated list of parts/supplies used. The mechanic\u2019s original raw dictation is kept separately as a private shop note, so it is fine to tidy up the wording here.'
+    );
+    this.setState({
+      logAiLoading: false,
+      logStep: 'review',
+      logRawNotesFinal: raw,
+      logFields: {
+        findings: fields.findings || '',
+        fix: fields.fix || '',
+        timeSpent: fields.timeSpent || '',
+        materials: fields.materials || '',
+      },
     });
   };
 
-  // ---------- save log entry: include ai result inside the saved entry ----------
-  saveLogEntry = () => {
+  setLogFieldFindings = (e) => this.setState({ logFields: { ...this.state.logFields, findings: e.target.value } });
+  setLogFieldFix = (e) => this.setState({ logFields: { ...this.state.logFields, fix: e.target.value } });
+  setLogFieldTime = (e) => this.setState({ logFields: { ...this.state.logFields, timeSpent: e.target.value } });
+  setLogFieldMaterials = (e) => this.setState({ logFields: { ...this.state.logFields, materials: e.target.value } });
+
+  saveLogEntry = async () => {
     const jobId = this.state.selectedJobId;
     const entry = {
       timestamp: Date.now(),
@@ -776,18 +1269,367 @@ class Component extends DCLogic {
       materials: this.state.logFields.materials || '',
       rawNotes: this.state.logRawNotesFinal || '',
       photos: this.state.logPhotos,
-      // include ai extraction payload for this entry
-      ai: this.state.logAiResult || null,
     };
-    const jobs = this.state.jobs.map(j => j.id === jobId
-      ? { ...j, entries: [...j.entries, entry], status: j.status === 'open' ? 'in progress' : j.status }
-      : j);
-    this.setState({ jobs, logStep: 'closed', logTranscript: '', logTyped: '', logRawNotesFinal: '', logPhotos: [], logAiResult: null, logAiBanner: '', logAiError: null });
+    let newEntries = [];
+    let newStatus = null;
+    const jobs = this.state.jobs.map(j => {
+      if (j.id !== jobId) return j;
+      newEntries = [...j.entries, entry];
+      newStatus = j.status === 'open' ? 'in progress' : j.status;
+      return { ...j, entries: newEntries, status: newStatus };
+    });
+    this.setState({ jobs, logStep: 'closed', logTranscript: '', logTyped: '', logRawNotesFinal: '', logPhotos: [] });
+    try {
+      if (this._dataMod) await this._dataMod.appendJobEntry(jobId, newEntries, newStatus);
+    } catch (e) {
+      console.error('Failed to save work log entry to Supabase', e);
+    }
   };
 
-  // (rest of the component unchanged — renderVals etc. remain the same)
+  setJobStatus = async (jobId, status) => {
+    const jobs = this.state.jobs.map(j => j.id === jobId ? { ...j, status } : j);
+    this.setState({ jobs });
+    try {
+      if (this._dataMod) await this._dataMod.updateJobStatus(jobId, status);
+    } catch (e) {
+      console.error('Failed to update job status in Supabase', e);
+    }
+  };
 
-  // For brevity we won't repeat the full renderVals here; the actual file preserves the template and render logic unchanged.
+  toggleMechanicOOO = async (id) => {
+    const mech = this.state.mechanics.find(m => m.id === id);
+    const nextVal = mech ? !mech.outOfOffice : true;
+    const mechanics = this.state.mechanics.map(m => m.id === id ? { ...m, outOfOffice: nextVal } : m);
+    this.setState({ mechanics });
+    try {
+      if (this._dataMod) await this._dataMod.setMechanicOOO(id, nextVal);
+    } catch (e) {
+      console.error('Failed to update mechanic status in Supabase', e);
+    }
+  };
+
+  isShopOwner() { return !!(this.state.profile && this.state.profile.role === 'shop_owner'); }
+
+  // ---------- render ----------
+  renderVals() {
+    const s = this.state;
+    const blankScreens = { navVisible: false, isDashboard: false, isIntake: false, isJobDetail: false, isRoster: false, isTag: false, isInvoice: false, isArchive: false, isAuditLog: false, showScanModal: false };
+
+    if (s.authChecking) {
+      return { ...blankScreens, isAuthChecking: true, isAuthScreen: false };
+    }
+    if (!s.session || !s.profile) {
+      const isSignUpMode = s.authMode === 'signup';
+      return {
+        ...blankScreens, isAuthChecking: false, isAuthScreen: true,
+        isSignUpMode,
+        authTitle: isSignUpMode ? 'Create your account' : 'Sign in',
+        authFullName: s.authFullName, setAuthFullName: this.setAuthFullName,
+        authEmail: s.authEmail, setAuthEmail: this.setAuthEmail,
+        authPassword: s.authPassword, setAuthPassword: this.setAuthPassword,
+        authPasswordAutocomplete: isSignUpMode ? 'new-password' : 'current-password',
+        hasAuthError: !!s.authError, authErrorMessage: s.authError,
+        hasAuthNotice: !!s.authNotice, authNoticeMessage: s.authNotice || (s.loadError || ''),
+        authSubmitStyle: `width:100%;box-sizing:border-box;text-align:center;font:700 13px 'Public Sans',sans-serif;padding:13px;border-radius:4px;cursor:pointer;border:none;background:${s.authBusy ? '#B9C0C4' : '#1F6F78'};color:#fff;`,
+        authSubmitLabel: s.authBusy ? 'PLEASE WAIT\u2026' : (isSignUpMode ? 'CREATE ACCOUNT' : 'SIGN IN'),
+        submitAuthForm: this.submitAuthForm,
+        toggleAuthMode: this.toggleAuthMode,
+        authToggleLabel: isSignUpMode ? 'Already have an account? Sign in' : 'Need an account? Create one',
+
+        showBootstrapLink: s.bootstrapChecked && s.bootstrapNeeded && !s.showBootstrapForm,
+        toggleBootstrapForm: this.toggleBootstrapForm,
+        showBootstrapForm: s.showBootstrapForm,
+        bootstrapFullName: s.bootstrapFullName, setBootstrapFullName: this.setBootstrapFullName,
+        bootstrapEmail: s.bootstrapEmail, setBootstrapEmail: this.setBootstrapEmail,
+        bootstrapPassword: s.bootstrapPassword, setBootstrapPassword: this.setBootstrapPassword,
+        bootstrapCode: s.bootstrapCode, setBootstrapCode: this.setBootstrapCode,
+        submitBootstrapForm: this.submitBootstrapForm,
+        hasBootstrapError: !!s.bootstrapError, bootstrapErrorMessage: s.bootstrapError,
+        bootstrapSubmitStyle: `width:100%;box-sizing:border-box;text-align:center;font:700 13px 'Public Sans',sans-serif;padding:13px;border-radius:4px;cursor:pointer;border:none;background:${s.bootstrapBusy ? '#B9C0C4' : '#D97706'};color:#fff;`,
+        bootstrapSubmitLabel: s.bootstrapBusy ? 'CREATING\u2026' : 'CREATE SHOP OWNER ACCOUNT',
+        stopPropagation: this.stopPropagation,
+      };
+    }
+    if (!s.loaded) {
+      return { ...blankScreens, isAuthChecking: false, isAuthScreen: false };
+    }
+    if (s.loadError) {
+      return {
+        ...blankScreens, isAuthChecking: false, isAuthScreen: false,
+        loadErrorMessage: s.loadError,
+      };
+    }
+
+    const navBtn = (active) => `font:700 11.5px 'IBM Plex Mono',monospace;letter-spacing:.4px;padding:9px 14px;border-radius:3px;cursor:pointer;color:${active ? '#fff' : '#B9C0C4'};background:${active ? '#1F6F78' : 'rgba(255,255,255,.06)'};`;
+
+    const jobs = s.jobs;
+    const active = jobs.filter(j => j.status !== 'done');
+    const highPriority = jobs.filter(j => j.priority === 'high' && j.status !== 'done').length;
+    const sSize = jobs.filter(j => j.size === 'S' && j.status !== 'done').length;
+    const mSize = jobs.filter(j => j.size === 'M' && j.status !== 'done').length;
+    const lSize = jobs.filter(j => j.size === 'L' && j.status !== 'done').length;
+    const atRisk = jobs.filter(j => this.isAtRisk(j)).length;
+
+    const priorityChipStyle = (p) => p === 'high'
+      ? `font:700 10px 'IBM Plex Mono',monospace;background:#D97706;color:#fff;padding:4px 9px;border-radius:2px;flex:none;`
+      : `font:700 10px 'IBM Plex Mono',monospace;background:#EDE6D6;color:#16283D;padding:4px 9px;border-radius:2px;flex:none;`;
+    const statusChipStyle = (st) => {
+      const map = { open: '#EDE6D6', 'in progress': '#8FBFAE', done: '#1F6F78' };
+      const color = st === 'done' ? '#fff' : '#16283D';
+      return `font:700 10px 'IBM Plex Mono',monospace;background:${map[st] || '#EDE6D6'};color:${color};padding:4px 9px;border-radius:2px;flex:none;text-transform:uppercase;`;
+    };
+
+    const mechName = (id) => { const m = this.mechanicById(id); return m ? m.name : 'Unassigned'; };
+    const shortName = (name) => name.split(' ').map((p, i, arr) => i === arr.length - 1 ? p : p[0] + '.').join(' ');
+
+    const filtered = this.filteredJobs();
+    const filteredJobsDisplay = filtered.map(job => {
+      const risk = this.isAtRisk(job);
+      return {
+        id: job.id,
+        title: `${job.customerName} \u00b7 ${job.boatMakeModel} \u2014 ${job.issue}`,
+        size: job.size,
+        priorityLabel: job.priority === 'high' ? 'HIGH' : 'NORMAL',
+        priorityChipStyle: priorityChipStyle(job.priority),
+        statusLabel: job.status.toUpperCase(),
+        statusChipStyle: statusChipStyle(job.status),
+        mechanicDisplay: risk ? `\u26a0 ${shortName(mechName(job.assignedMechanic))} (OOO)` : shortName(mechName(job.assignedMechanic)),
+        mechanicStyle: `font:600 12px 'Public Sans',sans-serif;color:${risk ? '#C0392B' : '#1F6F78'};flex:none;min-width:130px;text-align:right;`,
+        rowStyle: `display:flex;align-items:center;gap:12px;background:#fff;border:1px solid rgba(22,40,61,.15);${risk ? 'border-left:4px solid #C0392B;' : ''}border-radius:3px;padding:12px 16px;cursor:pointer;flex-wrap:wrap;`,
+        tileStyle: `aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:${job.priority === 'high' ? '#fff' : '#16283D'};background:${risk ? '#C0392B' : job.priority === 'high' ? '#D97706' : '#F6F1E4'};${risk ? 'color:#fff;' : ''}border:1px solid rgba(22,40,61,.15);`,
+        onOpen: () => this.openJob(job.id),
+      };
+    });
+
+    const jobsById = {};
+    jobs.forEach(j => { jobsById[j.id] = j; });
+    const sj = s.selectedJobId ? jobsById[s.selectedJobId] : null;
+
+    const BLANK_IMG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7';
+    let selectedJob = {
+      id: '', customerName: '', phone: '', boatMakeModel: '', issue: '', size: '',
+      priorityLabel: '', priorityChipStyle: '', mechanicName: '', riskBadgeLabel: '', riskBadgeStyle: '',
+      createdDateLabel: '', totalTimeLabel: '', qrUrl: BLANK_IMG, hasQr: false,
+      noEntries: true, hasIntakeNote: false, intakeNoteDisplay: '', entriesDisplay: [],
+    };
+    if (sj) {
+      const risk = this.isAtRisk(sj);
+      const totalHrs = sj.entries.reduce((sum, e) => {
+        const n = parseFloat(e.timeSpent);
+        return sum + (isNaN(n) ? 0 : n);
+      }, 0);
+      selectedJob = {
+        id: sj.id,
+        customerName: sj.customerName,
+        phone: sj.phone,
+        boatMakeModel: sj.boatMakeModel,
+        issue: sj.issue,
+        size: sj.size,
+        priorityLabel: sj.priority === 'high' ? 'HIGH PRIORITY' : 'NORMAL PRIORITY',
+        priorityChipStyle: priorityChipStyle(sj.priority),
+        mechanicName: mechName(sj.assignedMechanic),
+        riskBadgeLabel: risk ? '\u26a0 MECHANIC OOO' : sj.status.toUpperCase(),
+        riskBadgeStyle: `font:700 10px 'IBM Plex Mono',monospace;padding:6px 10px;border-radius:3px;background:${risk ? '#C0392B' : 'rgba(255,255,255,.12)'};color:#fff;flex:none;letter-spacing:.4px;height:fit-content;`,
+        createdDateLabel: new Date(sj.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
+        totalTimeLabel: totalHrs > 0 ? `${totalHrs.toFixed(1)} hrs` : '\u2014',
+        qrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&data=${encodeURIComponent(sj.id)}`,
+        hasQr: true,
+        noEntries: sj.entries.length === 0,
+        hasIntakeNote: !!sj.intakeRawNotes,
+        intakeNoteDisplay: sj.intakeRawNotes || '',
+        entriesDisplay: sj.entries.slice().reverse().map(e => ({
+          dateLabel: new Date(e.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + new Date(e.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
+          timeSpent: e.timeSpent || '\u2014',
+          findings: e.findings || '\u2014',
+          fix: e.fix || '\u2014',
+          materials: e.materials || 'None',
+          hasRawNotes: !!e.rawNotes,
+          rawNotes: e.rawNotes || '',
+          hasPhotos: (e.photos || []).length > 0,
+          photos: e.photos || [],
+        })),
+      };
+    }
+
+    const statusChoiceOptions = ['open', 'in progress', 'done'].map(st => ({
+      label: st.toUpperCase(),
+      style: `flex:1;text-align:center;font:700 10.5px 'IBM Plex Mono',monospace;padding:9px 6px;border-radius:3px;cursor:pointer;background:${sj && sj.status === st ? '#16283D' : '#EDE6D6'};color:${sj && sj.status === st ? '#fff' : '#16283D'};`,
+      onSelect: () => this.setJobStatus(sj.id, st),
+    }));
+
+    const sizeChoiceOptions = ['S', 'M', 'L'].map(sz => ({
+      label: sz,
+      style: `flex:1;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:9px 6px;border-radius:3px;cursor:pointer;background:${s.intakeSize === sz ? '#1F6F78' : '#F6F1E4'};color:${s.intakeSize === sz ? '#fff' : '#16283D'};`,
+      onSelect: () => this.setIntakeSize(sz),
+    }));
+    const priorityChoiceOptions = [{ v: 'normal', l: 'NORMAL' }, { v: 'high', l: 'HIGH' }].map(p => ({
+      label: p.l,
+      style: `flex:1;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:9px 6px;border-radius:3px;cursor:pointer;background:${s.intakePriority === p.v ? '#D97706' : '#F6F1E4'};color:${s.intakePriority === p.v ? '#fff' : '#16283D'};`,
+      onSelect: () => this.setIntakePriority(p.v),
+    }));
+
+    const mechanicChoiceOptions = s.mechanics.map(m => ({ value: m.id, label: m.name + (m.outOfOffice ? ' (OOO)' : '') }));
+
+    const statusFilterOptions = [{ value: 'all', label: 'ALL STATUS' }, { value: 'open', label: 'OPEN' }, { value: 'in progress', label: 'IN PROGRESS' }, { value: 'done', label: 'DONE' }];
+    const sizeFilterOptions = [{ value: 'all', label: 'ALL SIZES' }, { value: 'S', label: 'SMALL' }, { value: 'M', label: 'MEDIUM' }, { value: 'L', label: 'LARGE' }];
+    const priorityFilterOptions = [{ value: 'all', label: 'ALL PRIORITY' }, { value: 'normal', label: 'NORMAL' }, { value: 'high', label: 'HIGH' }];
+    const mechanicFilterOptions = [{ value: 'all', label: 'ALL MECHANICS' }, ...s.mechanics.map(m => ({ value: m.id, label: m.name }))];
+
+    const jobCountFor = (id) => jobs.filter(j => j.assignedMechanic === id && j.status !== 'done').length;
+    const mechanicsDisplay = s.mechanics.map(m => ({
+      name: m.name,
+      active: m.active,
+      activeLabel: m.active ? '' : '(DISABLED)',
+      activeLabelStyle: `font:700 10px 'IBM Plex Mono',monospace;color:#C0392B;`,
+      jobCountLabel: `${jobCountFor(m.id)} active job${jobCountFor(m.id) === 1 ? '' : 's'}${m.outOfOffice ? ' \u2014 OUT OF OFFICE' : ''}`,
+      toggleTrackStyle: `width:46px;height:26px;border-radius:14px;cursor:pointer;position:relative;background:${m.outOfOffice ? '#C0392B' : '#1F6F78'};transition:background .15s;`,
+      toggleKnobStyle: `width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${m.outOfOffice ? '23px' : '3px'};transition:left .15s;`,
+      onToggle: () => this.toggleMechanicOOO(m.id),
+      disableButtonStyle: `font:700 10.5px 'IBM Plex Mono',monospace;padding:8px 12px;border-radius:4px;cursor:pointer;background:${m.active ? '#FBEAEA' : '#EFF6F5'};color:${m.active ? '#C0392B' : '#1F6F78'};`,
+      disableButtonLabel: m.active ? 'DISABLE' : 'REACTIVATE',
+      onToggleActive: () => this.toggleMechanicActive(m),
+    }));
+
+    const isShopOwner = this.isShopOwner();
+    const archivedJobsDisplay = s.archivedJobs.map(job => ({
+      id: job.id,
+      title: `${job.customerName} \u00b7 ${job.boatMakeModel} \u2014 ${job.issue}`,
+      archivedLabel: job.archivedAt ? new Date(job.archivedAt).toLocaleDateString() : '',
+      onRestore: () => this.restoreArchivedJob(job.id),
+    }));
+    const auditLogDisplay = s.auditLog.map(row => ({
+      dateLabel: new Date(row.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
+      actorName: row.actorName || '\u2014',
+      actorRole: row.actorRole || '\u2014',
+      action: row.action.toUpperCase(),
+      tableName: row.tableName,
+      recordId: row.recordId,
+    }));
+    const commentsDisplay = s.comments.map(c => ({
+      authorName: c.authorName,
+      authorRole: c.authorRole,
+      body: c.body,
+      dateLabel: new Date(c.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
+    }));
+
+    const micRecording = s.intakeRecording;
+    const micButtonStyle = `width:96px;height:96px;border-radius:50%;background:${micRecording ? '#C0392B' : '#D97706'};display:flex;align-items:center;justify-content:center;cursor:pointer;${micRecording ? 'animation:dk-pulse 1.6s infinite;' : ''}`;
+    const logMicRecording = s.logRecording;
+    const logMicButtonStyle = `width:64px;height:64px;border-radius:50%;background:${logMicRecording ? '#C0392B' : '#D97706'};display:flex;align-items:center;justify-content:center;cursor:pointer;${logMicRecording ? 'animation:dk-pulse 1.6s infinite;' : ''}`;
+
+    const intakeRaw = (s.intakeTranscript + (s._intakeInterim ? ' ' + s._intakeInterim : ''));
+    const logRaw = (s.logTranscript + (s._logInterim ? ' ' + s._logInterim : ''));
+
+    return {
+      navVisible: true,
+      isAuthChecking: false, isAuthScreen: false,
+      isDashboard: s.screen === 'dashboard',
+      isIntake: s.screen === 'intake',
+      isJobDetail: s.screen === 'jobDetail' && !!sj,
+      isRoster: s.screen === 'roster',
+      isTag: s.screen === 'tag' && !!sj,
+      isInvoice: s.screen === 'invoice' && !!sj,
+      isArchive: s.screen === 'archive',
+      isAuditLog: s.screen === 'auditLog',
+      showScanModal: s.showScanModal,
+      scanInput: s.scanInput,
+      scanError: s.scanError,
+
+      isShopOwner,
+      currentUserName: s.profile ? s.profile.name : '',
+      currentUserRoleLabel: s.profile ? (s.profile.role === 'shop_owner' ? 'SHOP OWNER' : 'MECHANIC') : '',
+      handleSignOut: this.handleSignOut,
+
+      goDashboard: this.goDashboard, goIntake: this.goIntake, goRoster: this.goRoster,
+      goArchive: this.goArchive, goAudit: this.goAudit,
+      navDashboardStyle: navBtn(s.screen === 'dashboard'),
+      navIntakeStyle: navBtn(s.screen === 'intake'),
+      navRosterStyle: navBtn(s.screen === 'roster'),
+      navArchiveStyle: navBtn(s.screen === 'archive'),
+      navAuditStyle: navBtn(s.screen === 'auditLog'),
+      openScanModal: this.openScanModal, closeScanModal: this.closeScanModal,
+      setScanInput: this.setScanInput, submitScan: this.submitScan,
+      backToJob: this.backToJob, printPage: this.printPage, stopPropagation: this.stopPropagation,
+
+      archivedJobsDisplay, noArchivedJobs: archivedJobsDisplay.length === 0,
+      auditLogDisplay,
+
+      inviteFullName: s.inviteFullName, setInviteFullName: this.setInviteFullName,
+      inviteEmail: s.inviteEmail, setInviteEmail: this.setInviteEmail,
+      sendInvite: this.sendInvite,
+      hasInviteMessage: !!s.inviteMessage, inviteMessage: s.inviteMessage,
+      inviteMessageColor: s.inviteError ? '#C0392B' : '#1F6F78',
+
+      commentsDisplay, noComments: commentsDisplay.length === 0,
+      newComment: s.newComment, setNewComment: this.setNewComment, submitComment: this.submitComment,
+      archiveSelectedJob: this.archiveSelectedJob,
+
+      stats: {
+        active: active.length,
+        highPriority,
+        sizeBreakdown: `${sSize}/${mSize}/${lSize}`,
+        atRisk,
+      },
+      listToggleStyle: `font:700 11px 'IBM Plex Mono',monospace;padding:9px 14px;border-radius:3px;cursor:pointer;background:${s.dashboardView === 'list' ? '#16283D' : '#fff'};color:${s.dashboardView === 'list' ? '#fff' : '#16283D'};border:1px solid rgba(22,40,61,.2);`,
+      mapToggleStyle: `font:700 11px 'IBM Plex Mono',monospace;padding:9px 14px;border-radius:3px;cursor:pointer;background:${s.dashboardView === 'map' ? '#1F6F78' : '#fff'};color:${s.dashboardView === 'map' ? '#fff' : '#16283D'};border:1px solid rgba(22,40,61,.2);`,
+      setViewList: this.setViewList, setViewMap: this.setViewMap,
+      isListView: s.dashboardView === 'list', isMapView: s.dashboardView === 'map',
+      filters: s.filters,
+      setStatusFilter: this.setStatusFilter, setSizeFilter: this.setSizeFilter,
+      setPriorityFilter: this.setPriorityFilter, setMechanicFilter: this.setMechanicFilter,
+      statusFilterOptions, sizeFilterOptions, priorityFilterOptions, mechanicFilterOptions,
+      resultCountLabel: `${filtered.length} job${filtered.length === 1 ? '' : 's'}`,
+      filteredJobsDisplay,
+
+      isIntakeDictateStep: s.intakeStep === 'dictate',
+      isIntakeReviewStep: s.intakeStep === 'review',
+      micButtonStyle, micButtonLabel: micRecording ? '\u25a0 STOP' : '\u25cf REC',
+      micStatusLabel: micRecording ? 'LISTENING\u2026 TAP TO STOP' : 'TAP TO DICTATE',
+      micErrorLabel: s.intakeMicError,
+      hasMicError: !!s.intakeMicError,
+      intakeTranscriptDisplay: intakeRaw.trim() || 'Transcript will appear here as you speak\u2026',
+      intakeTyped: s.intakeTyped, setIntakeTyped: this.setIntakeTyped,
+      extractButtonStyle: `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:13px;border-radius:4px;cursor:pointer;background:${s.intakeAiLoading ? '#B9C0C4' : '#16283D'};color:#fff;`,
+      extractButtonLabel: s.intakeAiLoading ? 'EXTRACTING\u2026' : '\u2728 EXTRACT WITH AI',
+      runIntakeExtraction: this.runIntakeExtraction,
+      toggleIntakeRecording: this.toggleIntakeRecording,
+      intakeFields: s.intakeFields,
+      setFieldCustomerName: this.setFieldCustomerName, setFieldPhone: this.setFieldPhone,
+      setFieldBoat: this.setFieldBoat, setFieldIssue: this.setFieldIssue,
+      sizeChoiceOptions, priorityChoiceOptions,
+      intakeMechanic: s.intakeMechanic, setIntakeMechanic: this.setIntakeMechanic, mechanicChoiceOptions,
+      intakePhotos: s.intakePhotos.map((photo, i) => ({ url: photo, onRemove: () => this.removeIntakePhoto(i) })),
+      hasIntakePhotos: s.intakePhotos.length > 0,
+      addIntakePhoto: this.addIntakePhoto,
+      saveIntake: this.saveIntake,
+
+      selectedJob,
+      statusChoiceOptions,
+      openLogWork: this.openLogWork, closeLogWork: this.closeLogWork,
+      isLogDictateStep: s.logStep === 'dictate', isLogReviewStep: s.logStep === 'review',
+      logMicButtonStyle, logMicButtonLabel: logMicRecording ? '\u25a0 STOP' : '\u25cf REC',
+      logMicStatusLabel: logMicRecording ? 'LISTENING\u2026' : 'TAP TO DICTATE',
+      logMicErrorLabel: s.logMicError,
+      hasLogMicError: !!s.logMicError,
+      logTranscriptDisplay: logRaw.trim() || 'Transcript will appear here\u2026',
+      logTyped: s.logTyped, setLogTyped: this.setLogTyped,
+      toggleLogRecording: this.toggleLogRecording,
+      logExtractButtonStyle: `text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:pointer;background:${s.logAiLoading ? '#B9C0C4' : '#16283D'};color:#fff;`,
+      logExtractButtonLabel: s.logAiLoading ? 'EXTRACTING\u2026' : '\u2728 EXTRACT WITH AI',
+      runLogExtraction: this.runLogExtraction,
+      logFields: s.logFields,
+      setLogFieldFindings: this.setLogFieldFindings, setLogFieldFix: this.setLogFieldFix,
+      setLogFieldTime: this.setLogFieldTime, setLogFieldMaterials: this.setLogFieldMaterials,
+      logPhotos: s.logPhotos.map((photo, i) => ({ url: photo, onRemove: () => this.removeLogPhoto(i) })),
+      hasLogPhotos: s.logPhotos.length > 0,
+      addLogPhoto: this.addLogPhoto,
+      saveLogEntry: this.saveLogEntry,
+
+      mechanicsDisplay,
+
+      goToTag: this.goToTag, goToInvoice: this.goToInvoice,
+    };
+  }
 }
 </script>
 </body>
