@@ -3,5 +3,16 @@
   functions = "netlify/functions"
   publish = "."
 
+# SUPABASE_URL and SUPABASE_ANON_KEY are intentionally public/client-side
+# values (Row Level Security — not secrecy — protects the data), and
+# generate-config.js writes them into config.js on purpose so the browser
+# can read them. Netlify's secret scanner flags any env var by name whether
+# or not it's meant to be public, so these two are explicitly exempted.
+# Everything genuinely secret (SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY,
+# SHOP_OWNER_BOOTSTRAP_CODE) is NOT listed here and stays fully scanned —
+# it must only ever be read inside netlify/functions/*, never in config.js.
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL,SUPABASE_ANON_KEY"
+
 [functions]
   node_bundler = "esbuild"

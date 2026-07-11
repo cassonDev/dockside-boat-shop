@@ -63,7 +63,11 @@ existing shop_owner — never created by hand or by public signup.
    - `SUPABASE_URL` — your Supabase project URL (section 1)
    - `SUPABASE_ANON_KEY` — the anon/publishable key (section 1). Read into
      the browser bundle at build time by `scripts/generate-config.js` —
-     never committed to source.
+     never committed to source. `netlify.toml` exempts this and
+     `SUPABASE_URL` from Netlify's secret scanner via
+     `SECRETS_SCAN_OMIT_KEYS`, since both are meant to be public
+     (Row Level Security, not secrecy, is what protects your data) —
+     nothing else is exempted.
    - `SUPABASE_SERVICE_ROLE_KEY` — Project Settings → API → `service_role`
      secret key. **Never** put this in frontend code or commit it.
    - `SHOP_OWNER_BOOTSTRAP_CODE` — a strong random string used once to
