@@ -240,8 +240,11 @@
           </div>
         </div>
 
+        <sc-if value="{{ hasIntakeSaveError }}" hint-placeholder-val="{{ false }}">
+          <div style="width:100%;box-sizing:border-box;background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ intakeSaveErrorLabel }}</div>
+        </sc-if>
         <div style="display:flex;gap:8px;margin-top:6px;">
-          <div style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 13px 'Public Sans',sans-serif;padding:13px;border-radius:4px;cursor:pointer;" onClick="{{ saveIntake }}">SAVE &amp; TAG</div>
+          <div style="{{ confirmSaveButtonStyle }}" onClick="{{ saveIntake }}">{{ confirmSaveButtonLabel }}</div>
         </div>
       </div>
       </sc-if>
@@ -762,6 +765,7 @@ class Component extends DCLogic {
 
     intakeStep: 'dictate',
     intakeRecording: false,
+    intakeRecBusy: false,
     intakeMicError: '',
     intakeTranscript: '',
     intakeTyped: '',
@@ -772,9 +776,12 @@ class Component extends DCLogic {
     intakePriority: 'normal',
     intakeMechanic: '',
     intakePhotos: [],
+    intakeSaving: false,
+    intakeSaveError: '',
 
     logStep: 'closed',
     logRecording: false,
+    logRecBusy: false,
     logMicError: '',
     logTranscript: '',
     logTyped: '',
@@ -1000,6 +1007,7 @@ class Component extends DCLogic {
     intakeFields: { customerName: '', phone: '', boatMakeModel: '', issue: '' },
     intakeSize: 'M', intakePriority: 'normal', intakeMechanic: (this.state.mechanics[0] || {}).id || '',
     intakePhotos: [], intakeRecording: false, intakeMicError: '', intakeRawNotesFinal: '', showScanModal: false,
+    intakeSaving: false, intakeSaveError: '', intakeRecBusy: false,
   });
   goRoster = () => this.setState({ screen: 'roster', showScanModal: false });
   openJob = (id) => {
@@ -1053,9 +1061,11 @@ class Component extends DCLogic {
 
   // ---------- intake ----------
   toggleIntakeRecording = () => {
+    if (this.state.intakeRecBusy) { console.log('[mic] intake toggle ignored \u2014 session busy'); return; }
     if (this.state.intakeRecording) { this.stopIntakeRecording(); } else { this.startIntakeRecording(); }
   };
   startIntakeRecording = () => {
+    if (this._intakeRecActive) { console.log('[mic] intake start() blocked \u2014 already active'); return; }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { this.setState({ intakeRecording: false, intakeMicError: 'Voice dictation isn\u2019t supported in this browser \u2014 type below instead.' }); return; }
     const rec = new SR();
@@ -1063,6 +1073,13 @@ class Component extends DCLogic {
     rec.interimResults = true;
     rec.lang = 'en-US';
     let finalText = this.state.intakeTranscript || '';
+    rec.onstart = () => {
+      console.log('[mic] intake onstart');
+      this._intakeRecActive = true;
+      this.setState({ intakeRecording: true, intakeRecBusy: false, intakeMicError: '' });
+    };
+    rec.onaudiostart = () => console.log('[mic] intake onaudiostart');
+    rec.onspeechstart = () => console.log('[mic] intake onspeechstart');
     rec.onresult = (ev) => {
       let interim = '';
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
@@ -1072,25 +1089,52 @@ class Component extends DCLogic {
       }
       this.setState({ intakeTranscript: finalText, _intakeInterim: interim });
     };
-    rec.onerror = (ev) => this.setState({ intakeRecording: false, intakeMicError: this.micErrorMessage(ev.error) });
-    rec.onend = () => this.setState({ intakeRecording: false, _intakeInterim: '' });
+    rec.onerror = (ev) => {
+      console.log('[mic] intake onerror', ev.error, ev.message || '');
+      this._intakeRecActive = false;
+      this._intakeRec = null;
+      const isNoSpeech = ev.error === 'no-speech';
+      this.setState({
+        intakeRecording: false,
+        intakeRecBusy: false,
+        intakeMicError: isNoSpeech ? 'No speech detected \u2014 tap to try again.' : this.micErrorMessage(ev.error),
+      });
+    };
+    rec.onend = () => {
+      console.log('[mic] intake onend');
+      this._intakeRecActive = false;
+      this._intakeRec = null;
+      this.setState({ intakeRecording: false, intakeRecBusy: false, _intakeInterim: '' });
+    };
     this._intakeRec = rec;
-    this.setState({ intakeRecording: true, intakeMicError: '' });
-    try { rec.start(); } catch (e) { this.setState({ intakeRecording: false, intakeMicError: this.micErrorMessage(e.name) }); }
+    this.setState({ intakeRecBusy: true, intakeMicError: '' });
+    console.log('[mic] intake start() called');
+    try {
+      rec.start();
+    } catch (e) {
+      console.log('[mic] intake start() threw', e.name, e.message);
+      this._intakeRecActive = false;
+      this._intakeRec = null;
+      this.setState({ intakeRecording: false, intakeRecBusy: false, intakeMicError: this.micErrorMessage(e.name) });
+    }
   };
   micErrorMessage(code) {
     const map = {
       'not-allowed': 'Microphone permission blocked \u2014 allow mic access or type below instead.',
       'service-not-allowed': 'Microphone permission blocked \u2014 allow mic access or type below instead.',
-      'no-speech': 'Didn\u2019t catch any speech \u2014 try again or type below instead.',
       'audio-capture': 'No microphone found \u2014 type below instead.',
+      'network': 'Network error during dictation \u2014 check your connection and try again.',
+      'aborted': 'Dictation was interrupted \u2014 tap to try again.',
       'NotAllowedError': 'Microphone permission blocked \u2014 allow mic access or type below instead.',
+      'InvalidStateError': 'Dictation session was already active \u2014 tap to try again.',
     };
-    return map[code] || 'Mic dictation hit a snag \u2014 type below instead.';
+    return (map[code] || 'Mic dictation hit a snag') + ' (' + code + ')';
   }
   stopIntakeRecording = () => {
-    if (this._intakeRec) { try { this._intakeRec.stop(); } catch (e) {} }
-    this.setState({ intakeRecording: false });
+    if (this.state.intakeRecBusy) { console.log('[mic] intake stop() ignored \u2014 session busy'); return; }
+    console.log('[mic] intake stop() called');
+    this.setState({ intakeRecBusy: true });
+    if (this._intakeRec) { try { this._intakeRec.stop(); } catch (e) { console.log('[mic] intake stop() threw', e.name); } }
   };
   setIntakeTyped = (e) => this.setState({ intakeTyped: e.target.value });
 
@@ -1193,45 +1237,65 @@ class Component extends DCLogic {
   removeLogPhoto = (idx) => this.setState({ logPhotos: this.state.logPhotos.filter((_, i) => i !== idx) });
 
   saveIntake = async () => {
+    if (this.state.intakeSaving) return;
+    const f = this.state.intakeFields;
+    if (!f.customerName || !f.customerName.trim()) { this.setState({ intakeSaveError: 'Customer name is required.' }); return; }
+    if (!f.boatMakeModel || !f.boatMakeModel.trim()) { this.setState({ intakeSaveError: 'Boat make/model is required.' }); return; }
+    if (!f.issue || !f.issue.trim()) { this.setState({ intakeSaveError: 'Issue description is required.' }); return; }
+    const mechanicId = this.state.intakeMechanic || (this.state.mechanics[0] || {}).id;
+    if (!mechanicId) { this.setState({ intakeSaveError: 'Assign a mechanic before saving.' }); return; }
+    if (!this._dataMod) { this.setState({ intakeSaveError: 'Not connected to the database \u2014 cannot save job.' }); return; }
+
+    this.setState({ intakeSaving: true, intakeSaveError: '' });
+
     const existingIds = this.state.jobs.map(j => j.id);
-    const id = this._dataMod ? this._dataMod.newJobCode(existingIds) : ('J' + Date.now()).slice(0, 5).toUpperCase();
-    const job = {
+    const id = this._dataMod.newJobCode(existingIds);
+    const draftJob = {
       id,
-      customerName: this.state.intakeFields.customerName || 'Unnamed Customer',
-      phone: this.state.intakeFields.phone || '',
-      boatMakeModel: this.state.intakeFields.boatMakeModel || '',
-      issue: this.state.intakeFields.issue || '',
+      customerName: f.customerName.trim(),
+      phone: f.phone || '',
+      boatMakeModel: f.boatMakeModel.trim(),
+      issue: f.issue.trim(),
       photos: this.state.intakePhotos,
       size: this.state.intakeSize,
       priority: this.state.intakePriority,
-      assignedMechanic: this.state.intakeMechanic || (this.state.mechanics[0] || {}).id,
+      assignedMechanic: mechanicId,
       status: 'open',
       createdAt: Date.now(),
       intakeRawNotes: this.state.intakeRawNotesFinal || '',
       entries: [],
     };
-    this.setState({
-      jobs: [job, ...this.state.jobs],
-      selectedJobId: job.id,
-      screen: 'tag',
-    });
+
     try {
-      if (this._dataMod) await this._dataMod.insertJob(job, this.state.profile && this.state.profile.id);
+      const savedJob = await this._dataMod.insertJob(draftJob, this.state.profile && this.state.profile.id);
+      this.setState({
+        jobs: [savedJob, ...this.state.jobs],
+        selectedJobId: savedJob.id,
+        intakeSaving: false,
+        intakeSaveError: '',
+        screen: 'tag',
+      });
     } catch (e) {
       console.error('Failed to save job to Supabase', e);
+      this.setState({
+        intakeSaving: false,
+        intakeSaveError: (e && e.message) || 'Could not save job. Please try again.',
+      });
     }
   };
 
   // ---------- log work ----------
-  openLogWork = () => this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRecording: false, logMicError: '', logRawNotesFinal: '', logPhotos: [] });
+  openLogWork = () => this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRecording: false, logRecBusy: false, logMicError: '', logRawNotesFinal: '', logPhotos: [] });
   closeLogWork = () => {
     if (this._logRec) { try { this._logRec.stop(); } catch (e) {} }
-    this.setState({ logStep: 'closed', logRecording: false });
+    this.setState({ logStep: 'closed', logRecording: false, logRecBusy: false });
   };
   toggleLogRecording = () => {
+    if (this.state.logRecBusy) { console.log('[mic] log toggle ignored \u2014 session busy'); return; }
     if (this.state.logRecording) { this.stopLogRecording(); } else { this.startLogRecording(); }
   };
   startLogRecording = () => {
+    if (this._logRecActive) { console.log('[mic] log start() blocked \u2014 already active'); return; }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { this.setState({ logRecording: false, logMicError: 'Voice dictation isn\u2019t supported in this browser \u2014 type below instead.' }); return; }
     const rec = new SR();
@@ -1239,6 +1303,13 @@ class Component extends DCLogic {
     rec.interimResults = true;
     rec.lang = 'en-US';
     let finalText = this.state.logTranscript || '';
+    rec.onstart = () => {
+      console.log('[mic] log onstart');
+      this._logRecActive = true;
+      this.setState({ logRecording: true, logRecBusy: false, logMicError: '' });
+    };
+    rec.onaudiostart = () => console.log('[mic] log onaudiostart');
+    rec.onspeechstart = () => console.log('[mic] log onspeechstart');
     rec.onresult = (ev) => {
       let interim = '';
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
@@ -1248,15 +1319,40 @@ class Component extends DCLogic {
       }
       this.setState({ logTranscript: finalText, _logInterim: interim });
     };
-    rec.onerror = (ev) => this.setState({ logRecording: false, logMicError: this.micErrorMessage(ev.error) });
-    rec.onend = () => this.setState({ logRecording: false, _logInterim: '' });
+    rec.onerror = (ev) => {
+      console.log('[mic] log onerror', ev.error, ev.message || '');
+      this._logRecActive = false;
+      this._logRec = null;
+      const isNoSpeech = ev.error === 'no-speech';
+      this.setState({
+        logRecording: false,
+        logRecBusy: false,
+        logMicError: isNoSpeech ? 'No speech detected \u2014 tap to try again.' : this.micErrorMessage(ev.error),
+      });
+    };
+    rec.onend = () => {
+      console.log('[mic] log onend');
+      this._logRecActive = false;
+      this._logRec = null;
+      this.setState({ logRecording: false, logRecBusy: false, _logInterim: '' });
+    };
     this._logRec = rec;
-    this.setState({ logRecording: true, logMicError: '' });
-    try { rec.start(); } catch (e) { this.setState({ logRecording: false, logMicError: this.micErrorMessage(e.name) }); }
+    this.setState({ logRecBusy: true, logMicError: '' });
+    console.log('[mic] log start() called');
+    try {
+      rec.start();
+    } catch (e) {
+      console.log('[mic] log start() threw', e.name, e.message);
+      this._logRecActive = false;
+      this._logRec = null;
+      this.setState({ logRecording: false, logRecBusy: false, logMicError: this.micErrorMessage(e.name) });
+    }
   };
   stopLogRecording = () => {
-    if (this._logRec) { try { this._logRec.stop(); } catch (e) {} }
-    this.setState({ logRecording: false });
+    if (this.state.logRecBusy) { console.log('[mic] log stop() ignored \u2014 session busy'); return; }
+    console.log('[mic] log stop() called');
+    this.setState({ logRecBusy: true });
+    if (this._logRec) { try { this._logRec.stop(); } catch (e) { console.log('[mic] log stop() threw', e.name); } }
   };
   setLogTyped = (e) => this.setState({ logTyped: e.target.value });
 
@@ -1544,9 +1640,11 @@ class Component extends DCLogic {
     }));
 
     const micRecording = s.intakeRecording;
-    const micButtonStyle = `width:96px;height:96px;border-radius:50%;background:${micRecording ? '#C0392B' : '#D97706'};display:flex;align-items:center;justify-content:center;cursor:pointer;${micRecording ? 'animation:dk-pulse 1.6s infinite;' : ''}`;
+    const micButtonBusy = s.intakeRecBusy;
+    const micButtonStyle = `width:96px;height:96px;border-radius:50%;background:${micButtonBusy ? '#B9C0C4' : micRecording ? '#C0392B' : '#D97706'};display:flex;align-items:center;justify-content:center;cursor:${micButtonBusy ? 'default' : 'pointer'};pointer-events:${micButtonBusy ? 'none' : 'auto'};${micRecording ? 'animation:dk-pulse 1.6s infinite;' : ''}`;
     const logMicRecording = s.logRecording;
-    const logMicButtonStyle = `width:64px;height:64px;border-radius:50%;background:${logMicRecording ? '#C0392B' : '#D97706'};display:flex;align-items:center;justify-content:center;cursor:pointer;${logMicRecording ? 'animation:dk-pulse 1.6s infinite;' : ''}`;
+    const logMicButtonBusy = s.logRecBusy;
+    const logMicButtonStyle = `width:64px;height:64px;border-radius:50%;background:${logMicButtonBusy ? '#B9C0C4' : logMicRecording ? '#C0392B' : '#D97706'};display:flex;align-items:center;justify-content:center;cursor:${logMicButtonBusy ? 'default' : 'pointer'};pointer-events:${logMicButtonBusy ? 'none' : 'auto'};${logMicRecording ? 'animation:dk-pulse 1.6s infinite;' : ''}`;
 
     const intakeRaw = (s.intakeTranscript + (s._intakeInterim ? ' ' + s._intakeInterim : ''));
     const logRaw = (s.logTranscript + (s._logInterim ? ' ' + s._logInterim : ''));
@@ -1617,8 +1715,8 @@ class Component extends DCLogic {
 
       isIntakeDictateStep: s.intakeStep === 'dictate',
       isIntakeReviewStep: s.intakeStep === 'review',
-      micButtonStyle, micButtonLabel: micRecording ? '\u25a0 STOP' : '\u25cf REC',
-      micStatusLabel: micRecording ? 'LISTENING\u2026 TAP TO STOP' : 'TAP TO DICTATE',
+      micButtonStyle, micButtonLabel: micButtonBusy ? '\u2026' : (micRecording ? '\u25a0 STOP' : '\u25cf REC'),
+      micStatusLabel: micButtonBusy ? 'ONE MOMENT\u2026' : (micRecording ? 'LISTENING\u2026 TAP TO STOP' : 'TAP TO DICTATE'),
       micErrorLabel: s.intakeMicError,
       hasMicError: !!s.intakeMicError,
       intakeTranscriptDisplay: intakeRaw.trim() || 'Transcript will appear here as you speak\u2026',
@@ -1636,13 +1734,16 @@ class Component extends DCLogic {
       hasIntakePhotos: s.intakePhotos.length > 0,
       addIntakePhoto: this.addIntakePhoto,
       saveIntake: this.saveIntake,
+      hasIntakeSaveError: !!s.intakeSaveError, intakeSaveErrorLabel: s.intakeSaveError,
+      confirmSaveButtonStyle: `flex:1;text-align:center;font:700 13px 'Public Sans',sans-serif;padding:13px;border-radius:4px;cursor:${s.intakeSaving ? 'default' : 'pointer'};color:#fff;background:${s.intakeSaving ? '#B9C0C4' : '#1F6F78'};`,
+      confirmSaveButtonLabel: s.intakeSaving ? 'SAVING\u2026' : 'CONFIRM & SAVE JOB',
 
       selectedJob,
       statusChoiceOptions,
       openLogWork: this.openLogWork, closeLogWork: this.closeLogWork,
       isLogDictateStep: s.logStep === 'dictate', isLogReviewStep: s.logStep === 'review',
-      logMicButtonStyle, logMicButtonLabel: logMicRecording ? '\u25a0 STOP' : '\u25cf REC',
-      logMicStatusLabel: logMicRecording ? 'LISTENING\u2026' : 'TAP TO DICTATE',
+      logMicButtonStyle, logMicButtonLabel: logMicButtonBusy ? '\u2026' : (logMicRecording ? '\u25a0 STOP' : '\u25cf REC'),
+      logMicStatusLabel: logMicButtonBusy ? 'ONE MOMENT\u2026' : (logMicRecording ? 'LISTENING\u2026' : 'TAP TO DICTATE'),
       logMicErrorLabel: s.logMicError,
       hasLogMicError: !!s.logMicError,
       logTranscriptDisplay: logRaw.trim() || 'Transcript will appear here\u2026',
