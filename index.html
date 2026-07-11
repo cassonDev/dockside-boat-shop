@@ -11,11 +11,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
-  body{margin:0;background:#EDE6D6;}
+  html{-webkit-text-size-adjust:100%;}
+  html,body{margin:0;background:#EDE6D6;overflow-x:hidden;max-width:100%;}
+  *{box-sizing:border-box;}
   a{color:#1F6F78;}
   a:hover{color:#164E54;}
+  input,select,textarea{font-size:16px;}
   @keyframes dk-pulse{0%{box-shadow:0 0 0 0 rgba(217,119,6,.45)}70%{box-shadow:0 0 0 16px rgba(217,119,6,0)}100%{box-shadow:0 0 0 0 rgba(217,119,6,0)}}
   @keyframes dk-spin{to{transform:rotate(360deg)}}
+  @keyframes dk-slidedown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
   @media print{.no-print{display:none !important}.dk-print-page{box-shadow:none !important;margin:0 !important}}
 </style>
 <script src="./config.js"></script>
@@ -24,33 +28,57 @@
 <div style="min-height:100vh;background:#EDE6D6;font-family:'Public Sans',sans-serif;color:#16283D;">
 
   <sc-if value="{{ navVisible }}" hint-placeholder-val="{{ true }}">
-  <div class="no-print" style="background:#16283D;background-image:linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);background-size:24px 24px;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:sticky;top:0;z-index:50;">
-    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onClick="{{ goDashboard }}">
-        <img src="https://lessardmarineworks.com/wp-content/uploads/2022/11/cropped-lessard-marine-works-logo.png" style="width:34px;height:34px;border-radius:6px;object-fit:contain;background:#fff;padding:2px;"/>
-        <div>
-          <div style="font:900 15px 'Archivo',sans-serif;color:#F6F1E4;letter-spacing:.3px;line-height:1.1;">LESSARD MARINE WORKS</div>
+  <div class="no-print" style="background:#16283D;background-image:linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);background-size:24px 24px;padding:calc(env(safe-area-inset-top,0px) + 10px) max(16px,env(safe-area-inset-left,0px)) 10px max(16px,env(safe-area-inset-right,0px));position:sticky;top:0;z-index:50;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;min-width:0;" onClick="{{ goDashboard }}">
+        <img src="https://lessardmarineworks.com/wp-content/uploads/2022/11/cropped-lessard-marine-works-logo.png" style="width:34px;height:34px;border-radius:6px;object-fit:contain;background:#fff;padding:2px;flex:none;"/>
+        <div style="min-width:0;">
+          <div style="font:800 clamp(12px,3.6vw,15px) 'Archivo',sans-serif;color:#F6F1E4;letter-spacing:.3px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">LESSARD MARINE WORKS</div>
           <div style="font:600 9.5px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.6px;">JOB TRACKER</div>
         </div>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        <div style="{{ navDashboardStyle }}" onClick="{{ goDashboard }}">DASHBOARD</div>
-        <div style="{{ navIntakeStyle }}" onClick="{{ goIntake }}">+ NEW JOB</div>
-        <div style="{{ navRosterStyle }}" onClick="{{ goRoster }}">MECHANICS</div>
-        <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
-        <div style="{{ navArchiveStyle }}" onClick="{{ goArchive }}">ARCHIVE</div>
-        <div style="{{ navAuditStyle }}" onClick="{{ goAudit }}">AUDIT LOG</div>
+      <div style="display:flex;align-items:center;gap:8px;flex:none;">
+        <sc-if value="{{ isNarrowNav }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#D97706;color:#fff;font:700 18px 'IBM Plex Mono',monospace;width:44px;height:44px;border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;" onClick="{{ openScanModal }}">&#9635;</div>
+          <div style="background:rgba(255,255,255,.1);color:#F6F1E4;font:700 20px 'IBM Plex Mono',monospace;width:44px;height:44px;border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;" onClick="{{ toggleNavMenu }}">{{ navMenuIcon }}</div>
+        </sc-if>
+        <sc-if value="{{ isWideNav }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <div style="{{ navDashboardStyle }}" onClick="{{ goDashboard }}">DASHBOARD</div>
+            <div style="{{ navIntakeStyle }}" onClick="{{ goIntake }}">+ NEW JOB</div>
+            <div style="{{ navRosterStyle }}" onClick="{{ goRoster }}">MECHANICS</div>
+            <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
+            <div style="{{ navArchiveStyle }}" onClick="{{ goArchive }}">ARCHIVE</div>
+            <div style="{{ navAuditStyle }}" onClick="{{ goAudit }}">AUDIT LOG</div>
+            </sc-if>
+          </div>
+          <div style="text-align:right;">
+            <div style="font:700 12px 'Public Sans',sans-serif;color:#F6F1E4;">{{ currentUserName }}</div>
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.5px;">{{ currentUserRoleLabel }}</div>
+          </div>
+          <div style="background:#D97706;color:#fff;font:700 12px 'IBM Plex Mono',monospace;padding:12px 16px;border-radius:3px;cursor:pointer;letter-spacing:.4px;" onClick="{{ openScanModal }}">&#9635; SCAN TAG</div>
+          <div style="background:rgba(255,255,255,.08);color:#F6F1E4;font:700 11px 'IBM Plex Mono',monospace;padding:12px 14px;border-radius:3px;cursor:pointer;letter-spacing:.4px;" onClick="{{ handleSignOut }}">SIGN OUT</div>
         </sc-if>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;">
-      <div style="text-align:right;">
-        <div style="font:700 12px 'Public Sans',sans-serif;color:#F6F1E4;">{{ currentUserName }}</div>
-        <div style="font:600 9px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.5px;">{{ currentUserRoleLabel }}</div>
+    <sc-if value="{{ showNavMenu }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.12);display:flex;flex-direction:column;gap:6px;animation:dk-slidedown .15s ease-out;">
+        <div style="{{ navDashboardStyleFull }}" onClick="{{ navGoDashboard }}">DASHBOARD</div>
+        <div style="{{ navIntakeStyleFull }}" onClick="{{ navGoIntake }}">+ NEW JOB</div>
+        <div style="{{ navRosterStyleFull }}" onClick="{{ navGoRoster }}">MECHANICS</div>
+        <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ navArchiveStyleFull }}" onClick="{{ navGoArchive }}">ARCHIVE</div>
+        <div style="{{ navAuditStyleFull }}" onClick="{{ navGoAudit }}">AUDIT LOG</div>
+        </sc-if>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;margin-top:4px;border-top:1px solid rgba(255,255,255,.12);">
+          <div>
+            <div style="font:700 12px 'Public Sans',sans-serif;color:#F6F1E4;">{{ currentUserName }}</div>
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.5px;">{{ currentUserRoleLabel }}</div>
+          </div>
+          <div style="background:rgba(255,255,255,.08);color:#F6F1E4;font:700 11px 'IBM Plex Mono',monospace;padding:12px 14px;border-radius:3px;cursor:pointer;letter-spacing:.4px;flex:none;" onClick="{{ handleSignOut }}">SIGN OUT</div>
+        </div>
       </div>
-      <div style="background:#D97706;color:#fff;font:700 12px 'IBM Plex Mono',monospace;padding:9px 16px;border-radius:3px;cursor:pointer;letter-spacing:.4px;" onClick="{{ openScanModal }}">&#9635; SCAN TAG</div>
-      <div style="background:rgba(255,255,255,.08);color:#F6F1E4;font:700 11px 'IBM Plex Mono',monospace;padding:9px 14px;border-radius:3px;cursor:pointer;letter-spacing:.4px;" onClick="{{ handleSignOut }}">SIGN OUT</div>
-    </div>
+    </sc-if>
   </div>
   </sc-if>
 
@@ -65,7 +93,7 @@
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:18px;">
       <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:16px 18px;">
         <div style="font:700 30px 'Archivo',sans-serif;color:#16283D;">{{ stats.active }}</div>
         <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;">ACTIVE JOBS</div>
@@ -84,36 +112,46 @@
       </div>
     </div>
 
+    <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
+      <sc-if value="{{ isNarrowNav }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#fff;border:1px solid rgba(22,40,61,.25);color:#16283D;font:700 11.5px 'IBM Plex Mono',monospace;padding:11px 14px;border-radius:3px;cursor:pointer;" onClick="{{ toggleFilters }}">&#9776; {{ filtersToggleLabel }}</div>
+        <div style="font:600 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">{{ resultCountLabel }}</div>
+      </sc-if>
+    </div>
+    <sc-if value="{{ showFilterRow }}" hint-placeholder-val="{{ true }}">
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
-      <select style="background:#fff;border:1px solid rgba(22,40,61,.25);color:#16283D;font:600 11.5px 'IBM Plex Mono',monospace;padding:8px 10px;border-radius:3px;" value="{{ filters.status }}" onChange="{{ setStatusFilter }}">
+      <select style="flex:1;min-width:140px;background:#fff;border:1px solid rgba(22,40,61,.25);color:#16283D;font:600 11.5px 'IBM Plex Mono',monospace;padding:11px 10px;border-radius:3px;" value="{{ filters.status }}" onChange="{{ setStatusFilter }}">
         <sc-for list="{{ statusFilterOptions }}" as="opt" hint-placeholder-count="4">
           <option value="{{ opt.value }}">{{ opt.label }}</option>
         </sc-for>
       </select>
-      <select style="background:#fff;border:1px solid rgba(22,40,61,.25);color:#16283D;font:600 11.5px 'IBM Plex Mono',monospace;padding:8px 10px;border-radius:3px;" value="{{ filters.size }}" onChange="{{ setSizeFilter }}">
+      <select style="flex:1;min-width:140px;background:#fff;border:1px solid rgba(22,40,61,.25);color:#16283D;font:600 11.5px 'IBM Plex Mono',monospace;padding:11px 10px;border-radius:3px;" value="{{ filters.size }}" onChange="{{ setSizeFilter }}">
         <sc-for list="{{ sizeFilterOptions }}" as="opt" hint-placeholder-count="4">
           <option value="{{ opt.value }}">{{ opt.label }}</option>
         </sc-for>
       </select>
-      <select style="background:#fff;border:1px solid rgba(22,40,61,.25);color:#16283D;font:600 11.5px 'IBM Plex Mono',monospace;padding:8px 10px;border-radius:3px;" value="{{ filters.priority }}" onChange="{{ setPriorityFilter }}">
+      <select style="flex:1;min-width:140px;background:#fff;border:1px solid rgba(22,40,61,.25);color:#16283D;font:600 11.5px 'IBM Plex Mono',monospace;padding:11px 10px;border-radius:3px;" value="{{ filters.priority }}" onChange="{{ setPriorityFilter }}">
         <sc-for list="{{ priorityFilterOptions }}" as="opt" hint-placeholder-count="3">
           <option value="{{ opt.value }}">{{ opt.label }}</option>
         </sc-for>
       </select>
-      <select style="background:#fff;border:1px solid rgba(22,40,61,.25);color:#16283D;font:600 11.5px 'IBM Plex Mono',monospace;padding:8px 10px;border-radius:3px;" value="{{ filters.mechanic }}" onChange="{{ setMechanicFilter }}">
+      <select style="flex:1;min-width:140px;background:#fff;border:1px solid rgba(22,40,61,.25);color:#16283D;font:600 11.5px 'IBM Plex Mono',monospace;padding:11px 10px;border-radius:3px;" value="{{ filters.mechanic }}" onChange="{{ setMechanicFilter }}">
         <sc-for list="{{ mechanicFilterOptions }}" as="opt" hint-placeholder-count="6">
           <option value="{{ opt.value }}">{{ opt.label }}</option>
         </sc-for>
       </select>
-      <div style="align-self:center;font:600 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">{{ resultCountLabel }}</div>
+      <div class="no-print" style="align-self:center;font:600 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">
+        <sc-if value="{{ isWideNav }}" hint-placeholder-val="{{ true }}">{{ resultCountLabel }}</sc-if>
+      </div>
     </div>
+    </sc-if>
 
     <sc-if value="{{ isListView }}" hint-placeholder-val="{{ true }}">
     <div style="display:flex;flex-direction:column;gap:8px;">
       <sc-for list="{{ filteredJobsDisplay }}" as="job" hint-placeholder-count="6">
         <div style="{{ job.rowStyle }}" onClick="{{ job.onOpen }}">
           <div style="font:600 12px 'IBM Plex Mono',monospace;color:#16283D;width:64px;flex:none;">{{ job.id }}</div>
-          <div style="flex:1;min-width:200px;font:600 13px 'Public Sans',sans-serif;color:#16283D;">{{ job.title }}</div>
+          <div style="flex:1;min-width:140px;font:600 13px 'Public Sans',sans-serif;color:#16283D;">{{ job.title }}</div>
           <div style="font:700 10px 'IBM Plex Mono',monospace;background:#EDE6D6;padding:4px 9px;border-radius:2px;color:#16283D;flex:none;">{{ job.size }}</div>
           <div style="{{ job.priorityChipStyle }}">{{ job.priorityLabel }}</div>
           <div style="{{ job.statusChipStyle }}">{{ job.statusLabel }}</div>
@@ -126,7 +164,7 @@
     <sc-if value="{{ isMapView }}" hint-placeholder-val="{{ false }}">
     <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:20px;">
       <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;margin-bottom:14px;">LOT LAYOUT &mdash; TAP A SLIP</div>
-      <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:10px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(58px,1fr));gap:10px;">
         <sc-for list="{{ filteredJobsDisplay }}" as="job" hint-placeholder-count="16">
           <div style="{{ job.tileStyle }}" onClick="{{ job.onOpen }}">
             <div style="font:700 11px 'IBM Plex Mono',monospace;">{{ job.id }}</div>
@@ -301,7 +339,7 @@
           <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No comments yet.</div>
         </sc-if>
         <div style="display:flex;gap:8px;margin-top:4px;">
-          <input placeholder="Add a comment&hellip;" style="flex:1;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:9px 11px;font:500 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ newComment }}" onChange="{{ setNewComment }}"/>
+          <input placeholder="Add a comment&hellip;" style="flex:1;min-width:0;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 11px;font:500 14px 'Public Sans',sans-serif;color:#16283D;" value="{{ newComment }}" onChange="{{ setNewComment }}"/>
           <div style="{{ postButtonStyle }}" onClick="{{ submitComment }}">{{ postButtonLabel }}</div>
         </div>
         <sc-if value="{{ hasCommentError }}" hint-placeholder-val="{{ false }}">
@@ -429,9 +467,9 @@
     <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:14px 16px;margin-bottom:14px;">
       <div style="font:700 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;margin-bottom:8px;">INVITE MECHANIC</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input placeholder="Full name *" style="flex:1;min-width:120px;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:9px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ inviteFullName }}" onChange="{{ setInviteFullName }}"/>
-        <input type="email" placeholder="Email" style="flex:1;min-width:160px;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:9px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ inviteEmail }}" onChange="{{ setInviteEmail }}"/>
-        <div style="background:#1F6F78;color:#fff;font:700 12px 'Public Sans',sans-serif;padding:10px 16px;border-radius:4px;cursor:pointer;" onClick="{{ sendInvite }}">SEND INVITE</div>
+        <input placeholder="Full name *" style="flex:1;min-width:140px;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ inviteFullName }}" onChange="{{ setInviteFullName }}"/>
+        <input type="email" placeholder="Email" style="flex:1;min-width:160px;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ inviteEmail }}" onChange="{{ setInviteEmail }}"/>
+        <div style="background:#1F6F78;color:#fff;font:700 12px 'Public Sans',sans-serif;padding:13px 16px;border-radius:4px;cursor:pointer;flex:1;min-width:120px;text-align:center;" onClick="{{ sendInvite }}">SEND INVITE</div>
       </div>
       <sc-if value="{{ hasInviteMessage }}" hint-placeholder-val="{{ false }}">
         <div style="margin-top:8px;font:600 12px 'Public Sans',sans-serif;color:{{ inviteMessageColor }};">{{ inviteMessage }}</div>
@@ -513,7 +551,7 @@
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:20px;">
         <div>
           <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:4px;">CUSTOMER</div>
           <div style="font:700 15px 'Public Sans',sans-serif;color:#16283D;">{{ selectedJob.customerName }}</div>
@@ -664,7 +702,7 @@
       <sc-for list="{{ archivedJobsDisplay }}" as="job" hint-placeholder-count="3">
         <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
           <div style="font:600 12px 'IBM Plex Mono',monospace;color:#16283D;width:64px;flex:none;">{{ job.id }}</div>
-          <div style="flex:1;min-width:200px;font:600 13px 'Public Sans',sans-serif;color:#16283D;">{{ job.title }}</div>
+          <div style="flex:1;min-width:140px;font:600 13px 'Public Sans',sans-serif;color:#16283D;">{{ job.title }}</div>
           <div style="font:600 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">{{ job.archivedLabel }}</div>
           <div style="background:#1F6F78;color:#fff;font:700 11px 'Public Sans',sans-serif;padding:8px 14px;border-radius:4px;cursor:pointer;" onClick="{{ job.onRestore }}">RESTORE</div>
         </div>
@@ -736,6 +774,10 @@ class Component extends DCLogic {
     bootstrapPassword: '',
     bootstrapCode: '',
     bootstrapBusy: false,
+
+    viewportWidth: (typeof window !== 'undefined' && window.innerWidth) || 1200,
+    navMenuOpen: false,
+    filtersOpen: false,
     bootstrapError: '',
     bootstrapNotice: '',
 
@@ -792,6 +834,7 @@ class Component extends DCLogic {
   };
 
   async componentDidMount() {
+    this._initResizeListener();
     const mod = await import('./supabase-client.js');
     this._dataMod = mod;
 
@@ -856,7 +899,21 @@ class Component extends DCLogic {
 
   componentWillUnmount() {
     if (this._authSub) { try { this._authSub.unsubscribe(); } catch (e) {} }
+    if (this._onResize) window.removeEventListener('resize', this._onResize);
   }
+  _initResizeListener() {
+    if (this._onResize || typeof window === 'undefined') return;
+    this._onResize = () => this.setState({ viewportWidth: window.innerWidth });
+    window.addEventListener('resize', this._onResize);
+  }
+  toggleNavMenu = () => this.setState(s => ({ navMenuOpen: !s.navMenuOpen }));
+  closeNavMenu = () => this.setState({ navMenuOpen: false });
+  toggleFilters = () => this.setState(s => ({ filtersOpen: !s.filtersOpen }));
+  navGoDashboard = () => { this.closeNavMenu(); this.goDashboard(); };
+  navGoIntake = () => { this.closeNavMenu(); this.goIntake(); };
+  navGoRoster = () => { this.closeNavMenu(); this.goRoster(); };
+  navGoArchive = () => { this.closeNavMenu(); this.goArchive(); };
+  navGoAudit = () => { this.closeNavMenu(); this.goAudit(); };
 
   loadForSession = async () => {
     const mod = this._dataMod;
@@ -1487,7 +1544,9 @@ class Component extends DCLogic {
       };
     }
 
-    const navBtn = (active) => `font:700 11.5px 'IBM Plex Mono',monospace;letter-spacing:.4px;padding:9px 14px;border-radius:3px;cursor:pointer;color:${active ? '#fff' : '#B9C0C4'};background:${active ? '#1F6F78' : 'rgba(255,255,255,.06)'};`;
+    const navBtn = (active) => `font:700 11.5px 'IBM Plex Mono',monospace;letter-spacing:.4px;padding:12px 14px;border-radius:3px;cursor:pointer;color:${active ? '#fff' : '#B9C0C4'};background:${active ? '#1F6F78' : 'rgba(255,255,255,.06)'};`;
+    const navBtnFull = (active) => `font:700 12.5px 'IBM Plex Mono',monospace;letter-spacing:.4px;padding:13px 14px;border-radius:3px;cursor:pointer;color:${active ? '#fff' : '#B9C0C4'};background:${active ? '#1F6F78' : 'rgba(255,255,255,.06)'};`;
+    const isNarrowNav = s.viewportWidth < 860;
 
     const jobs = s.jobs;
     const active = jobs.filter(j => j.status !== 'done');
@@ -1521,7 +1580,7 @@ class Component extends DCLogic {
         statusLabel: job.status.toUpperCase(),
         statusChipStyle: statusChipStyle(job.status),
         mechanicDisplay: risk ? `\u26a0 ${shortName(mechName(job.assignedMechanic))} (OOO)` : shortName(mechName(job.assignedMechanic)),
-        mechanicStyle: `font:600 12px 'Public Sans',sans-serif;color:${risk ? '#C0392B' : '#1F6F78'};flex:none;min-width:130px;text-align:right;`,
+        mechanicStyle: `font:600 12px 'Public Sans',sans-serif;color:${risk ? '#C0392B' : '#1F6F78'};flex:none;text-align:right;`,
         rowStyle: `display:flex;align-items:center;gap:12px;background:#fff;border:1px solid rgba(22,40,61,.15);${risk ? 'border-left:4px solid #C0392B;' : ''}border-radius:3px;padding:12px 16px;cursor:pointer;flex-wrap:wrap;`,
         tileStyle: `aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:${job.priority === 'high' ? '#fff' : '#16283D'};background:${risk ? '#C0392B' : job.priority === 'high' ? '#D97706' : '#F6F1E4'};${risk ? 'color:#fff;' : ''}border:1px solid rgba(22,40,61,.15);`,
         onOpen: () => this.openJob(job.id),
@@ -1676,6 +1735,17 @@ class Component extends DCLogic {
       navRosterStyle: navBtn(s.screen === 'roster'),
       navArchiveStyle: navBtn(s.screen === 'archive'),
       navAuditStyle: navBtn(s.screen === 'auditLog'),
+      isNarrowNav, isWideNav: !isNarrowNav,
+      navMenuIcon: s.navMenuOpen ? '\u2715' : '\u2261',
+      showNavMenu: isNarrowNav && s.navMenuOpen,
+      navGoDashboard: this.navGoDashboard, navGoIntake: this.navGoIntake, navGoRoster: this.navGoRoster,
+      navGoArchive: this.navGoArchive, navGoAudit: this.navGoAudit,
+      toggleNavMenu: this.toggleNavMenu,
+      navDashboardStyleFull: navBtnFull(s.screen === 'dashboard'),
+      navIntakeStyleFull: navBtnFull(s.screen === 'intake'),
+      navRosterStyleFull: navBtnFull(s.screen === 'roster'),
+      navArchiveStyleFull: navBtnFull(s.screen === 'archive'),
+      navAuditStyleFull: navBtnFull(s.screen === 'auditLog'),
       openScanModal: this.openScanModal, closeScanModal: this.closeScanModal,
       setScanInput: this.setScanInput, submitScan: this.submitScan,
       backToJob: this.backToJob, printPage: this.printPage, stopPropagation: this.stopPropagation,
@@ -1693,7 +1763,7 @@ class Component extends DCLogic {
       newComment: s.newComment, setNewComment: this.setNewComment, submitComment: this.submitComment,
       hasCommentError: !!s.commentError, commentError: s.commentError,
       postButtonLabel: s.commentBusy ? 'POSTING\u2026' : 'POST',
-      postButtonStyle: `background:${s.commentBusy ? 'rgba(31,111,120,.5)' : '#1F6F78'};color:#fff;font:700 12px 'Public Sans',sans-serif;padding:10px 16px;border-radius:4px;cursor:${s.commentBusy ? 'default' : 'pointer'};flex:none;`,
+      postButtonStyle: `background:${s.commentBusy ? 'rgba(31,111,120,.5)' : '#1F6F78'};color:#fff;font:700 12px 'Public Sans',sans-serif;padding:13px 16px;border-radius:4px;cursor:${s.commentBusy ? 'default' : 'pointer'};flex:none;`,
       archiveSelectedJob: this.archiveSelectedJob,
 
       stats: {
@@ -1711,6 +1781,10 @@ class Component extends DCLogic {
       setPriorityFilter: this.setPriorityFilter, setMechanicFilter: this.setMechanicFilter,
       statusFilterOptions, sizeFilterOptions, priorityFilterOptions, mechanicFilterOptions,
       resultCountLabel: `${filtered.length} job${filtered.length === 1 ? '' : 's'}`,
+      filtersOpen: s.filtersOpen,
+      filtersToggleLabel: s.filtersOpen ? 'HIDE FILTERS' : 'FILTERS',
+      showFilterRow: s.viewportWidth >= 860 || s.filtersOpen,
+      toggleFilters: this.toggleFilters,
       filteredJobsDisplay,
 
       isIntakeDictateStep: s.intakeStep === 'dictate',
@@ -1749,7 +1823,7 @@ class Component extends DCLogic {
       logTranscriptDisplay: logRaw.trim() || 'Transcript will appear here\u2026',
       logTyped: s.logTyped, setLogTyped: this.setLogTyped,
       toggleLogRecording: this.toggleLogRecording,
-      logExtractButtonStyle: `text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:pointer;background:${s.logAiLoading ? '#B9C0C4' : '#16283D'};color:#fff;`,
+      logExtractButtonStyle: `text-align:center;font:700 12px 'Public Sans',sans-serif;padding:13px;border-radius:4px;cursor:pointer;background:${s.logAiLoading ? '#B9C0C4' : '#16283D'};color:#fff;`,
       logExtractButtonLabel: s.logAiLoading ? 'EXTRACTING\u2026' : '\u2728 EXTRACT WITH AI',
       runLogExtraction: this.runLogExtraction,
       logFields: s.logFields,
