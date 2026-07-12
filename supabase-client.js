@@ -256,6 +256,147 @@ export async function addComment(workOrderId, body, author) {
   return commentFromRow(data);
 }
 
+// ---------- activities (unified work-order timeline) ----------
+// One row per event on a job — work-log entries, inspections, AI summaries,
+// private mechanic notes, public customer notes, status changes, photos,
+// and the financial/parts trail (quote/approval/invoice/payment/parts).
+// Every row is append-only EXCEPT customer_note, which may be edited by its
+// author, a service advisor, or a manager — each edit writes the prior
+// version to activity_history before overwriting, so nothing is ever lost.
+export const ACTIVITY_TYPES = [
+  'work_log', 'inspection', 'ai_summary', 'mechanic_note', 'customer_note',
+  'status_change', 'photo_added', 'quote_sent', 'approval_received',
+  'invoice_generated', 'payment_received', 'part_ordered', 'part_received',
+];
+// Types whose body/meta may be edited in place after creation (audit-trailed).
+export const EDITABLE_ACTIVITY_TYPES = ['customer_note'];
+
+function activityFromRow(row) {
+  return {
+    id: row.id,
+    workOrderId: row.work_order_id,
+    activityType: row.activity_type,
+    visibility: row.visibility,
+    body: row.body || '',
+    meta: row.meta || {},
+    attachments: row.attachments || [],
+    aiGenerated: !!row.ai_generated,
+    authorId: row.author_id,
+    authorName: row.author_name || '',
+    authorRole: row.author_role || '',
+    parentActivityId: row.parent_activity_id || null,
+    version: row.version || 1,
+    editedBy: row.edited_by || null,
+    editedByName: row.edited_by_name || '',
+    editedAt: row.edited_at ? new Date(row.edited_at).getTime() : null,
+    createdAt: new Date(row.created_at).getTime(),
+    updatedAt: new Date(row.updated_at).getTime(),
+    active: row.active !== false,
+  };
+}
+
+export async function fetchActivities(workOrderId) {
+  const { data, error } = await supabase
+    .from('activities')
+    .select('*')
+    .eq('work_order_id', workOrderId)
+    .eq('active', true)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data || []).map(activityFromRow);
+}
+
+// Realtime inserts only (edits are reflected via editActivity's own return
+// value in the caller, same pattern as comments).
+export function subscribeToActivities(workOrderId, onInsert) {
+  const channel = supabase
+    .channel(`activities-${workOrderId}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activities', filter: `work_order_id=eq.${workOrderId}` },
+      (payload) => onInsert(activityFromRow(payload.new)))
+    .subscribe();
+  return channel;
+}
+
+export async function createActivity(workOrderId, activity, author) {
+  const row = {
+    work_order_id: workOrderId,
+    activity_type: activity.activityType,
+    visibility: activity.visibility || (activity.activityType === 'customer_note' ? 'public' : 'private'),
+    body: activity.body || '',
+    meta: activity.meta || {},
+    attachments: activity.attachments || [],
+    ai_generated: !!activity.aiGenerated,
+    author_id: author && author.id,
+    author_name: author && author.name || '',
+    author_role: author && author.role || '',
+    parent_activity_id: activity.parentActivityId || null,
+  };
+  const { data, error } = await supabase.from('activities').insert(row).select().single();
+  if (error) throw error;
+  return activityFromRow(data);
+}
+
+// Edits a customer_note (only editable type). Writes the current body/meta
+// to activity_history as the prior version, then updates the row in place
+// with the new body/meta, bumped version, and editor/timestamp — so the
+// card can show "Edited by X" while the full chain of prior versions stays
+// queryable via fetchActivityHistory.
+export async function editActivity(activityId, patch, editor, changeReason) {
+  const { data: current, error: fetchErr } = await supabase.from('activities').select('*').eq('id', activityId).single();
+  if (fetchErr) throw fetchErr;
+
+  const historyRow = {
+    activity_id: activityId,
+    version: current.version || 1,
+    previous_body: current.body || '',
+    previous_meta: current.meta || {},
+    edited_by: editor && editor.id,
+    edited_by_name: editor && editor.name || '',
+    change_reason: changeReason || '',
+  };
+  const { error: histErr } = await supabase.from('activity_history').insert(historyRow);
+  if (histErr) throw histErr;
+
+  const nowIso = new Date().toISOString();
+  const updateRow = {
+    body: patch.body !== undefined ? patch.body : current.body,
+    meta: patch.meta !== undefined ? patch.meta : current.meta,
+    version: (current.version || 1) + 1,
+    edited_by: editor && editor.id,
+    edited_by_name: editor && editor.name || '',
+    edited_at: nowIso,
+    updated_at: nowIso,
+  };
+  const { data, error } = await supabase.from('activities').update(updateRow).eq('id', activityId).select().single();
+  if (error) throw error;
+  return activityFromRow(data);
+}
+
+export async function fetchActivityHistory(activityId) {
+  const { data, error } = await supabase
+    .from('activity_history')
+    .select('*')
+    .eq('activity_id', activityId)
+    .order('version', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(r => ({
+    version: r.version,
+    previousBody: r.previous_body,
+    previousMeta: r.previous_meta || {},
+    editedBy: r.edited_by,
+    editedByName: r.edited_by_name || '',
+    editedAt: new Date(r.edited_at).getTime(),
+    changeReason: r.change_reason || '',
+  }));
+}
+
+// Manager-only soft delete (RLS only permits this via the shop_owner-full-
+// access policy since deactivating isn't a plain body/meta edit).
+export async function deactivateActivity(activityId) {
+  const { error } = await supabase.from('activities').update({ active: false, updated_at: new Date().toISOString() }).eq('id', activityId);
+  if (error) throw error;
+}
+
 export async function setMechanicOOO(id, outOfOffice) {
   const { error } = await supabase.from('profiles').update({ out_of_office: outOfOffice, updated_at: new Date().toISOString() }).eq('id', id);
   if (error) throw error;
@@ -406,8 +547,8 @@ async function callManageUsers(action, payload) {
   return json;
 }
 
-export async function inviteMechanic(email, fullName) {
-  return callManageUsers('invite_mechanic', { email, fullName });
+export async function inviteMechanic(email, fullName, role) {
+  return callManageUsers('invite_mechanic', { email, fullName, role: role || 'mechanic' });
 }
 export async function setUserActive(userId, active) {
   return callManageUsers('set_active', { userId, active });

@@ -16,7 +16,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null unique,
   full_name text not null check (char_length(trim(full_name)) > 0),
-  role text not null default 'mechanic' check (role in ('shop_owner', 'mechanic')),
+  role text not null default 'mechanic' check (role in ('shop_owner', 'service_advisor', 'mechanic')),
   active boolean not null default true,
   out_of_office boolean not null default false,
   created_at timestamptz not null default now(),
@@ -114,6 +114,14 @@ language sql security definer stable
 set search_path = public
 as $$
   select * from public.profiles where id = auth.uid();
+$$;
+
+create or replace function public.is_service_advisor()
+returns boolean
+language sql security definer stable
+set search_path = public
+as $$
+  select coalesce((select role = 'service_advisor' and active from public.profiles where id = auth.uid()), false);
 $$;
 
 create or replace function public.is_shop_owner()
@@ -402,6 +410,10 @@ create policy "photos: shop_owner full access" on public.work_order_photos
 create policy "photos: read active" on public.work_order_photos
   for select using (public.is_active_user() and active = true);
 
+create policy "photos: advisor insert any job" on public.work_order_photos
+  for insert
+  with check (public.is_active_user() and public.is_service_advisor());
+
 create policy "photos: mechanic insert own job" on public.work_order_photos
   for insert
   with check (
@@ -455,6 +467,146 @@ begin
   alter publication supabase_realtime add table public.work_order_comments;
 exception when duplicate_object then null;
 end $$;
+
+-- ---------------------------------------------------------------------------
+-- 12. activities — unified work-order timeline. Every note, work-log entry,
+--     status change, photo, and financial event on a job is one row here,
+--     typed by activity_type. Replaces the old ad-hoc work_orders.entries
+--     jsonb column and work_order_comments table going forward (both remain
+--     in place, untouched, for historical rows already written).
+-- ---------------------------------------------------------------------------
+create table if not exists public.activities (
+  id uuid primary key default gen_random_uuid(),
+  work_order_id text not null references public.work_orders(id) on delete cascade,
+  activity_type text not null check (activity_type in (
+    'work_log', 'inspection', 'ai_summary', 'mechanic_note', 'customer_note',
+    'status_change', 'photo_added', 'quote_sent', 'approval_received',
+    'invoice_generated', 'payment_received', 'part_ordered', 'part_received'
+  )),
+  visibility text not null default 'private' check (visibility in ('private', 'public')),
+  body text not null default '',
+  meta jsonb not null default '{}'::jsonb,        -- type-specific fields: findings/fix/timeSpent/materials, statusFrom/To, amount, partName, etc.
+  attachments jsonb not null default '[]'::jsonb, -- array of work_order_photos ids shown inline on this activity
+  ai_generated boolean not null default false,
+  author_id uuid references public.profiles(id),
+  author_name text not null default '',
+  author_role text not null default '',
+  parent_activity_id uuid references public.activities(id) on delete set null,
+  version int not null default 1,
+  edited_by uuid references public.profiles(id),
+  edited_by_name text,
+  edited_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  active boolean not null default true
+);
+
+create index if not exists activities_wo_idx on public.activities (work_order_id, created_at desc);
+create index if not exists activities_type_idx on public.activities (activity_type);
+
+alter table public.activities enable row level security;
+
+drop trigger if exists audit_activities on public.activities;
+create trigger audit_activities
+  after insert or update on public.activities
+  for each row execute function public.write_audit_log();
+
+-- ---------------------------------------------------------------------------
+-- 13. activity_history — append-only prior versions. Written every time an
+--     editable activity (customer_note) is edited; never updated or deleted
+--     from the frontend. This is the audit trail the edit UI reads to show
+--     "Edited" + full version history.
+-- ---------------------------------------------------------------------------
+create table if not exists public.activity_history (
+  id bigint generated always as identity primary key,
+  activity_id uuid not null references public.activities(id) on delete cascade,
+  version int not null,
+  previous_body text not null,
+  previous_meta jsonb not null default '{}'::jsonb,
+  edited_by uuid references public.profiles(id),
+  edited_by_name text not null default '',
+  edited_at timestamptz not null default now(),
+  change_reason text not null default ''
+);
+
+create index if not exists activity_history_activity_idx on public.activity_history (activity_id, version);
+
+alter table public.activity_history enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- 14. guardrail: only customer_note activities may ever be edited in place
+--     (version bumped, edited_by/edited_at set) — every other activity type
+--     is an immutable event once written. Managers (shop_owner) bypass this.
+-- ---------------------------------------------------------------------------
+create or replace function public.enforce_activity_edits()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if public.is_shop_owner() then
+    return new; -- managers may edit/restore/deactivate anything
+  end if;
+
+  if old.activity_type <> 'customer_note' and (
+    new.body is distinct from old.body or new.meta is distinct from old.meta or new.active is distinct from old.active
+  ) then
+    raise exception 'Not permitted: only customer-facing notes can be edited after creation';
+  end if;
+
+  if old.activity_type = 'customer_note' and (new.body is distinct from old.body or new.meta is distinct from old.meta) then
+    if not (old.author_id = auth.uid() or public.is_service_advisor()) then
+      raise exception 'Not permitted: only the author, a service advisor, or a manager may edit this customer note';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists guard_activity_edits on public.activities;
+create trigger guard_activity_edits
+  before update on public.activities
+  for each row execute function public.enforce_activity_edits();
+
+-- activities RLS --------------------------------------------------------------
+drop policy if exists "activities: shop_owner full access" on public.activities;
+drop policy if exists "activities: read active" on public.activities;
+drop policy if exists "activities: insert own" on public.activities;
+drop policy if exists "activities: author, advisor, or shop_owner update" on public.activities;
+
+create policy "activities: shop_owner full access" on public.activities
+  for all using (public.is_shop_owner()) with check (public.is_shop_owner());
+
+create policy "activities: read active" on public.activities
+  for select using (public.is_active_user() and active = true);
+
+create policy "activities: insert own" on public.activities
+  for insert with check (public.is_active_user() and author_id = auth.uid());
+
+create policy "activities: author, advisor, or shop_owner update" on public.activities
+  for update using (
+    public.is_active_user() and (
+      author_id = auth.uid()
+      or public.is_shop_owner()
+      or (activity_type = 'customer_note' and public.is_service_advisor())
+    )
+  )
+  with check (public.is_active_user());
+
+-- activity_history RLS ---------------------------------------------------------
+-- readable by any active user (so the "view history" panel works for whoever
+-- can see the activity); insertable only by the person recorded as the editor,
+-- and never updatable/deletable from the frontend at all.
+drop policy if exists "activity_history: read active" on public.activity_history;
+drop policy if exists "activity_history: insert own" on public.activity_history;
+
+create policy "activity_history: read active" on public.activity_history
+  for select using (public.is_active_user());
+
+create policy "activity_history: insert own" on public.activity_history
+  for insert with check (public.is_active_user() and edited_by = auth.uid());
 
 -- ---------------------------------------------------------------------------
 -- 11. Seed data note

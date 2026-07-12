@@ -117,8 +117,9 @@ exports.handler = async (event) => {
   try {
     switch (body.action) {
       case 'invite_mechanic': {
-        const { email, fullName } = body;
+        const { email, fullName, role } = body;
         if (!email) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'email is required' }) };
+        const grantedRole = ['mechanic', 'service_advisor'].includes(role) ? role : 'mechanic';
         // inviteUserByEmail creates the auth user and emails them a signup/reset link.
         const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
           data: { full_name: fullName || '' },
@@ -126,9 +127,10 @@ exports.handler = async (event) => {
         if (error) throw error;
         const newUserId = data.user && data.user.id;
         // Set role/active via app_metadata (service-role-only) so the profiles
-        // trigger provisions this account as an active mechanic explicitly.
+        // trigger provisions this account as an active mechanic or service
+        // advisor explicitly.
         if (newUserId) {
-          await admin.auth.admin.updateUserById(newUserId, { app_metadata: { role: 'mechanic', active: true } });
+          await admin.auth.admin.updateUserById(newUserId, { app_metadata: { role: grantedRole, active: true } });
         }
         return { statusCode: 200, headers: cors, body: JSON.stringify({ ok: true, userId: newUserId }) };
       }
@@ -147,7 +149,7 @@ exports.handler = async (event) => {
 
       case 'set_role': {
         const { userId, role } = body;
-        if (!userId || !['shop_owner', 'mechanic'].includes(role)) {
+        if (!userId || !['shop_owner', 'service_advisor', 'mechanic'].includes(role)) {
           return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'userId and valid role are required' }) };
         }
         const { error } = await admin.from('profiles').update({ role, updated_at: new Date().toISOString() }).eq('id', userId);

@@ -377,37 +377,33 @@
     </div>
 
     <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);margin-top:14px;">
-      <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);">
-        <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">COMMENTS &amp; NOTES</div>
+      <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">ACTIVITY <span style="font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);">({{ activityCountLabel }})</span></div>
+        <div class="no-print" style="background:#D97706;color:#fff;font:700 11px 'Public Sans',sans-serif;padding:8px 14px;border-radius:4px;cursor:pointer;" onClick="{{ openLogWork }}">+ LOG WORK</div>
       </div>
-      <div style="padding:14px 20px;display:flex;flex-direction:column;gap:10px;">
-        <sc-for list="{{ commentsDisplay }}" as="c" hint-placeholder-count="1">
-          <div style="border-left:3px solid #8FBFAE;padding:2px 0 2px 12px;">
-            <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);">{{ c.authorName }} ({{ c.authorRole }}) &middot; {{ c.dateLabel }}</div>
-            <div style="font:500 13px 'Public Sans',sans-serif;color:#16283D;margin-top:2px;">{{ c.body }}</div>
-          </div>
-        </sc-for>
-        <sc-if value="{{ noComments }}" hint-placeholder-val="{{ false }}">
-          <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No comments yet.</div>
-        </sc-if>
-        <div style="display:flex;gap:8px;margin-top:4px;">
-          <input placeholder="Add a comment&hellip;" style="flex:1;min-width:0;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 11px;font:500 14px 'Public Sans',sans-serif;color:#16283D;" value="{{ newComment }}" onChange="{{ setNewComment }}"/>
-          <div style="{{ postButtonStyle }}" onClick="{{ submitComment }}">{{ postButtonLabel }}</div>
-        </div>
-        <sc-if value="{{ hasCommentError }}" hint-placeholder-val="{{ false }}">
-          <div style="font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ commentError }}</div>
-        </sc-if>
-      </div>
-    </div>
 
-    <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);">
-      <div style="padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(22,40,61,.1);">
-        <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">WORK LOG</div>
-        <div style="background:#D97706;color:#fff;font:700 11px 'Public Sans',sans-serif;padding:8px 14px;border-radius:4px;cursor:pointer;" onClick="{{ openLogWork }}">+ LOG WORK</div>
+      <div class="no-print" style="padding:12px 20px 0;display:flex;gap:6px;flex-wrap:wrap;">
+        <sc-for list="{{ activityFilterChips }}" as="chip" hint-placeholder-count="6">
+          <div style="{{ chip.style }}" onClick="{{ chip.onSelect }}">{{ chip.label }}</div>
+        </sc-for>
+      </div>
+
+      <div class="no-print" style="margin:14px 20px 0;padding:12px;background:#F6F1E4;border-radius:6px;display:flex;flex-direction:column;gap:8px;">
+        <textarea placeholder="Add a note to this job's activity feed&hellip;" style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:10px 11px;font:500 13.5px 'Public Sans',sans-serif;color:#16283D;min-height:56px;resize:vertical;background:#fff;" value="{{ newActivityBody }}" onChange="{{ setNewActivityBody }}"></textarea>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <div style="{{ visibilityPrivateStyle }}" onClick="{{ setVisibilityPrivate }}">&#128274; MECHANIC NOTE &middot; PRIVATE</div>
+            <div style="{{ visibilityPublicStyle }}" onClick="{{ setVisibilityPublic }}">CUSTOMER NOTE &middot; PUBLIC</div>
+          </div>
+          <div style="{{ postActivityButtonStyle }}" onClick="{{ submitActivity }}">{{ postActivityButtonLabel }}</div>
+        </div>
+        <sc-if value="{{ hasActivityComposerError }}" hint-placeholder-val="{{ false }}">
+          <div style="font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ activityComposerError }}</div>
+        </sc-if>
       </div>
 
       <sc-if value="{{ isLogDictateStep }}" hint-placeholder-val="{{ false }}">
-      <div style="padding:18px 20px;display:flex;flex-direction:column;align-items:center;gap:12px;border-bottom:1px solid rgba(22,40,61,.1);">
+      <div style="margin:14px 20px 0;padding:18px;display:flex;flex-direction:column;align-items:center;gap:12px;background:#F6F1E4;border-radius:6px;">
         <div style="{{ logMicButtonStyle }}" onClick="{{ toggleLogRecording }}">
           <div style="color:#fff;font:700 12px 'Archivo',sans-serif;">{{ logMicButtonLabel }}</div>
         </div>
@@ -415,7 +411,7 @@
         <sc-if value="{{ hasLogMicError }}" hint-placeholder-val="{{ false }}">
           <div style="width:100%;box-sizing:border-box;background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:8px 10px;font:600 11.5px 'Public Sans',sans-serif;color:#C0392B;">{{ logMicErrorLabel }}</div>
         </sc-if>
-        <div style="width:100%;background:#F6F1E4;border:1px dashed rgba(22,40,61,.3);border-radius:4px;padding:10px;font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.75);line-height:1.5;min-height:44px;box-sizing:border-box;">{{ logTranscriptDisplay }}</div>
+        <div style="width:100%;background:#fff;border:1px dashed rgba(22,40,61,.3);border-radius:4px;padding:10px;font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.75);line-height:1.5;min-height:44px;box-sizing:border-box;">{{ logTranscriptDisplay }}</div>
         <textarea style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:9px 11px;font:500 12.5px 'Public Sans',sans-serif;color:#16283D;min-height:50px;resize:vertical;" placeholder="Or type findings, fix, time, materials..." value="{{ logTyped }}" onChange="{{ setLogTyped }}"></textarea>
         <div style="display:flex;gap:8px;width:100%;">
           <div style="flex:1;{{ logExtractButtonStyle }}" onClick="{{ runLogExtraction }}">{{ logExtractButtonLabel }}</div>
@@ -425,22 +421,22 @@
       </sc-if>
 
       <sc-if value="{{ isLogReviewStep }}" hint-placeholder-val="{{ false }}">
-      <div style="padding:18px 20px;display:flex;flex-direction:column;gap:9px;border-bottom:1px solid rgba(22,40,61,.1);">
+      <div style="margin:14px 20px 0;padding:18px;display:flex;flex-direction:column;gap:9px;background:#F6F1E4;border-radius:6px;">
         <div style="font:700 10px 'IBM Plex Mono',monospace;color:#1F6F78;letter-spacing:.5px;">&#10003; AI EXTRACTED &mdash; REVIEW &amp; EDIT</div>
-        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
+        <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
           <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">FINDINGS</div>
           <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 13px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:36px;resize:vertical;" value="{{ logFields.findings }}" onChange="{{ setLogFieldFindings }}"></textarea>
         </div>
-        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
+        <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
           <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">FIX</div>
           <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 13px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:36px;resize:vertical;" value="{{ logFields.fix }}" onChange="{{ setLogFieldFix }}"></textarea>
         </div>
         <div style="display:flex;gap:8px;">
-          <div style="flex:1;background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
+          <div style="flex:1;background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
             <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">TIME SPENT</div>
             <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 13px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ logFields.timeSpent }}" onChange="{{ setLogFieldTime }}"/>
           </div>
-          <div style="flex:1;background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
+          <div style="flex:1;background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
             <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">MATERIALS</div>
             <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 13px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ logFields.materials }}" onChange="{{ setLogFieldMaterials }}"/>
           </div>
@@ -475,30 +471,117 @@
           <div style="font:500 12px 'Public Sans',sans-serif;color:#5C4A1A;line-height:1.4;">{{ selectedJob.intakeNoteDisplay }}</div>
         </div>
       </sc-if>
-      <div style="padding:14px 20px;display:flex;flex-direction:column;gap:12px;">
-        <sc-for list="{{ selectedJob.entriesDisplay }}" as="entry" hint-placeholder-count="1">
-          <div style="border-left:3px solid #1F6F78;padding:2px 0 2px 14px;">
-            <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);">{{ entry.dateLabel }} &middot; {{ entry.timeSpent }}</div>
-            <div style="font:600 13px 'Public Sans',sans-serif;color:#16283D;margin-top:3px;"><b>Findings:</b> {{ entry.findings }}</div>
-            <div style="font:600 13px 'Public Sans',sans-serif;color:#16283D;margin-top:2px;"><b>Fix:</b> {{ entry.fix }}</div>
-            <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-top:2px;"><b>Materials:</b> {{ entry.materials }}</div>
-            <sc-if value="{{ entry.hasPhotos }}" hint-placeholder-val="{{ false }}">
-              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
-                <sc-for list="{{ entry.photos }}" as="p" hint-placeholder-count="0">
-                  <img src="{{ p }}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid rgba(22,40,61,.2);"/>
-                </sc-for>
-              </div>
-            </sc-if>
-            <sc-if value="{{ entry.hasRawNotes }}" hint-placeholder-val="{{ false }}">
-              <div style="margin-top:6px;background:#FBF6E8;border:1px dashed #B08A2E;border-radius:4px;padding:8px 10px;">
-                <div style="font:700 9px 'IBM Plex Mono',monospace;color:#8A6A1E;letter-spacing:.5px;margin-bottom:2px;">&#128274; PRIVATE SHOP NOTE &mdash; ORIGINAL DICTATION</div>
-                <div style="font:500 11.5px 'Public Sans',sans-serif;color:#5C4A1A;line-height:1.4;">{{ entry.rawNotes }}</div>
-              </div>
+
+      <div style="padding:6px 20px 18px;display:flex;flex-direction:column;">
+        <sc-for list="{{ activityDayGroups }}" as="day" hint-placeholder-count="1">
+          <div style="margin-top:10px;">
+            <div class="no-print" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 0;border-bottom:1px solid rgba(22,40,61,.1);" onClick="{{ day.onToggle }}">
+              <div style="font:700 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);width:12px;">{{ day.chevron }}</div>
+              <div style="font:800 11.5px 'IBM Plex Mono',monospace;color:#16283D;letter-spacing:.4px;flex:1;">{{ day.dateLabel }}</div>
+              <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);">{{ day.countLabel }}</div>
+            </div>
+            <sc-if value="{{ day.expanded }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:10px;padding:12px 0 4px;">
+              <sc-for list="{{ day.activities }}" as="act" hint-placeholder-count="1">
+                <sc-if value="{{ act.isCompact }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:10px;padding:7px 0 7px 12px;border-left:2px solid rgba(22,40,61,.15);flex-wrap:wrap;">
+                    <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);white-space:nowrap;">{{ act.timeLabel }}</div>
+                    <div style="{{ act.compactBadgeStyle }}">{{ act.typeLabel }}</div>
+                    <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);flex:1;min-width:120px;">{{ act.body }}</div>
+                    <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);white-space:nowrap;">{{ act.authorName }}</div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ act.isCard }}" hint-placeholder-val="{{ false }}">
+                  <div style="{{ act.cardStyle }}">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <div style="{{ act.typeBadgeStyle }}">{{ act.typeLabel }}</div>
+                        <sc-if value="{{ act.isPrivate }}" hint-placeholder-val="{{ false }}">
+                          <div style="font:700 9px 'IBM Plex Mono',monospace;color:#8A6A1E;">&#128274; PRIVATE</div>
+                        </sc-if>
+                        <sc-if value="{{ act.aiGenerated }}" hint-placeholder-val="{{ false }}">
+                          <div style="font:700 9px 'IBM Plex Mono',monospace;color:#1F6F78;">&#10024; AI-GENERATED</div>
+                        </sc-if>
+                      </div>
+                      <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);white-space:nowrap;">{{ act.createdLabel }}</div>
+                    </div>
+                    <div style="font:600 10.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);margin-bottom:6px;">{{ act.authorName }} <span style="color:rgba(22,40,61,.4);">&middot; {{ act.authorRoleLabel }}</span></div>
+
+                    <sc-if value="{{ act.isWorkLog }}" hint-placeholder-val="{{ false }}">
+                      <div style="font:600 13px 'Public Sans',sans-serif;color:#16283D;"><b>Findings:</b> {{ act.findings }}</div>
+                      <div style="font:600 13px 'Public Sans',sans-serif;color:#16283D;margin-top:2px;"><b>Fix:</b> {{ act.fix }}</div>
+                      <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-top:2px;"><b>Time:</b> {{ act.timeSpent }} &middot; <b>Materials:</b> {{ act.materials }}</div>
+                      <sc-if value="{{ act.hasRawNotes }}" hint-placeholder-val="{{ false }}">
+                        <div style="margin-top:8px;background:#FBF6E8;border:1px dashed #B08A2E;border-radius:4px;padding:8px 10px;">
+                          <div style="font:700 9px 'IBM Plex Mono',monospace;color:#8A6A1E;letter-spacing:.5px;margin-bottom:2px;">&#128274; PRIVATE &mdash; ORIGINAL DICTATION</div>
+                          <div style="font:500 11.5px 'Public Sans',sans-serif;color:#5C4A1A;line-height:1.4;">{{ act.rawNotes }}</div>
+                        </div>
+                      </sc-if>
+                    </sc-if>
+
+                    <sc-if value="{{ act.isEditing }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+                        <textarea style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.25);border-radius:4px;padding:9px;font:500 13px 'Public Sans',sans-serif;color:#16283D;min-height:70px;resize:vertical;" value="{{ act.editDraftBody }}" onChange="{{ act.onEditBodyChange }}"></textarea>
+                        <input placeholder="Reason for edit (optional)" style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:8px 10px;font:500 12px 'Public Sans',sans-serif;color:#16283D;" value="{{ act.editDraftReason }}" onChange="{{ act.onEditReasonChange }}"/>
+                        <div style="display:flex;gap:8px;">
+                          <div style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 11.5px 'Public Sans',sans-serif;padding:9px;border-radius:4px;cursor:pointer;" onClick="{{ act.onSaveEdit }}">SAVE EDIT</div>
+                          <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 11.5px 'Public Sans',sans-serif;padding:9px 14px;border-radius:4px;cursor:pointer;" onClick="{{ act.onCancelEdit }}">CANCEL</div>
+                        </div>
+                        <sc-if value="{{ act.hasEditError }}" hint-placeholder-val="{{ false }}">
+                          <div style="font:600 11.5px 'Public Sans',sans-serif;color:#C0392B;">{{ act.editError }}</div>
+                        </sc-if>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ act.isNotEditing }}" hint-placeholder-val="{{ false }}">
+                      <div style="font:500 13px 'Public Sans',sans-serif;color:#16283D;line-height:1.5;white-space:pre-wrap;">{{ act.bodyDisplay }}</div>
+                      <sc-if value="{{ act.isLong }}" hint-placeholder-val="{{ false }}">
+                        <div class="no-print" style="font:700 11px 'Public Sans',sans-serif;color:#1F6F78;cursor:pointer;margin-top:4px;" onClick="{{ act.onToggleExpand }}">{{ act.expandLabel }}</div>
+                      </sc-if>
+                    </sc-if>
+
+                    <sc-if value="{{ act.hasPhotos }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-top:10px;">
+                        <sc-for list="{{ act.photos }}" as="p" hint-placeholder-count="0">
+                          <img src="{{ p.thumbUrl }}" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1px solid rgba(22,40,61,.15);"/>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+
+                    <div class="no-print" style="display:flex;align-items:center;gap:14px;margin-top:8px;flex-wrap:wrap;">
+                      <sc-if value="{{ act.isEdited }}" hint-placeholder-val="{{ false }}">
+                        <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);cursor:pointer;" onClick="{{ act.onToggleHistory }}">EDITED &middot; {{ act.editedLabel }} &middot; v{{ act.version }} &mdash; VIEW HISTORY</div>
+                      </sc-if>
+                      <sc-if value="{{ act.canEdit }}" hint-placeholder-val="{{ false }}">
+                        <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;" onClick="{{ act.onStartEdit }}">EDIT</div>
+                      </sc-if>
+                    </div>
+
+                    <sc-if value="{{ act.historyOpen }}" hint-placeholder-val="{{ false }}">
+                      <div class="no-print" style="margin-top:8px;background:#F6F1E4;border-radius:4px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;">
+                        <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;">VERSION HISTORY</div>
+                        <sc-for list="{{ act.history }}" as="h" hint-placeholder-count="1">
+                          <div style="border-top:1px solid rgba(22,40,61,.12);padding-top:6px;">
+                            <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);">v{{ h.version }} &middot; {{ h.editedByName }} &middot; {{ h.editedLabel }}</div>
+                            <div style="font:500 12px 'Public Sans',sans-serif;color:#16283D;margin-top:2px;">{{ h.previousBody }}</div>
+                            <sc-if value="{{ h.hasReason }}" hint-placeholder-val="{{ false }}">
+                              <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);margin-top:2px;">Reason: {{ h.changeReason }}</div>
+                            </sc-if>
+                          </div>
+                        </sc-for>
+                        <sc-if value="{{ act.historyEmpty }}" hint-placeholder-val="{{ false }}">
+                          <div style="font:500 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">Loading history&hellip;</div>
+                        </sc-if>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-if>
+              </sc-for>
+            </div>
             </sc-if>
           </div>
         </sc-for>
-        <sc-if value="{{ selectedJob.noEntries }}" hint-placeholder-val="{{ false }}">
-          <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);text-align:center;padding:8px 0;">No work logged yet.</div>
+        <sc-if value="{{ noActivities }}" hint-placeholder-val="{{ false }}">
+          <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);text-align:center;padding:16px 0;">No activity logged yet.</div>
         </sc-if>
       </div>
     </div>
@@ -618,7 +701,7 @@
 
       <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:8px;">WORK LOG</div>
       <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px;">
-        <sc-for list="{{ selectedJob.entriesDisplay }}" as="entry" hint-placeholder-count="1">
+        <sc-for list="{{ selectedJob.workLogPrintDisplay }}" as="entry" hint-placeholder-count="1">
           <div style="border-top:1px solid rgba(22,40,61,.12);padding-top:10px;">
             <div style="display:flex;justify-content:space-between;font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);margin-bottom:4px;">
               <span>{{ entry.dateLabel }}</span><span>{{ entry.timeSpent }}</span>
@@ -628,7 +711,7 @@
             <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-top:2px;"><b>Materials:</b> {{ entry.materials }}</div>
           </div>
         </sc-for>
-        <sc-if value="{{ selectedJob.noEntries }}" hint-placeholder-val="{{ false }}">
+        <sc-if value="{{ selectedJob.noWorkLogPrint }}" hint-placeholder-val="{{ false }}">
           <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No work logged yet.</div>
         </sc-if>
       </div>
@@ -967,6 +1050,23 @@ class Component extends DCLogic {
     photoCategoryFilter: 'all',
     photoEditor: null,
     lightboxPhotoId: null,
+
+    jobActivities: [],
+    jobActivitiesLoading: false,
+    activityFilter: 'all',
+    expandedDayKeys: [],
+    expandedActivityIds: [],
+    newActivityBody: '',
+    newActivityVisibility: 'private',
+    activityComposerBusy: false,
+    activityComposerError: '',
+    editingActivityId: null,
+    editDraftBody: '',
+    editDraftReason: '',
+    editBusy: false,
+    editError: '',
+    historyOpenActivityId: null,
+    activityHistory: {},
   };
 
   async componentDidMount() {
@@ -1037,6 +1137,7 @@ class Component extends DCLogic {
     if (this._authSub) { try { this._authSub.unsubscribe(); } catch (e) {} }
     if (this._onResize) window.removeEventListener('resize', this._onResize);
     this.unsubscribeComments();
+    this.unsubscribeActivities();
   }
   _initResizeListener() {
     if (this._onResize || typeof window === 'undefined') return;
@@ -1222,10 +1323,10 @@ class Component extends DCLogic {
   }); };
   goRoster = () => { this.unsubscribeComments(); this.setState({ screen: 'roster', showScanModal: false }); };
   openJob = (id) => {
-    this.setState({ screen: 'jobDetail', selectedJobId: id, logStep: 'closed', showScanModal: false, comments: [], newComment: '', photoCategoryFilter: 'all', logSelectedPhotoIds: [] });
-    this.loadComments(id);
+    this.setState({ screen: 'jobDetail', selectedJobId: id, logStep: 'closed', showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '' });
+    this.loadActivities(id);
     this.loadJobPhotos(id);
-    this.subscribeComments(id);
+    this.subscribeActivities(id);
   };
   backToJob = () => this.setState({ screen: 'jobDetail' });
   goToTag = () => this.setState({ screen: 'tag' });
@@ -1240,10 +1341,10 @@ class Component extends DCLogic {
     const code = (this.state.scanInput || '').trim().toUpperCase();
     const job = this.state.jobs.find(j => j.id === code);
     if (job) {
-      this.setState({ screen: 'jobDetail', selectedJobId: job.id, showScanModal: false, logStep: 'closed', comments: [], newComment: '', photoCategoryFilter: 'all', logSelectedPhotoIds: [] });
-      this.loadComments(job.id);
+      this.setState({ screen: 'jobDetail', selectedJobId: job.id, showScanModal: false, logStep: 'closed', photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '' });
+      this.loadActivities(job.id);
       this.loadJobPhotos(job.id);
-      this.subscribeComments(job.id);
+      this.subscribeActivities(job.id);
     } else {
       this.setState({ scanError: true });
     }
@@ -1437,6 +1538,34 @@ class Component extends DCLogic {
   // resolves (categories are just labels; the module is the source of truth
   // for what actually gets validated/stored).
   static PHOTO_CATEGORIES = ['Intake', 'Before Repair', 'During Repair', 'After Repair', 'Damage', 'Parts', 'Warranty', 'Serial Number', 'Other'];
+
+  // Every activity type in the unified timeline: display label, filter
+  // category, and whether it renders as a full card (content-bearing) or a
+  // single compact row (short system-generated event) — this is what keeps
+  // a feed of hundreds/thousands of activities fast and scannable.
+  static ACTIVITY_META = {
+    work_log:          { label: 'WORK LOG',        category: 'work',      compact: false },
+    inspection:        { label: 'INSPECTION',      category: 'work',      compact: false },
+    ai_summary:        { label: 'AI SUMMARY',      category: 'work',      compact: false },
+    mechanic_note:     { label: 'MECHANIC NOTE',   category: 'notes',     compact: false },
+    customer_note:     { label: 'CUSTOMER NOTE',   category: 'notes',     compact: false },
+    status_change:     { label: 'STATUS',          category: 'status',    compact: true },
+    photo_added:       { label: 'PHOTO',           category: 'photos',    compact: true },
+    quote_sent:        { label: 'QUOTE SENT',      category: 'financial', compact: true },
+    approval_received: { label: 'APPROVAL',        category: 'financial', compact: true },
+    invoice_generated: { label: 'INVOICE',         category: 'financial', compact: true },
+    payment_received:  { label: 'PAYMENT',         category: 'financial', compact: true },
+    part_ordered:      { label: 'PART ORDERED',    category: 'financial', compact: true },
+    part_received:     { label: 'PART RECEIVED',   category: 'financial', compact: true },
+  };
+  static ACTIVITY_FILTERS = [
+    { key: 'all', label: 'ALL' },
+    { key: 'work', label: 'WORK' },
+    { key: 'notes', label: 'NOTES' },
+    { key: 'status', label: 'STATUS' },
+    { key: 'photos', label: 'PHOTOS' },
+    { key: 'financial', label: 'FINANCIAL' },
+  ];
 
   loadJobPhotos = async (jobId) => {
     this.setState({ jobPhotosLoading: true });
@@ -1776,38 +1905,147 @@ class Component extends DCLogic {
 
   saveLogEntry = async () => {
     const jobId = this.state.selectedJobId;
-    const entry = {
-      timestamp: Date.now(),
-      findings: this.state.logFields.findings || '',
-      fix: this.state.logFields.fix || '',
-      timeSpent: this.state.logFields.timeSpent || '',
-      materials: this.state.logFields.materials || '',
-      rawNotes: this.state.logRawNotesFinal || '',
-      photoIds: this.state.logSelectedPhotoIds || [],
-    };
-    let newEntries = [];
-    let newStatus = null;
-    const jobs = this.state.jobs.map(j => {
-      if (j.id !== jobId) return j;
-      newEntries = [...j.entries, entry];
-      newStatus = j.status === 'open' ? 'in progress' : j.status;
-      return { ...j, entries: newEntries, status: newStatus };
-    });
+    const p = this.state.profile;
+    const newStatus = (() => {
+      const j = this.state.jobs.find(x => x.id === jobId);
+      return j && j.status === 'open' ? 'in progress' : null;
+    })();
+    const jobs = newStatus ? this.state.jobs.map(j => j.id === jobId ? { ...j, status: newStatus } : j) : this.state.jobs;
     this.setState({ jobs, logStep: 'closed', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [] });
     try {
-      if (this._dataMod) await this._dataMod.appendJobEntry(jobId, newEntries, newStatus);
+      const act = await this._dataMod.createActivity(jobId, {
+        activityType: 'work_log',
+        visibility: 'private',
+        body: this.state.logFields.findings || '',
+        meta: {
+          findings: this.state.logFields.findings || '',
+          fix: this.state.logFields.fix || '',
+          timeSpent: this.state.logFields.timeSpent || '',
+          materials: this.state.logFields.materials || '',
+          rawNotes: this.state.logRawNotesFinal || '',
+        },
+        attachments: this.state.logSelectedPhotoIds || [],
+      }, p ? { id: p.id, name: p.name, role: p.role } : null);
+      this.setState(s => ({ jobActivities: [...s.jobActivities, act], expandedDayKeys: Array.from(new Set([...s.expandedDayKeys, this.dayKeyFor(act.createdAt)])) }));
+      if (newStatus) await this._dataMod.updateJobStatus(jobId, newStatus);
     } catch (e) {
-      console.error('Failed to save work log entry to Supabase', e);
+      console.error('Failed to save work log activity to Supabase', e);
     }
   };
 
   setJobStatus = async (jobId, status) => {
+    const prevJob = this.state.jobs.find(j => j.id === jobId);
+    const prevStatus = prevJob ? prevJob.status : null;
     const jobs = this.state.jobs.map(j => j.id === jobId ? { ...j, status } : j);
     this.setState({ jobs });
     try {
       if (this._dataMod) await this._dataMod.updateJobStatus(jobId, status);
+      if (this._dataMod && prevStatus && prevStatus !== status && jobId === this.state.selectedJobId) {
+        const p = this.state.profile;
+        const act = await this._dataMod.createActivity(jobId, {
+          activityType: 'status_change', visibility: 'public',
+          body: `Status changed from ${prevStatus} to ${status}.`,
+          meta: { statusFrom: prevStatus, statusTo: status },
+        }, p ? { id: p.id, name: p.name, role: p.role } : null);
+        this.setState(s => ({ jobActivities: [...s.jobActivities, act] }));
+      }
     } catch (e) {
       console.error('Failed to update job status in Supabase', e);
+    }
+  };
+
+  // ---------- activity feed (unified timeline) ----------
+  dayKeyFor(ts) { const d = new Date(ts); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
+  defaultExpandedDayKeys(activities) {
+    if (!activities.length) return [];
+    const sorted = activities.slice().sort((a, b) => b.createdAt - a.createdAt);
+    return [this.dayKeyFor(sorted[0].createdAt)];
+  }
+  loadActivities = async (jobId) => {
+    this.setState({ jobActivitiesLoading: true });
+    try {
+      const jobActivities = await this._dataMod.fetchActivities(jobId);
+      this.setState({ jobActivities, jobActivitiesLoading: false, expandedDayKeys: this.defaultExpandedDayKeys(jobActivities) });
+    } catch (e) {
+      console.error('Failed to load activities', e);
+      this.setState({ jobActivitiesLoading: false });
+    }
+  };
+  subscribeActivities = (jobId) => {
+    this.unsubscribeActivities();
+    if (!this._dataMod) return;
+    this._activitiesChannel = this._dataMod.subscribeToActivities(jobId, (act) => {
+      this.setState(s => s.jobActivities.some(a => a.id === act.id) ? s : { jobActivities: [...s.jobActivities, act] });
+    });
+  };
+  unsubscribeActivities = () => {
+    if (this._activitiesChannel && this._dataMod && this._dataMod.supabase) {
+      try { this._dataMod.supabase.removeChannel(this._activitiesChannel); } catch (e) {}
+    }
+    this._activitiesChannel = null;
+  };
+  setActivityFilter = (key) => this.setState({ activityFilter: key });
+  setNewActivityBody = (e) => this.setState({ newActivityBody: e.target.value });
+  setVisibilityPrivate = () => this.setState({ newActivityVisibility: 'private' });
+  setVisibilityPublic = () => this.setState({ newActivityVisibility: 'public' });
+  submitActivity = async () => {
+    if (this.state.activityComposerBusy) return;
+    const body = (this.state.newActivityBody || '').trim();
+    const jobId = this.state.selectedJobId;
+    const p = this.state.profile;
+    if (!body) { this.setState({ activityComposerError: 'Type a note before posting.' }); return; }
+    if (!jobId || !p) { this.setState({ activityComposerError: 'Could not post — no job selected or not signed in.' }); return; }
+    this.setState({ activityComposerBusy: true, activityComposerError: '' });
+    const visibility = this.state.newActivityVisibility;
+    const activityType = visibility === 'public' ? 'customer_note' : 'mechanic_note';
+    try {
+      const act = await this._dataMod.createActivity(jobId, { activityType, visibility, body }, { id: p.id, name: p.name, role: p.role });
+      this.setState(s => ({
+        jobActivities: [...s.jobActivities, act],
+        newActivityBody: '', activityComposerBusy: false, activityComposerError: '',
+        expandedDayKeys: Array.from(new Set([...s.expandedDayKeys, this.dayKeyFor(act.createdAt)])),
+      }));
+    } catch (e) {
+      console.error('Failed to post activity', e);
+      this.setState({ activityComposerBusy: false, activityComposerError: (e && e.message) || 'Could not post. Please try again.' });
+    }
+  };
+  toggleDay = (key) => this.setState(s => ({
+    expandedDayKeys: s.expandedDayKeys.includes(key) ? s.expandedDayKeys.filter(k => k !== key) : [...s.expandedDayKeys, key],
+  }));
+  toggleActivityExpand = (id) => this.setState(s => ({
+    expandedActivityIds: s.expandedActivityIds.includes(id) ? s.expandedActivityIds.filter(x => x !== id) : [...s.expandedActivityIds, id],
+  }));
+  startEditActivity = (act) => this.setState({ editingActivityId: act.id, editDraftBody: act.body, editDraftReason: '', editError: '' });
+  cancelEditActivity = () => this.setState({ editingActivityId: null, editDraftBody: '', editDraftReason: '', editError: '' });
+  setEditDraftBody = (e) => this.setState({ editDraftBody: e.target.value });
+  setEditDraftReason = (e) => this.setState({ editDraftReason: e.target.value });
+  saveEditActivity = async () => {
+    const id = this.state.editingActivityId;
+    const body = (this.state.editDraftBody || '').trim();
+    const p = this.state.profile;
+    if (!body) { this.setState({ editError: 'Note text cannot be empty.' }); return; }
+    this.setState({ editBusy: true, editError: '' });
+    try {
+      const updated = await this._dataMod.editActivity(id, { body }, { id: p.id, name: p.name }, this.state.editDraftReason);
+      this.setState(s => ({
+        jobActivities: s.jobActivities.map(a => a.id === id ? updated : a),
+        editingActivityId: null, editDraftBody: '', editDraftReason: '', editBusy: false,
+      }));
+    } catch (e) {
+      console.error('Failed to save activity edit', e);
+      this.setState({ editBusy: false, editError: (e && e.message) || 'Could not save edit.' });
+    }
+  };
+  toggleActivityHistory = async (act) => {
+    const isOpen = this.state.historyOpenActivityId === act.id;
+    if (isOpen) { this.setState({ historyOpenActivityId: null }); return; }
+    this.setState({ historyOpenActivityId: act.id });
+    if (!this.state.activityHistory[act.id]) {
+      try {
+        const history = await this._dataMod.fetchActivityHistory(act.id);
+        this.setState(s => ({ activityHistory: { ...s.activityHistory, [act.id]: history } }));
+      } catch (e) { console.error('Failed to load activity history', e); }
     }
   };
 
@@ -1930,12 +2168,13 @@ class Component extends DCLogic {
       id: '', customerName: '', phone: '', boatMakeModel: '', issue: '', size: '',
       priorityLabel: '', priorityChipStyle: '', mechanicName: '', riskBadgeLabel: '', riskBadgeStyle: '',
       createdDateLabel: '', totalTimeLabel: '', qrUrl: BLANK_IMG, hasQr: false,
-      noEntries: true, hasIntakeNote: false, intakeNoteDisplay: '', entriesDisplay: [],
+      hasIntakeNote: false, intakeNoteDisplay: '', workLogPrintDisplay: [], noWorkLogPrint: true,
     };
     if (sj) {
       const risk = this.isAtRisk(sj);
-      const totalHrs = sj.entries.reduce((sum, e) => {
-        const n = parseFloat(e.timeSpent);
+      const workLogActivities = s.jobActivities.filter(a => a.activityType === 'work_log');
+      const totalHrs = workLogActivities.reduce((sum, a) => {
+        const n = parseFloat(a.meta && a.meta.timeSpent);
         return sum + (isNaN(n) ? 0 : n);
       }, 0);
       selectedJob = {
@@ -1954,28 +2193,146 @@ class Component extends DCLogic {
         totalTimeLabel: totalHrs > 0 ? `${totalHrs.toFixed(1)} hrs` : '\u2014',
         qrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&data=${encodeURIComponent(sj.id)}`,
         hasQr: true,
-        noEntries: sj.entries.length === 0,
         hasIntakeNote: !!sj.intakeRawNotes,
         intakeNoteDisplay: sj.intakeRawNotes || '',
-        entriesDisplay: sj.entries.slice().reverse().map(e => {
-          const photos = (e.photoIds || []).map(id => {
-            const p = s.jobPhotos.find(x => x.id === id);
-            return p ? p.thumbUrl : null;
-          }).filter(Boolean);
-          return {
-            dateLabel: new Date(e.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + new Date(e.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
-            timeSpent: e.timeSpent || '\u2014',
-            findings: e.findings || '\u2014',
-            fix: e.fix || '\u2014',
-            materials: e.materials || 'None',
-            hasRawNotes: !!e.rawNotes,
-            rawNotes: e.rawNotes || '',
-            hasPhotos: photos.length > 0,
-            photos,
-          };
-        }),
+        workLogPrintDisplay: workLogActivities.slice().sort((a, b) => a.createdAt - b.createdAt).map(a => ({
+          dateLabel: new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + new Date(a.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
+          timeSpent: (a.meta && a.meta.timeSpent) || '\u2014',
+          findings: (a.meta && a.meta.findings) || '\u2014',
+          fix: (a.meta && a.meta.fix) || '\u2014',
+          materials: (a.meta && a.meta.materials) || 'None',
+        })),
+        noWorkLogPrint: workLogActivities.length === 0,
       };
     }
+
+    // ---------- unified activity feed ----------
+    const ACT_META = this.constructor.ACTIVITY_META;
+    const jobPhotosById = {};
+    s.jobPhotos.forEach(p => { jobPhotosById[p.id] = p; });
+
+    const fmtTime = (ts) => new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const fmtDay = (ts) => new Date(ts).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    const dayLabel = (ts) => {
+      const key = this.dayKeyFor(ts);
+      if (key === this.dayKeyFor(Date.now())) return 'TODAY';
+      if (key === this.dayKeyFor(Date.now() - 86400000)) return 'YESTERDAY';
+      return fmtDay(ts).toUpperCase();
+    };
+
+    const activityFilter = s.activityFilter;
+    const visibleActivities = s.jobActivities.filter(a => activityFilter === 'all' || (ACT_META[a.activityType] && ACT_META[a.activityType].category === activityFilter));
+
+    const activityCategoryCounts = { all: s.jobActivities.length, work: 0, notes: 0, status: 0, photos: 0, financial: 0 };
+    s.jobActivities.forEach(a => {
+      const m = ACT_META[a.activityType];
+      if (m) activityCategoryCounts[m.category] = (activityCategoryCounts[m.category] || 0) + 1;
+    });
+    const activityFilterChips = this.constructor.ACTIVITY_FILTERS.map(f => ({
+      key: f.key,
+      label: `${f.label} (${activityCategoryCounts[f.key] || 0})`,
+      style: `font:700 10.5px 'IBM Plex Mono',monospace;padding:7px 11px;border-radius:3px;cursor:pointer;background:${activityFilter === f.key ? '#16283D' : '#EDE6D6'};color:${activityFilter === f.key ? '#fff' : '#16283D'};`,
+      onSelect: () => this.setActivityFilter(f.key),
+    }));
+
+    const byDay = {};
+    visibleActivities.forEach(a => {
+      const key = this.dayKeyFor(a.createdAt);
+      if (!byDay[key]) byDay[key] = [];
+      byDay[key].push(a);
+    });
+    const dayKeysSorted = Object.keys(byDay).sort((a, b) => byDay[b][0].createdAt - byDay[a][0].createdAt);
+
+    const buildActivityDisplay = (a) => {
+      const meta = ACT_META[a.activityType] || { label: a.activityType.toUpperCase(), category: 'work', compact: false };
+      const isPrivate = a.visibility === 'private';
+      const expanded = s.expandedActivityIds.includes(a.id);
+      const isLong = (a.body || '').length > 220;
+      const bodyDisplay = (!isLong || expanded) ? a.body : (a.body.slice(0, 220).trim() + '\u2026');
+      const isEditing = s.editingActivityId === a.id;
+      const isEdited = a.version > 1;
+      const historyOpen = s.historyOpenActivityId === a.id;
+      const historyList = (s.activityHistory[a.id] || []).map(h => ({
+        version: h.version,
+        editedByName: h.editedByName || '\u2014',
+        editedLabel: new Date(h.editedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
+        previousBody: h.previousBody,
+        hasReason: !!h.changeReason,
+        changeReason: h.changeReason,
+      }));
+      const photos = (a.attachments || []).map(id => jobPhotosById[id]).filter(Boolean).map(p => ({ thumbUrl: p.thumbUrl }));
+
+      return {
+        id: a.id,
+        isCompact: meta.compact,
+        isCard: !meta.compact,
+        typeLabel: meta.label,
+        compactBadgeStyle: `font:700 9px 'IBM Plex Mono',monospace;padding:2px 7px;border-radius:2px;background:#EDE6D6;color:rgba(22,40,61,.6);letter-spacing:.3px;white-space:nowrap;`,
+        typeBadgeStyle: `font:700 9.5px 'IBM Plex Mono',monospace;padding:3px 8px;border-radius:2px;background:#EDE6D6;color:#16283D;letter-spacing:.3px;`,
+        timeLabel: fmtTime(a.createdAt),
+        createdLabel: fmtTime(a.createdAt),
+        body: a.body || '',
+        authorName: a.authorName || 'System',
+        authorRoleLabel: (a.authorRole || '').replace(/_/g, ' ').toUpperCase() || '\u2014',
+        isPrivate,
+        aiGenerated: a.aiGenerated,
+        isWorkLog: a.activityType === 'work_log',
+        findings: (a.meta && a.meta.findings) || '\u2014',
+        fix: (a.meta && a.meta.fix) || '\u2014',
+        timeSpent: (a.meta && a.meta.timeSpent) || '\u2014',
+        materials: (a.meta && a.meta.materials) || 'None',
+        hasRawNotes: !!(a.meta && a.meta.rawNotes),
+        rawNotes: (a.meta && a.meta.rawNotes) || '',
+        bodyDisplay,
+        isLong,
+        expandLabel: expanded ? 'SHOW LESS' : 'SHOW MORE',
+        onToggleExpand: () => this.toggleActivityExpand(a.id),
+        hasPhotos: photos.length > 0,
+        photos,
+        cardStyle: `border-radius:6px;padding:12px 14px;background:${isPrivate ? '#FBF6E8' : '#fff'};border:1px ${isPrivate ? 'dashed #B08A2E' : 'solid rgba(22,40,61,.12)'};border-left:3px solid ${isPrivate ? '#B08A2E' : '#1F6F78'};`,
+        isEditing,
+        isNotEditing: !isEditing,
+        editDraftBody: s.editDraftBody,
+        editDraftReason: s.editDraftReason,
+        onEditBodyChange: this.setEditDraftBody,
+        onEditReasonChange: this.setEditDraftReason,
+        onSaveEdit: this.saveEditActivity,
+        onCancelEdit: this.cancelEditActivity,
+        hasEditError: !!s.editError,
+        editError: s.editError,
+        canEdit: a.activityType === 'customer_note' && !isEditing && (this.isShopOwner() || (s.profile && s.profile.role === 'service_advisor') || (s.profile && s.profile.id === a.authorId)),
+        onStartEdit: () => this.startEditActivity(a),
+        isEdited,
+        version: a.version,
+        editedLabel: a.editedAt ? new Date(a.editedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '',
+        onToggleHistory: () => this.toggleActivityHistory(a),
+        historyOpen,
+        history: historyList,
+        historyEmpty: historyOpen && historyList.length === 0 && !s.activityHistory[a.id],
+      };
+    };
+
+    const activityDayGroups = dayKeysSorted.map(key => {
+      const items = byDay[key].slice().sort((a, b) => b.createdAt - a.createdAt);
+      const expanded = s.expandedDayKeys.includes(key);
+      return {
+        key,
+        dateLabel: dayLabel(items[0].createdAt),
+        countLabel: `${items.length} ${items.length === 1 ? 'ITEM' : 'ITEMS'}`,
+        chevron: expanded ? '\u25be' : '\u25b8',
+        expanded,
+        onToggle: () => this.toggleDay(key),
+        activities: expanded ? items.map(buildActivityDisplay) : [],
+      };
+    });
+
+    const activityCountLabel = `${s.jobActivities.length}`;
+    const noActivities = s.jobActivities.length === 0;
+    const visibilityPrivateStyle = `font:700 10px 'IBM Plex Mono',monospace;padding:8px 11px;border-radius:3px;cursor:pointer;background:${s.newActivityVisibility === 'private' ? '#B08A2E' : '#EDE6D6'};color:${s.newActivityVisibility === 'private' ? '#fff' : '#16283D'};`;
+    const visibilityPublicStyle = `font:700 10px 'IBM Plex Mono',monospace;padding:8px 11px;border-radius:3px;cursor:pointer;background:${s.newActivityVisibility === 'public' ? '#1F6F78' : '#EDE6D6'};color:${s.newActivityVisibility === 'public' ? '#fff' : '#16283D'};`;
+    const postActivityButtonStyle = `background:${s.activityComposerBusy ? '#B9C0C4' : '#1F6F78'};color:#fff;font:700 12px 'Public Sans',sans-serif;padding:10px 18px;border-radius:4px;cursor:pointer;text-align:center;`;
+    const postActivityButtonLabel = s.activityComposerBusy ? 'POSTING\u2026' : 'POST';
+    const hasActivityComposerError = !!s.activityComposerError;
 
     const statusChoiceOptions = ['open', 'in progress', 'done'].map(st => ({
       label: st.toUpperCase(),
@@ -2030,12 +2387,6 @@ class Component extends DCLogic {
       action: row.action.toUpperCase(),
       tableName: row.tableName,
       recordId: row.recordId,
-    }));
-    const commentsDisplay = s.comments.map(c => ({
-      authorName: c.authorName,
-      authorRole: c.authorRole,
-      body: c.body,
-      dateLabel: new Date(c.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
     }));
 
     const micRecording = s.intakeRecording;
@@ -2134,11 +2485,11 @@ class Component extends DCLogic {
       hasInviteMessage: !!s.inviteMessage, inviteMessage: s.inviteMessage,
       inviteMessageColor: s.inviteError ? '#C0392B' : '#1F6F78',
 
-      commentsDisplay, noComments: commentsDisplay.length === 0,
-      newComment: s.newComment, setNewComment: this.setNewComment, submitComment: this.submitComment,
-      hasCommentError: !!s.commentError, commentError: s.commentError,
-      postButtonLabel: s.commentBusy ? 'POSTING\u2026' : 'POST',
-      postButtonStyle: `background:${s.commentBusy ? 'rgba(31,111,120,.5)' : '#1F6F78'};color:#fff;font:700 12px 'Public Sans',sans-serif;padding:13px 16px;border-radius:4px;cursor:${s.commentBusy ? 'default' : 'pointer'};flex:none;`,
+      activityFilterChips, activityDayGroups, activityCountLabel, noActivities,
+      newActivityBody: s.newActivityBody, setNewActivityBody: this.setNewActivityBody,
+      visibilityPrivateStyle, visibilityPublicStyle, setVisibilityPrivate: this.setVisibilityPrivate, setVisibilityPublic: this.setVisibilityPublic,
+      postActivityButtonStyle, postActivityButtonLabel, submitActivity: this.submitActivity,
+      hasActivityComposerError, activityComposerError: s.activityComposerError,
       archiveSelectedJob: this.archiveSelectedJob,
 
       stats: {
