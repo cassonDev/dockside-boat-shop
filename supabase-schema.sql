@@ -695,6 +695,68 @@ alter table public.activities add constraint activities_activity_type_check chec
 ));
 
 -- ---------------------------------------------------------------------------
+-- 16. Mechanic Profile: availability + role-change requests (2026-07)
+--    Scope for this pass: profile page, active jobs, availability, and role
+--    requests (the four items explicitly prioritized). The staff-invitation
+--    "airlock" rework (pending_approval before any Supabase Auth user or
+--    email exists) is a larger follow-up and NOT included here — today's
+--    invite flow already goes through the existing manage-users Netlify
+--    Function (service-role key stays server-side), it just doesn't yet have
+--    a separate pre-approval step.
+-- ---------------------------------------------------------------------------
+alter table public.profiles
+  add column if not exists phone text not null default '',
+  add column if not exists availability_status text not null default 'available'
+    check (availability_status in ('available','out_of_office','sick','training','vacation','other')),
+  add column if not exists out_of_office_start date,
+  add column if not exists out_of_office_end date,
+  add column if not exists availability_note text not null default '';
+
+create table if not exists public.role_change_requests (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  role_before text not null,
+  requested_role text not null check (requested_role in ('shop_owner','service_advisor','mechanic')),
+  reason text not null check (char_length(trim(reason)) > 0),
+  status text not null default 'pending' check (status in ('pending','approved','denied','cancelled')),
+  reviewed_by uuid references public.profiles(id),
+  reviewed_at timestamptz,
+  review_note text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.role_change_requests enable row level security;
+
+drop policy if exists "role_requests: shop_owner full access" on public.role_change_requests;
+create policy "role_requests: shop_owner full access" on public.role_change_requests
+  for all using (public.is_shop_owner()) with check (public.is_shop_owner());
+
+drop policy if exists "role_requests: self read" on public.role_change_requests;
+create policy "role_requests: self read" on public.role_change_requests
+  for select using (public.is_active_user() and profile_id = auth.uid());
+
+drop policy if exists "role_requests: self insert" on public.role_change_requests;
+create policy "role_requests: self insert" on public.role_change_requests
+  for insert with check (public.is_active_user() and profile_id = auth.uid());
+
+-- Note: there is intentionally NO update/delete policy for non-shop_owner
+-- users — approval/denial is granted only through the review-role-change
+-- Netlify Function running with the service-role key, never directly by a
+-- client update. A requester may not edit their own pending request status.
+
+-- Availability: a mechanic can already update their own row (including the
+-- new availability columns) under the existing "profiles: self update
+-- limited" policy above, since that policy only pins role/active as
+-- unchanged and leaves every other column free. What's missing is a way for
+-- service_advisor to update OTHER staff's availability (shop_owner already
+-- has full access via "profiles: shop_owner full access").
+drop policy if exists "profiles: service_advisor update availability" on public.profiles;
+create policy "profiles: service_advisor update availability" on public.profiles
+  for update using (public.is_active_user() and public.is_service_advisor())
+  with check (public.is_active_user() and public.is_service_advisor());
+
+-- ---------------------------------------------------------------------------
 -- 11. Seed data note
 -- ---------------------------------------------------------------------------
 -- No anonymous seed rows are inserted here on purpose — every work_order and

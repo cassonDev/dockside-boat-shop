@@ -75,10 +75,30 @@ function profileFromRow(row) {
   return {
     id: row.id,
     email: row.email,
+    phone: row.phone || '',
     name: row.full_name || row.email,
     role: row.role,
     active: !!row.active,
     outOfOffice: !!row.out_of_office,
+    availabilityStatus: row.availability_status || 'available',
+    oooStart: row.out_of_office_start || '',
+    oooEnd: row.out_of_office_end || '',
+    availabilityNote: row.availability_note || '',
+  };
+}
+
+function roleChangeRequestFromRow(row) {
+  return {
+    id: row.id,
+    profileId: row.profile_id,
+    currentRole: row.role_before,
+    requestedRole: row.requested_role,
+    reason: row.reason,
+    status: row.status,
+    reviewedBy: row.reviewed_by || null,
+    reviewedAt: row.reviewed_at || null,
+    reviewNote: row.review_note || '',
+    createdAt: row.created_at,
   };
 }
 
@@ -433,6 +453,50 @@ export async function setMechanicOOO(id, outOfOffice) {
   if (error) throw error;
 }
 
+// Availability: a mechanic may update only their own row; shop_owner/service_advisor
+// may update anyone's (both enforced by RLS on profiles, not just by hiding the UI).
+// Setting anything other than 'available' also flips the legacy out_of_office
+// boolean so existing at-risk / OOO-badge logic elsewhere keeps working unchanged.
+export async function updateAvailability(id, { status, start, end, note }) {
+  const row = {
+    availability_status: status,
+    out_of_office_start: start || null,
+    out_of_office_end: end || null,
+    availability_note: note || '',
+    out_of_office: status !== 'available',
+    updated_at: new Date().toISOString(),
+  };
+  const { data, error } = await supabase.from('profiles').update(row).eq('id', id).select().single();
+  if (error) throw error;
+  return profileFromRow(data);
+}
+
+// ---------- role-change requests ----------
+export async function fetchRoleChangeRequests({ profileId, allPending } = {}) {
+  let q = supabase.from('role_change_requests').select('*').order('created_at', { ascending: false });
+  if (profileId) q = q.eq('profile_id', profileId);
+  if (allPending) q = q.eq('status', 'pending');
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data || []).map(roleChangeRequestFromRow);
+}
+
+export async function createRoleChangeRequest(profileId, currentRole, requestedRole, reason) {
+  const { data, error } = await supabase.from('role_change_requests').insert({
+    profile_id: profileId, role_before: currentRole, requested_role: requestedRole, reason,
+  }).select().single();
+  if (error) throw error;
+  return roleChangeRequestFromRow(data);
+}
+
+// Approval/denial is privileged (grants roles) so it never runs from the
+// browser's own Supabase client — it goes through the review-role-change
+// Netlify Function, which re-validates the caller server-side with the
+// service-role key before touching profiles.role.
+export async function reviewRoleChangeRequest(requestId, decision, reviewNote) {
+  return callReviewRoleChange({ requestId, decision, reviewNote });
+}
+
 export async function fetchAuditLog(limit) {
   const { data, error } = await supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(limit || 200);
   if (error) throw error;
@@ -602,6 +666,19 @@ export async function setUserActive(userId, active) {
 }
 export async function setUserRole(userId, role) {
   return callManageUsers('set_role', { userId, role });
+}
+
+async function callReviewRoleChange(payload) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Not signed in.');
+  const res = await fetch('/.netlify/functions/review-role-change', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
+  return json;
 }
 export async function deleteUserAccount(userId) {
   return callManageUsers('delete_user', { userId });

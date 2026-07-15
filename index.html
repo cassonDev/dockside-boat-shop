@@ -630,23 +630,161 @@
 
     <div style="display:flex;flex-direction:column;gap:8px;">
       <sc-for list="{{ mechanicsDisplay }}" as="mech" hint-placeholder-count="5">
-        <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;cursor:pointer;" onClick="{{ mech.onOpenProfile }}">
           <div>
             <div style="font:700 14px 'Public Sans',sans-serif;color:#16283D;">{{ mech.name }} <span style="{{ mech.activeLabelStyle }}">{{ mech.activeLabel }}</span></div>
             <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-top:2px;">{{ mech.jobCountLabel }}</div>
+            <div style="{{ mech.availabilityLabelStyle }}margin-top:2px;">{{ mech.availabilityLabel }}</div>
           </div>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);">OOO</div>
+          <div style="display:flex;align-items:center;gap:10px;" class="no-print">
+            <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);">ACCOUNT ACTIVE</div>
             <div style="{{ mech.toggleTrackStyle }}" onClick="{{ mech.onToggle }}">
               <div style="{{ mech.toggleKnobStyle }}"></div>
             </div>
             <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
               <div style="{{ mech.disableButtonStyle }}" onClick="{{ mech.onToggleActive }}">{{ mech.disableButtonLabel }}</div>
             </sc-if>
+            <div style="color:rgba(22,40,61,.35);font-size:16px;">&rsaquo;</div>
           </div>
         </div>
       </sc-for>
     </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ MECHANIC PROFILE ============ -->
+  <sc-if value="{{ isMechanicProfile }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:520px;margin:0 auto;padding:20px 16px 60px;">
+    <div class="no-print" style="display:inline-flex;align-items:center;gap:6px;font:700 12px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;margin-bottom:14px;" onClick="{{ backToRoster }}">&#8592; MECHANICS</div>
+
+    <div style="background:#16283D;border-radius:8px;padding:20px;display:flex;align-items:center;gap:16px;margin-bottom:14px;">
+      <div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;justify-content:center;font:800 20px 'Archivo',sans-serif;flex:none;">{{ profileMechInitials }}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font:800 19px 'Archivo',sans-serif;color:#fff;">{{ profileMech.name }}</div>
+        <div style="font:700 11px 'IBM Plex Mono',monospace;color:#8FBFAE;margin-top:2px;">{{ profileMechRoleLabel }}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+          <div style="{{ profileMechActiveDotStyle }}"></div>
+          <div style="font:600 12px 'Public Sans',sans-serif;color:rgba(255,255,255,.75);">{{ profileMechActiveLabel }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;margin-bottom:14px;">
+      <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:8px;">CONTACT</div>
+      <div style="font:600 14px 'Public Sans',sans-serif;color:#16283D;">{{ profileMech.email }}</div>
+      <sc-if value="{{ profileMech.phone }}" hint-placeholder-val="{{ false }}">
+        <div style="font:600 14px 'Public Sans',sans-serif;color:#16283D;margin-top:4px;">{{ profileMech.phone }}</div>
+      </sc-if>
+      <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.4);margin-top:8px;">Read-only &mdash; contact details are managed via Edit Job Details permissions.</div>
+    </div>
+
+    <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;margin-bottom:14px;">
+      <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:8px;">ROLE &amp; PERMISSIONS</div>
+      <div style="font:700 14px 'Public Sans',sans-serif;color:#16283D;">{{ profileMechRoleLabel }}</div>
+      <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);line-height:1.5;margin-top:4px;">{{ profileRoleDescription }}</div>
+    </div>
+
+    <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;margin-bottom:14px;">
+      <div style="display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap;">
+        <div style="font:800 13px 'Public Sans',sans-serif;color:#16283D;">{{ profileActiveCount }} Active Jobs</div>
+        <sc-if value="{{ profileOverdueCount }}" hint-placeholder-val="{{ false }}">
+          <div style="font:700 13px 'Public Sans',sans-serif;color:#C0392B;">{{ profileOverdueCount }} Overdue</div>
+        </sc-if>
+        <sc-if value="{{ profileHighPriorityCount }}" hint-placeholder-val="{{ false }}">
+          <div style="font:700 13px 'Public Sans',sans-serif;color:#D97706;">{{ profileHighPriorityCount }} High Priority</div>
+        </sc-if>
+      </div>
+      <sc-if value="{{ hasProfileJobs }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <sc-for list="{{ profileJobsDisplay }}" as="pj" hint-placeholder-count="3">
+            <div style="background:#F6F1E4;border-radius:5px;padding:11px 13px;cursor:pointer;" onClick="{{ pj.onOpen }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <div style="font:700 13.5px 'Public Sans',sans-serif;color:#16283D;">{{ pj.title }}</div>
+                <div style="{{ pj.priorityChipStyle }}">{{ pj.priorityLabel }}</div>
+              </div>
+              <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.65);margin:3px 0 6px;">{{ pj.issue }}</div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <div style="{{ pj.statusChipStyle }}">{{ pj.statusLabel }}</div>
+                <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);">{{ pj.daysOpenLabel }}</div>
+                <sc-if value="{{ pj.overdueLabel }}" hint-placeholder-val="{{ false }}">
+                  <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#C0392B;">{{ pj.overdueLabel }}</div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+
+    <div class="no-print" style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;margin-bottom:14px;">
+      <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:10px;">AVAILABILITY</div>
+      <sc-if value="{{ isAvailabilityEditing }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+          <sc-for list="{{ availabilityStatusOptions }}" as="opt" hint-placeholder-count="6">
+            <div style="{{ opt.style }}" onClick="{{ opt.onSelect }}">{{ opt.label }}</div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ showAvailabilityDates }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:130px;">
+              <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">START DATE</div>
+              <input type="date" style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:11px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ availabilityDraft.start }}" onChange="{{ setAvailabilityStart }}"/>
+            </div>
+            <div style="flex:1;min-width:130px;">
+              <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">END DATE</div>
+              <input type="date" style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:11px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ availabilityDraft.end }}" onChange="{{ setAvailabilityEnd }}"/>
+            </div>
+          </div>
+          <div style="margin-bottom:10px;">
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">NOTE (optional)</div>
+            <textarea style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:11px 10px;font:500 13px 'Public Sans',sans-serif;color:#16283D;min-height:52px;resize:vertical;" value="{{ availabilityDraft.note }}" onChange="{{ setAvailabilityNote }}"></textarea>
+          </div>
+        </sc-if>
+        <sc-if value="{{ hasAvailabilityError }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;margin-bottom:10px;">{{ availabilityErrorMessage }}</div>
+        </sc-if>
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 12.5px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ saveAvailability }}">{{ availabilitySaveLabel }}</div>
+          <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 12.5px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ cancelAvailabilityEdit }}">CANCEL</div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ canEditAvailability }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#F6F1E4;color:#16283D;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ startAvailabilityEdit }}">UPDATE AVAILABILITY</div>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{ canRequestRoleChange }}" hint-placeholder-val="{{ false }}">
+    <div class="no-print" style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;">
+      <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:10px;">ROLE REQUEST</div>
+      <sc-if value="{{ hasRoleRequestSuccess }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#EFF6F5;border:1px solid #1F6F78;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#1F6F78;margin-bottom:10px;">{{ roleRequestSuccessMessage }}</div>
+      </sc-if>
+      <sc-if value="{{ hasPendingOwnRequest }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#FFF8E8;border:1px solid #D97706;border-radius:4px;padding:9px 11px;font:700 12px 'IBM Plex Mono',monospace;color:#D97706;">{{ pendingOwnRequestLabel }}</div>
+      </sc-if>
+      <sc-if value="{{ isRoleRequestOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+          <sc-for list="{{ roleRequestOptions }}" as="opt" hint-placeholder-count="2">
+            <div style="{{ opt.style }}" onClick="{{ opt.onSelect }}">{{ opt.label }}</div>
+          </sc-for>
+        </div>
+        <div style="margin-bottom:10px;">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">REASON</div>
+          <textarea style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:11px 10px;font:500 13px 'Public Sans',sans-serif;color:#16283D;min-height:60px;resize:vertical;" value="{{ roleRequestReason }}" onChange="{{ setRoleRequestReason }}"></textarea>
+        </div>
+        <sc-if value="{{ hasRoleRequestError }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;margin-bottom:10px;">{{ roleRequestErrorMessage }}</div>
+        </sc-if>
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 12.5px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ submitRoleRequest }}">{{ roleRequestSaveLabel }}</div>
+          <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 12.5px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ toggleRoleRequestForm }}">CANCEL</div>
+        </div>
+      </sc-if>
+      <div style="{{ requestRoleButtonWrapStyle }}">
+        <div style="background:#F6F1E4;color:#16283D;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ toggleRoleRequestForm }}">REQUEST ROLE CHANGE</div>
+      </div>
+    </div>
+    </sc-if>
   </div>
   </sc-if>
 
@@ -1229,6 +1367,21 @@ class Component extends DCLogic {
     jobEditError: '',
     jobEditSuccess: '',
 
+    profileMechanicId: null,
+    availabilityDraft: null,
+    availabilitySaving: false,
+    availabilityError: '',
+    roleRequestOpen: false,
+    roleRequestRole: '',
+    roleRequestReason: '',
+    roleRequestSaving: false,
+    roleRequestError: '',
+    roleRequestSuccess: '',
+    roleChangeRequests: [],
+    reviewingRequestId: null,
+    reviewBusy: false,
+    reviewError: '',
+
     intakeStep: 'dictate',
     intakeRecording: false,
     intakeRecBusy: false,
@@ -1573,7 +1726,110 @@ class Component extends DCLogic {
     intakeStagedPhotos: [], intakeRecording: false, intakeMicError: '', intakeRawNotesFinal: '', showScanModal: false,
     intakeSaving: false, intakeSaveError: '', intakeRecBusy: false,
   }); };
-  goRoster = () => { this.unsubscribeComments(); this.setState({ screen: 'roster', showScanModal: false }); };
+  goRoster = () => { this.unsubscribeComments(); this.setState({ screen: 'roster', showScanModal: false }); this.loadRoleChangeRequestsForRoster(); };
+  goMechanicProfile = (id) => {
+    this.setState({ screen: 'mechanicProfile', profileMechanicId: id, availabilityDraft: null, availabilityError: '', roleRequestOpen: false, roleRequestError: '', roleRequestSuccess: '' });
+    this.loadRoleChangeRequestsForRoster(id);
+  };
+  backToRoster = () => this.setState({ screen: 'roster', profileMechanicId: null });
+
+  loadRoleChangeRequestsForRoster = async (profileId) => {
+    if (!this._dataMod) return;
+    try {
+      const isOwner = this.isShopOwner();
+      const targetProfileId = profileId || (this.state.profile && this.state.profile.id);
+      const reqs = isOwner
+        ? await this._dataMod.fetchRoleChangeRequests({ allPending: !profileId })
+        : await this._dataMod.fetchRoleChangeRequests({ profileId: targetProfileId });
+      this.setState({ roleChangeRequests: reqs });
+    } catch (e) {
+      console.error('Failed to load role-change requests', e);
+    }
+  };
+
+  startAvailabilityEdit = (mech) => {
+    this.setState({
+      availabilityError: '',
+      availabilityDraft: {
+        status: mech.availabilityStatus || 'available',
+        start: mech.oooStart || '',
+        end: mech.oooEnd || '',
+        note: mech.availabilityNote || '',
+      },
+    });
+  };
+  cancelAvailabilityEdit = () => this.setState({ availabilityDraft: null, availabilityError: '' });
+  setAvailabilityDraftField = (key, value) => this.setState(s => ({ availabilityDraft: { ...s.availabilityDraft, [key]: value } }));
+  setAvailabilityStatus = (status) => this.setAvailabilityDraftField('status', status);
+  setAvailabilityStart = (e) => this.setAvailabilityDraftField('start', e.target.value);
+  setAvailabilityEnd = (e) => this.setAvailabilityDraftField('end', e.target.value);
+  setAvailabilityNote = (e) => this.setAvailabilityDraftField('note', e.target.value);
+  saveAvailability = async () => {
+    const s = this.state;
+    const d = s.availabilityDraft;
+    const mech = s.mechanics.find(m => m.id === s.profileMechanicId);
+    if (!d || !mech || s.availabilitySaving) return;
+    if (d.status !== 'available' && (!d.start || !d.end)) {
+      this.setState({ availabilityError: 'Start and end dates are required for time away.' });
+      return;
+    }
+    if (!this._dataMod) { this.setState({ availabilityError: 'Not connected to the database.' }); return; }
+    this.setState({ availabilitySaving: true, availabilityError: '' });
+    try {
+      const saved = await this._dataMod.updateAvailability(mech.id, d);
+      this.setState(st => ({
+        mechanics: st.mechanics.map(m => m.id === saved.id ? saved : m),
+        availabilitySaving: false,
+        availabilityDraft: null,
+      }));
+    } catch (e) {
+      console.error('Failed to save availability', e);
+      this.setState({ availabilitySaving: false, availabilityError: (e && e.message) || 'Could not save availability.' });
+    }
+  };
+
+  toggleRoleRequestForm = () => this.setState(s => ({ roleRequestOpen: !s.roleRequestOpen, roleRequestError: '', roleRequestSuccess: '', roleRequestRole: '', roleRequestReason: '' }));
+  setRoleRequestRole = (role) => this.setState({ roleRequestRole: role });
+  setRoleRequestReason = (e) => this.setState({ roleRequestReason: e.target.value });
+  submitRoleRequest = async () => {
+    const s = this.state;
+    const mech = s.mechanics.find(m => m.id === s.profileMechanicId) || s.profile;
+    if (!mech || s.roleRequestSaving) return;
+    if (!s.roleRequestRole) { this.setState({ roleRequestError: 'Choose the role you\u2019re requesting.' }); return; }
+    if (!s.roleRequestReason.trim()) { this.setState({ roleRequestError: 'A reason is required.' }); return; }
+    if (!this._dataMod) { this.setState({ roleRequestError: 'Not connected to the database.' }); return; }
+    this.setState({ roleRequestSaving: true, roleRequestError: '' });
+    try {
+      const req = await this._dataMod.createRoleChangeRequest(mech.id, mech.role, s.roleRequestRole, s.roleRequestReason.trim());
+      this.setState(st => ({
+        roleChangeRequests: [req, ...st.roleChangeRequests],
+        roleRequestSaving: false, roleRequestOpen: false,
+        roleRequestSuccess: 'Request submitted \u2014 a shop owner will review it.',
+        roleRequestRole: '', roleRequestReason: '',
+      }));
+    } catch (e) {
+      console.error('Failed to submit role request', e);
+      this.setState({ roleRequestSaving: false, roleRequestError: (e && e.message) || 'Could not submit request.' });
+    }
+  };
+
+  reviewRoleRequest = async (requestId, decision) => {
+    if (this.state.reviewBusy) return;
+    const label = decision === 'approve' ? 'Approve' : 'Deny';
+    if (!window.confirm(`${label} this role-change request?`)) return;
+    this.setState({ reviewBusy: true, reviewingRequestId: requestId, reviewError: '' });
+    try {
+      await this._dataMod.reviewRoleChangeRequest(requestId, decision);
+      const [reqs, mechanics] = await Promise.all([
+        this._dataMod.fetchRoleChangeRequests({ allPending: true }),
+        this._dataMod.fetchMechanics(),
+      ]);
+      this.setState({ roleChangeRequests: reqs, mechanics, reviewBusy: false, reviewingRequestId: null });
+    } catch (e) {
+      console.error('Failed to review role request', e);
+      this.setState({ reviewBusy: false, reviewingRequestId: null, reviewError: (e && e.message) || 'Could not process this request.' });
+    }
+  };
   openJob = (id, opts) => {
     this.setState({ screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'closed', showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '' });
     if (!(opts && opts.skipHistory) && typeof window !== 'undefined' && window.history) {
@@ -2885,23 +3141,99 @@ class Component extends DCLogic {
     const mechanicFilterOptions = [{ value: 'all', label: 'ALL MECHANICS' }, ...s.mechanics.map(m => ({ value: m.id, label: m.name }))];
 
     const jobCountFor = (id) => jobs.filter(j => j.assignedMechanic === id && j.status !== 'done').length;
+    const AVAILABILITY_LABELS = { available: 'Available', out_of_office: 'Out of office', sick: 'Sick', training: 'Training', vacation: 'Vacation', other: 'Away' };
+    const fmtShortDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+    const availabilityLine = (m) => {
+      if ((m.availabilityStatus || 'available') === 'available') return 'Available';
+      const label = AVAILABILITY_LABELS[m.availabilityStatus] || 'Away';
+      return m.oooEnd ? `${label} until ${fmtShortDate(m.oooEnd)}` : label;
+    };
     const mechanicsDisplay = s.mechanics.map(m => ({
+      id: m.id,
       name: m.name,
       active: m.active,
       activeLabel: m.active ? '' : '(DISABLED)',
       activeLabelStyle: `font:700 10px 'IBM Plex Mono',monospace;color:#C0392B;`,
-      jobCountLabel: `${jobCountFor(m.id)} active job${jobCountFor(m.id) === 1 ? '' : 's'}${m.outOfOffice ? ' \u2014 OUT OF OFFICE' : ''}`,
+      jobCountLabel: `${jobCountFor(m.id)} active job${jobCountFor(m.id) === 1 ? '' : 's'}`,
+      availabilityLabel: availabilityLine(m),
+      availabilityLabelStyle: `font:600 11.5px 'Public Sans',sans-serif;color:${(m.availabilityStatus || 'available') === 'available' ? '#1F6F78' : '#D97706'};`,
       toggleTrackStyle: `width:46px;height:26px;border-radius:14px;cursor:pointer;position:relative;background:${m.outOfOffice ? '#C0392B' : '#1F6F78'};transition:background .15s;`,
       toggleKnobStyle: `width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${m.outOfOffice ? '23px' : '3px'};transition:left .15s;`,
-      onToggle: () => this.toggleMechanicOOO(m.id),
+      onToggle: (e) => { e && e.stopPropagation && e.stopPropagation(); this.toggleMechanicOOO(m.id); },
       disableButtonStyle: `font:700 10.5px 'IBM Plex Mono',monospace;padding:8px 12px;border-radius:4px;cursor:pointer;background:${m.active ? '#FBEAEA' : '#EFF6F5'};color:${m.active ? '#C0392B' : '#1F6F78'};`,
       disableButtonLabel: m.active ? 'DISABLE' : 'REACTIVATE',
-      onToggleActive: () => this.toggleMechanicActive(m),
+      onToggleActive: (e) => { e && e.stopPropagation && e.stopPropagation(); this.toggleMechanicActive(m); },
+      onOpenProfile: () => this.goMechanicProfile(m.id),
     }));
 
     const isShopOwner = this.isShopOwner();
     const isServiceAdvisor = this.isServiceAdvisor();
     const canEditJobDetails = isShopOwner || isServiceAdvisor;
+
+    // ---------- mechanic profile page ----------
+    const profileMech = s.mechanics.find(m => m.id === s.profileMechanicId);
+    const isOwnProfile = !!(profileMech && s.profile && profileMech.id === s.profile.id);
+    const canEditAvailability = isShopOwner || isServiceAdvisor || isOwnProfile;
+    const ROLE_DESCRIPTIONS = {
+      mechanic: 'Can view assigned jobs, add work activity, upload photos, and update job progress.',
+      service_advisor: 'Can manage customer/job details, photos, and assignments across all jobs.',
+      shop_owner: 'Full access: staff, roles, billing, and every work order in the shop.',
+    };
+    const profileJobsAll = jobs.filter(j => j.assignedMechanic === (profileMech && profileMech.id));
+    const profileJobsActive = profileJobsAll.filter(j => j.status !== 'done');
+    const daysOpen = (job) => Math.max(0, Math.floor((Date.now() - new Date(job.createdAt).getTime()) / 86400000));
+    const isOverdue = (job) => daysOpen(job) > 14;
+    const profileJobsSorted = [...profileJobsActive].sort((a, b) => {
+      const rank = (j) => isOverdue(j) ? 0 : j.priority === 'high' ? 1 : 2;
+      return rank(a) - rank(b) || daysOpen(b) - daysOpen(a);
+    });
+    const profileJobsDisplay = profileJobsSorted.map(job => ({
+      id: job.id,
+      title: `${job.customerName} \u00b7 ${job.boatMakeModel}`,
+      issue: job.issue,
+      statusLabel: job.status.toUpperCase(),
+      statusChipStyle: statusChipStyle(job.status),
+      priorityLabel: job.priority === 'high' ? 'HIGH' : 'NORMAL',
+      priorityChipStyle: priorityChipStyle(job.priority),
+      daysOpenLabel: `${daysOpen(job)}d open`,
+      overdueLabel: isOverdue(job) ? '\u26a0 OVERDUE' : '',
+      onOpen: () => { this.openJob(job.id); },
+    }));
+    const profileActiveCount = profileJobsActive.length;
+    const profileOverdueCount = profileJobsActive.filter(isOverdue).length;
+    const profileHighPriorityCount = profileJobsActive.filter(j => j.priority === 'high').length;
+
+    const AVAILABILITY_STATUS_OPTIONS = ['available', 'out_of_office', 'sick', 'training', 'vacation', 'other'];
+    const ad = s.availabilityDraft;
+    const availabilityStatusOptions = AVAILABILITY_STATUS_OPTIONS.map(st => ({
+      value: st, label: AVAILABILITY_LABELS[st],
+      style: `font:700 10.5px 'IBM Plex Mono',monospace;padding:8px 10px;border-radius:12px;cursor:pointer;background:${ad && ad.status === st ? '#1F6F78' : '#EDE6D6'};color:${ad && ad.status === st ? '#fff' : '#16283D'};`,
+      onSelect: () => this.setAvailabilityStatus(st),
+    }));
+    const roleRequestOptions = ['mechanic', 'service_advisor', 'shop_owner']
+      .filter(r => !profileMech || r !== profileMech.role)
+      .map(r => ({
+        value: r,
+        label: r === 'shop_owner' ? 'SHOP OWNER' : r === 'service_advisor' ? 'SERVICE ADVISOR' : 'MECHANIC',
+        style: `font:700 11px 'Public Sans',sans-serif;padding:9px 12px;border-radius:4px;cursor:pointer;background:${s.roleRequestRole === r ? '#1F6F78' : '#EDE6D6'};color:${s.roleRequestRole === r ? '#fff' : '#16283D'};`,
+        onSelect: () => this.setRoleRequestRole(r),
+      }));
+    const myPendingRoleRequest = (s.roleChangeRequests || []).find(r => profileMech && r.profileId === profileMech.id && r.status === 'pending');
+
+    const pendingRoleRequestsDisplay = isShopOwner ? (s.roleChangeRequests || []).filter(r => r.status === 'pending').map(r => {
+      const reqMech = s.mechanics.find(m => m.id === r.profileId);
+      return {
+        id: r.id,
+        name: (reqMech && reqMech.name) || 'Unknown',
+        currentRoleLabel: (r.currentRole || '').toUpperCase(),
+        requestedRoleLabel: (r.requestedRole || '').toUpperCase(),
+        reason: r.reason,
+        dateLabel: new Date(r.createdAt).toLocaleDateString(),
+        busy: s.reviewBusy && s.reviewingRequestId === r.id,
+        onApprove: () => this.reviewRoleRequest(r.id, 'approve'),
+        onDeny: () => this.reviewRoleRequest(r.id, 'deny'),
+      };
+    }) : [];
     const archivedJobsDisplay = s.archivedJobs.map(job => ({
       id: job.id,
       title: `${job.customerName} \u00b7 ${job.boatMakeModel} \u2014 ${job.issue}`,
@@ -2978,6 +3310,7 @@ class Component extends DCLogic {
       isIntake: s.screen === 'intake',
       isJobDetail: s.screen === 'jobDetail' && !!sj,
       isRoster: s.screen === 'roster',
+      isMechanicProfile: s.screen === 'mechanicProfile' && !!profileMech,
       isTag: s.screen === 'tag' && !!sj,
       isInvoice: s.screen === 'invoice' && !!sj,
       isArchive: s.screen === 'archive',
@@ -3183,6 +3516,51 @@ class Component extends DCLogic {
       hasLightboxError: !!s.lightboxError, lightboxErrorMessage: s.lightboxError,
 
       mechanicsDisplay,
+      pendingRoleRequestsDisplay,
+      hasPendingRoleRequests: pendingRoleRequestsDisplay.length > 0,
+      pendingRoleRequestsCount: pendingRoleRequestsDisplay.length,
+      hasReviewError: !!s.reviewError, reviewErrorMessage: s.reviewError,
+
+      profileMech: profileMech || {},
+      profileMechInitials: profileMech ? profileMech.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase() : '',
+      profileMechRoleLabel: profileMech ? (profileMech.role === 'shop_owner' ? 'SHOP OWNER' : profileMech.role === 'service_advisor' ? 'SERVICE ADVISOR' : 'MECHANIC') : '',
+      profileMechActiveLabel: profileMech && profileMech.active ? 'Active' : 'Disabled',
+      profileMechActiveDotStyle: `width:9px;height:9px;border-radius:50%;background:${profileMech && profileMech.active ? '#1F6F78' : '#C0392B'};`,
+      profileRoleDescription: profileMech ? (ROLE_DESCRIPTIONS[profileMech.role] || '') : '',
+      backToRoster: this.backToRoster,
+      canEditAvailability,
+      isOwnProfile,
+
+      profileActiveCount, profileOverdueCount, profileHighPriorityCount,
+      hasProfileJobs: profileJobsDisplay.length > 0,
+      profileJobsDisplay,
+
+      isAvailabilityEditing: !!ad,
+      startAvailabilityEdit: () => this.startAvailabilityEdit(profileMech),
+      cancelAvailabilityEdit: this.cancelAvailabilityEdit,
+      availabilityStatusOptions,
+      availabilityDraft: ad || { start: '', end: '', note: '' },
+      showAvailabilityDates: !!(ad && ad.status !== 'available'),
+      setAvailabilityStart: this.setAvailabilityStart,
+      setAvailabilityEnd: this.setAvailabilityEnd,
+      setAvailabilityNote: this.setAvailabilityNote,
+      saveAvailability: this.saveAvailability,
+      availabilitySaveLabel: s.availabilitySaving ? 'SAVING\u2026' : 'MARK OUT OF OFFICE',
+      hasAvailabilityError: !!s.availabilityError, availabilityErrorMessage: s.availabilityError,
+
+      canRequestRoleChange: isOwnProfile,
+      isRoleRequestOpen: s.roleRequestOpen,
+      toggleRoleRequestForm: this.toggleRoleRequestForm,
+      roleRequestOptions,
+      roleRequestReason: s.roleRequestReason,
+      setRoleRequestReason: this.setRoleRequestReason,
+      submitRoleRequest: this.submitRoleRequest,
+      roleRequestSaveLabel: s.roleRequestSaving ? 'SUBMITTING\u2026' : 'SUBMIT REQUEST',
+      hasRoleRequestError: !!s.roleRequestError, roleRequestErrorMessage: s.roleRequestError,
+      hasRoleRequestSuccess: !!s.roleRequestSuccess, roleRequestSuccessMessage: s.roleRequestSuccess,
+      hasPendingOwnRequest: !!myPendingRoleRequest,
+      pendingOwnRequestLabel: myPendingRoleRequest ? `Pending: ${(myPendingRoleRequest.requestedRole || '').toUpperCase()}` : '',
+      requestRoleButtonWrapStyle: (myPendingRoleRequest || s.roleRequestOpen) ? 'display:none;' : '',
 
       goToTag: this.goToTag, goToInvoice: this.goToInvoice,
     };
