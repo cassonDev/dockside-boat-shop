@@ -424,6 +424,9 @@
         <sc-if value="{{ hasLogMicError }}" hint-placeholder-val="{{ false }}">
           <div style="width:100%;box-sizing:border-box;background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:8px 10px;font:600 11.5px 'Public Sans',sans-serif;color:#C0392B;">{{ logMicErrorLabel }}</div>
         </sc-if>
+        <sc-if value="{{ hasLogExtractError }}" hint-placeholder-val="{{ false }}">
+          <div style="width:100%;box-sizing:border-box;background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:8px 10px;font:600 11.5px 'Public Sans',sans-serif;color:#C0392B;">{{ logExtractErrorLabel }}</div>
+        </sc-if>
         <sc-if value="{{ hasLogTranscript }}" hint-placeholder-val="{{ false }}">
           <div style="width:100%;box-sizing:border-box;background:#fff;border:1px dashed rgba(22,40,61,.3);border-radius:4px;padding:10px;font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.75);line-height:1.5;">{{ logTranscriptDisplay }}</div>
         </sc-if>
@@ -438,7 +441,7 @@
 
         <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
           <div style="font:700 9px 'IBM Plex Mono',monospace;color:#1F6F78;margin-bottom:4px;">CUSTOMER UPDATE &middot; EDITABLE</div>
-          <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:64px;resize:vertical;" value="{{ logFields.customerUpdate }}" onChange="{{ setLogFieldCustomerUpdate }}"></textarea>
+          <textarea placeholder="No customer update generated. Add findings, work completed, or next steps." style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:64px;resize:vertical;" value="{{ logFields.customerUpdate }}" onChange="{{ setLogFieldCustomerUpdate }}"></textarea>
         </div>
 
         <div style="background:#FBF6E8;border:1px dashed #B08A2E;border-radius:4px;padding:10px 12px;">
@@ -486,10 +489,13 @@
           </div>
         </div>
         <div style="display:flex;gap:8px;">
-          <div style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ saveLogEntry }}">SAVE UPDATE</div>
+          <div style="{{ logSaveButtonStyle }}" onClick="{{ saveLogEntry }}">{{ logSaveButtonLabel }}</div>
           <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ backToDictate }}">EDIT</div>
           <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ cancelLogReview }}">CANCEL</div>
         </div>
+        <sc-if value="{{ hasLogSaveError }}" hint-placeholder-val="{{ false }}">
+          <div style="font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ logSaveErrorLabel }}</div>
+        </sc-if>
       </div>
       </sc-if>
 
@@ -557,7 +563,7 @@
                         <textarea style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.25);border-radius:4px;padding:9px;font:500 13px 'Public Sans',sans-serif;color:#16283D;min-height:70px;resize:vertical;" value="{{ act.editDraftBody }}" onChange="{{ act.onEditBodyChange }}"></textarea>
                         <input placeholder="Reason for edit (optional)" style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:8px 10px;font:500 12px 'Public Sans',sans-serif;color:#16283D;" value="{{ act.editDraftReason }}" onChange="{{ act.onEditReasonChange }}"/>
                         <div style="display:flex;gap:8px;">
-                          <div style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 11.5px 'Public Sans',sans-serif;padding:9px;border-radius:4px;cursor:pointer;" onClick="{{ act.onSaveEdit }}">SAVE EDIT</div>
+                          <div style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 11.5px 'Public Sans',sans-serif;padding:9px;border-radius:4px;cursor:pointer;" onClick="{{ act.onSaveEdit }}">SAVE CHANGES</div>
                           <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 11.5px 'Public Sans',sans-serif;padding:9px 14px;border-radius:4px;cursor:pointer;" onClick="{{ act.onCancelEdit }}">CANCEL</div>
                         </div>
                         <sc-if value="{{ act.hasEditError }}" hint-placeholder-val="{{ false }}">
@@ -573,6 +579,9 @@
                     </sc-if>
 
                     <sc-if value="{{ act.isWorkLog }}" hint-placeholder-val="{{ false }}">
+                      <sc-if value="{{ act.showNoCustomerUpdateNote }}" hint-placeholder-val="{{ false }}">
+                        <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.4);font-style:italic;">No customer-facing update recorded for this entry.</div>
+                      </sc-if>
                       <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:10px;font:500 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.65);">
                         <sc-if value="{{ act.hasFindings }}" hint-placeholder-val="{{ false }}"><span><b>Findings:</b> {{ act.findings }}</span></sc-if>
                         <sc-if value="{{ act.hasParts }}" hint-placeholder-val="{{ false }}"><span><b>Parts:</b> {{ act.partsUsed }}</span></sc-if>
@@ -1433,6 +1442,9 @@ class Component extends DCLogic {
     logTyped: '',
     logRawNotesFinal: '',
     logAiLoading: false,
+    logExtractError: '',
+    logSaveBusy: false,
+    logSaveError: '',
     logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '' },
     logSelectedPhotoIds: [],
     quickUpdateOpen: false,
@@ -2442,9 +2454,9 @@ class Component extends DCLogic {
     if (this._logRec) { try { this._logRec.stop(); } catch (e) {} }
     this.setState({ logStep: 'dictate', logRecording: false, logRecBusy: false });
   };
-  backToDictate = () => this.setState({ logStep: 'dictate' });
+  backToDictate = () => this.setState({ logStep: 'dictate', logSaveError: '' });
   cancelLogReview = () => {
-    this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '' } });
+    this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logSaveError: '', logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '' } });
   };
   toggleQuickUpdate = () => this.setState(s => ({ quickUpdateOpen: !s.quickUpdateOpen }));
   toggleLogRecording = () => {
@@ -2514,13 +2526,14 @@ class Component extends DCLogic {
   setLogTyped = (e) => this.setState({ logTyped: e.target.value });
 
   runLogExtraction = async () => {
+    if (this.state.logRecording) { this.setState({ logExtractError: 'Stop recording before generating the update.' }); return; }
     const raw = [this.state.logTranscript, this.state.logTyped].filter(Boolean).join('. ');
-    if (!raw.trim()) return;
-    this.setState({ logAiLoading: true });
+    if (!raw.trim()) { this.setState({ logExtractError: 'Add details first.' }); return; }
+    this.setState({ logAiLoading: true, logExtractError: '' });
     const fields = await this.runExtraction(
       raw,
       ['customerUpdate', 'privateNotes', 'findings', 'partsUsed', 'laborTime', 'recommendations'],
-      'The mechanic just dictated or typed what happened on a repair job. customerUpdate: a professional, friendly, jargon-free summary of what was done and found, written for the customer to read \u2014 no shop slang, no filler words like "uh" or "so basically", suitable to print on an invoice. privateNotes: a lightly cleaned-up version of the mechanic\u2019s own words (internal only, never shown to the customer) \u2014 keep it terse and factual. findings: a short phrase naming what was found/diagnosed. partsUsed: short comma-separated list of parts/materials used, empty string if none mentioned. laborTime: a short duration like "1.5 hrs", empty string if not mentioned. recommendations: any follow-up work, safety issues, or warranty-relevant items the customer should know about before using the boat again, empty string if none.'
+      'You are extracting structured shop-repair data from a mechanic\u2019s raw dictation or typed note. Be strictly faithful \u2014 never invent, escalate, or assume beyond what is stated. customerUpdate: a plain-language, customer-safe summary of what was done/found, written ONLY from information actually present in the input. If there isn\u2019t enough customer-facing information yet (e.g. only a brief internal remark with no findings or completed work), return an empty string \u2014 do not fabricate content to fill it. privateNotes: a lightly cleaned version of the mechanic\u2019s own words, for internal shop use only, never shown to customers. findings: objective facts only (what was found/observed), e.g. "crack in propeller", "low compression" \u2014 no interpretation, no recommended action. recommendations: only include a recommendation if the mechanic\u2019s words explicitly support it, and match its exact strength \u2014 never escalate an observation into a stronger action than stated (e.g. if the mechanic said something should be "inspected" or "looked at", do NOT output "replace" unless replacement was explicitly said). Empty string if no recommendation was made. partsUsed: only parts the mechanic said were actually installed/used \u2014 never infer parts from the diagnosis. Empty string if none mentioned. laborTime: a short duration like "1.5 hrs" only if actually mentioned, else empty string. Return an empty string for any field not clearly supported by the input \u2014 do not pad, guess, or invent.'
     );
     this.setState({
       logAiLoading: false,
@@ -2545,44 +2558,64 @@ class Component extends DCLogic {
   setLogFieldRecommendations = (e) => this.setState({ logFields: { ...this.state.logFields, recommendations: e.target.value } });
 
   saveLogEntry = async () => {
+    if (this.state.logSaveBusy) return;
     const jobId = this.state.selectedJobId;
     const p = this.state.profile;
-    const newStatus = (() => {
-      const j = this.state.jobs.find(x => x.id === jobId);
-      return j && j.status === 'open' ? 'in progress' : null;
-    })();
-    const jobs = newStatus ? this.state.jobs.map(j => j.id === jobId ? { ...j, status: newStatus } : j) : this.state.jobs;
-    this.setState({ jobs, logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '' } });
+    const lf = this.state.logFields;
+    const hasContent = !!(
+      (lf.customerUpdate || '').trim() || (lf.findings || '').trim() || (lf.partsUsed || '').trim() ||
+      (lf.laborTime || '').trim() || (lf.recommendations || '').trim() || (lf.privateNotes || '').trim()
+    );
+    if (!hasContent) { this.setState({ logSaveError: 'Nothing to save \u2014 add details first.' }); return; }
+    if (!jobId || !p) { this.setState({ logSaveError: 'Could not save \u2014 no job selected or not signed in.' }); return; }
+    this.setState({ logSaveBusy: true, logSaveError: '' });
+    const payload = {
+      activityType: 'work_log',
+      visibility: 'public',
+      aiGenerated: true,
+      body: (lf.customerUpdate || '').trim(),
+      meta: {
+        findings: (lf.findings || '').trim(),
+        partsUsed: (lf.partsUsed || '').trim(),
+        laborTime: (lf.laborTime || '').trim(),
+        recommendations: (lf.recommendations || '').trim(),
+        rawNotes: (lf.privateNotes || '').trim(),
+      },
+      attachments: this.state.logSelectedPhotoIds || [],
+    };
+    console.log('[work-log] saving activity payload', payload);
     try {
-      const act = await this._dataMod.createActivity(jobId, {
-        activityType: 'work_log',
-        visibility: 'public',
-        aiGenerated: true,
-        body: this.state.logFields.customerUpdate || '',
-        meta: {
-          findings: this.state.logFields.findings || '',
-          partsUsed: this.state.logFields.partsUsed || '',
-          laborTime: this.state.logFields.laborTime || '',
-          recommendations: this.state.logFields.recommendations || '',
-          rawNotes: this.state.logFields.privateNotes || '',
-        },
-        attachments: this.state.logSelectedPhotoIds || [],
-      }, p ? { id: p.id, name: p.name, role: p.role } : null);
-      this.setState(s => ({ jobActivities: [...s.jobActivities, act], expandedDayKeys: Array.from(new Set([...s.expandedDayKeys, this.dayKeyFor(act.createdAt)])) }));
-      if (newStatus) await this._dataMod.updateJobStatus(jobId, newStatus);
-      // Link each attached gallery photo back to this work-log activity.
+      const act = await this._dataMod.createActivity(jobId, payload, { id: p.id, name: p.name, role: p.role });
+      console.log('[work-log] Supabase createActivity response', act);
+      this.setState(s => ({
+        jobActivities: [...s.jobActivities, act],
+        expandedDayKeys: Array.from(new Set([...s.expandedDayKeys, this.dayKeyFor(act.createdAt)])),
+        logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [],
+        logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '' },
+        logSaveBusy: false, logSaveError: '',
+      }));
+      const j = this.state.jobs.find(x => x.id === jobId);
+      if (j && j.status === 'open') {
+        try {
+          await this._dataMod.updateJobStatus(jobId, 'in progress');
+          this.setState(s => ({ jobs: s.jobs.map(x => x.id === jobId ? { ...x, status: 'in progress' } : x) }));
+        } catch (e2) {
+          console.error('[work-log] Failed to auto-advance job status', e2);
+        }
+      }
       if (act.attachments && act.attachments.length) {
         for (const photoId of act.attachments) {
           try {
             const linked = await this._dataMod.updateWorkOrderPhoto(photoId, { activityId: act.id });
-            this.setState(s => ({ jobPhotos: s.jobPhotos.map(p => p.id === linked.id ? linked : p) }));
+            this.setState(s => ({ jobPhotos: s.jobPhotos.map(p2 => p2.id === linked.id ? linked : p2) }));
           } catch (e3) {
-            console.error('Failed to link photo to work-log activity', e3);
+            console.error('[work-log] Failed to link photo to work-log activity', e3);
           }
         }
       }
     } catch (e) {
-      console.error('Failed to save work log activity to Supabase', e);
+      console.error('[work-log] Failed to save work log activity to Supabase', e, 'payload was', payload);
+      this.setState({ logSaveBusy: false, logSaveError: (e && e.message) || 'Could not save \u2014 please try again. Your edits are preserved.' });
     }
   };
 
@@ -3086,6 +3119,7 @@ class Component extends DCLogic {
         hasParts: !!(a.meta && a.meta.partsUsed),
         hasLabor: !!(a.meta && a.meta.laborTime),
         hasRecommendations: !!(a.meta && a.meta.recommendations),
+        showNoCustomerUpdateNote: a.activityType === 'work_log' && !(a.body && a.body.trim()),
         hasRawNotes: !!(a.meta && a.meta.rawNotes),
         rawNotes: (a.meta && a.meta.rawNotes) || '',
         bodyDisplay,
@@ -3482,12 +3516,17 @@ class Component extends DCLogic {
       logMicStatusLabel: logMicButtonBusy ? 'ONE MOMENT\u2026' : (logMicRecording ? 'LISTENING\u2026' : 'TAP TO DICTATE'),
       logMicErrorLabel: s.logMicError,
       hasLogMicError: !!s.logMicError,
+      hasLogExtractError: !!s.logExtractError,
+      logExtractErrorLabel: s.logExtractError,
       hasLogTranscript: !!logRaw.trim(),
       logTranscriptDisplay: logRaw.trim(),
       logTyped: s.logTyped, setLogTyped: this.setLogTyped,
       toggleLogRecording: this.toggleLogRecording,
-      logExtractButtonStyle: `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:14px;border-radius:4px;cursor:pointer;background:${s.logAiLoading ? '#B9C0C4' : '#D97706'};color:#fff;`,
-      logExtractButtonLabel: s.logAiLoading ? 'ORGANIZING\u2026' : '\u2728 GENERATE UPDATE',
+      logExtractButtonStyle: (() => {
+        const disabled = s.logRecording || s.logAiLoading || !(logRaw.trim() || (s.logTyped || '').trim());
+        return `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:14px;border-radius:4px;cursor:${disabled ? 'default' : 'pointer'};background:${disabled ? '#B9C0C4' : '#D97706'};color:#fff;opacity:${s.logRecording ? .7 : 1};`;
+      })(),
+      logExtractButtonLabel: s.logAiLoading ? 'GENERATING\u2026' : s.logRecording ? 'STOP RECORDING TO GENERATE' : !(logRaw.trim() || (s.logTyped || '').trim()) ? 'ADD DETAILS FIRST' : 'GENERATE UPDATE',
       runLogExtraction: this.runLogExtraction,
       logFields: s.logFields,
       setLogFieldCustomerUpdate: this.setLogFieldCustomerUpdate, setLogFieldPrivateNotes: this.setLogFieldPrivateNotes,
@@ -3496,6 +3535,10 @@ class Component extends DCLogic {
       logPhotoPickerDisplay,
       pickLogNewPhoto: this.pickLogNewPhoto,
       saveLogEntry: this.saveLogEntry,
+      logSaveButtonStyle: `flex:1;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:${s.logSaveBusy ? 'default' : 'pointer'};background:${s.logSaveBusy ? '#B9C0C4' : '#1F6F78'};color:#fff;`,
+      logSaveButtonLabel: s.logSaveBusy ? 'SAVING\u2026' : 'SAVE UPDATE',
+      hasLogSaveError: !!s.logSaveError,
+      logSaveErrorLabel: s.logSaveError,
 
       jobPhotoCountLabel: `${s.jobPhotos.length}`,
       categoryFilterChips,
