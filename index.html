@@ -469,6 +469,10 @@
             <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 12.5px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:34px;resize:vertical;" value="{{ logFields.recommendations }}" onChange="{{ setLogFieldRecommendations }}"></textarea>
           </div>
         </div>
+        <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">ESTIMATED COST &middot; NOT FINAL</div>
+          <input placeholder="Leave blank unless an amount was stated" style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 12.5px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ logFields.estimatedCost }}" onChange="{{ setLogFieldEstimatedCost }}"/>
+        </div>
 
         <div>
           <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">ATTACH PHOTOS FROM GALLERY</div>
@@ -587,6 +591,7 @@
                         <sc-if value="{{ act.hasParts }}" hint-placeholder-val="{{ false }}"><span><b>Parts:</b> {{ act.partsUsed }}</span></sc-if>
                         <sc-if value="{{ act.hasLabor }}" hint-placeholder-val="{{ false }}"><span><b>Labor:</b> {{ act.laborTime }}</span></sc-if>
                         <sc-if value="{{ act.hasRecommendations }}" hint-placeholder-val="{{ false }}"><span><b>Recommends:</b> {{ act.recommendations }}</span></sc-if>
+                        <sc-if value="{{ act.hasEstimatedCost }}" hint-placeholder-val="{{ false }}"><span><b>Est. Cost:</b> {{ act.estimatedCost }}</span></sc-if>
                       </div>
                       <sc-if value="{{ act.hasRawNotes }}" hint-placeholder-val="{{ false }}">
                         <div style="margin-top:8px;background:#FBF6E8;border:1px dashed #B08A2E;border-radius:4px;padding:8px 10px;">
@@ -903,6 +908,9 @@
             </div>
             <div style="font:600 13.5px 'Public Sans',sans-serif;color:#16283D;">{{ entry.customerUpdate }}</div>
             <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-top:2px;"><b>Parts:</b> {{ entry.partsUsed }}</div>
+            <sc-if value="{{ entry.hasEstimatedCost }}" hint-placeholder-val="{{ false }}">
+              <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-top:2px;"><b>Est. Cost:</b> {{ entry.estimatedCost }}</div>
+            </sc-if>
           </div>
         </sc-for>
         <sc-if value="{{ selectedJob.noWorkLogPrint }}" hint-placeholder-val="{{ false }}">
@@ -1445,7 +1453,7 @@ class Component extends DCLogic {
     logExtractError: '',
     logSaveBusy: false,
     logSaveError: '',
-    logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '' },
+    logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' },
     logSelectedPhotoIds: [],
     quickUpdateOpen: false,
 
@@ -2456,7 +2464,7 @@ class Component extends DCLogic {
   };
   backToDictate = () => this.setState({ logStep: 'dictate', logSaveError: '' });
   cancelLogReview = () => {
-    this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logSaveError: '', logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '' } });
+    this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logSaveError: '', logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' } });
   };
   toggleQuickUpdate = () => this.setState(s => ({ quickUpdateOpen: !s.quickUpdateOpen }));
   toggleLogRecording = () => {
@@ -2532,8 +2540,8 @@ class Component extends DCLogic {
     this.setState({ logAiLoading: true, logExtractError: '' });
     const fields = await this.runExtraction(
       raw,
-      ['customerUpdate', 'privateNotes', 'findings', 'partsUsed', 'laborTime', 'recommendations'],
-      'You are extracting structured shop-repair data from a mechanic\u2019s raw dictation or typed note. Be strictly faithful \u2014 never invent, escalate, or assume beyond what is stated. customerUpdate: a plain-language, customer-safe summary of what was done/found, written ONLY from information actually present in the input. If there isn\u2019t enough customer-facing information yet (e.g. only a brief internal remark with no findings or completed work), return an empty string \u2014 do not fabricate content to fill it. privateNotes: a lightly cleaned version of the mechanic\u2019s own words, for internal shop use only, never shown to customers. findings: objective facts only (what was found/observed), e.g. "crack in propeller", "low compression" \u2014 no interpretation, no recommended action. recommendations: only include a recommendation if the mechanic\u2019s words explicitly support it, and match its exact strength \u2014 never escalate an observation into a stronger action than stated (e.g. if the mechanic said something should be "inspected" or "looked at", do NOT output "replace" unless replacement was explicitly said). Empty string if no recommendation was made. partsUsed: only parts the mechanic said were actually installed/used \u2014 never infer parts from the diagnosis. Empty string if none mentioned. laborTime: a short duration like "1.5 hrs" only if actually mentioned, else empty string. Return an empty string for any field not clearly supported by the input \u2014 do not pad, guess, or invent.'
+      ['customerUpdate', 'findings', 'partsUsed', 'laborTime', 'recommendations', 'estimatedCost'],
+      'You are extracting structured shop-repair data from a mechanic\u2019s raw dictation or typed note. Be strictly faithful \u2014 never invent, escalate, or assume beyond what is stated. customerUpdate: a professional, customer-safe summary written from the information in the input \u2014 remove profanity, filler words, and irrelevant frustration, fix grammar, and organize it, but do not invent facts. Cover: work in progress, findings so far, parts that may be needed, and any next steps or approvals needed \u2014 the customer update should communicate all of that plainly. Only return an empty string if the input truly contains no job-relevant information at all (e.g. "testing the microphone" or "let\u2019s see if this works") \u2014 an input that mentions any work being done, something found, a part that might be needed, or a next step DOES have enough for a customer update; do not be overly conservative. findings: objective observations only, e.g. "blue light flickering, white light not functioning" \u2014 no interpretation, no recommended action. partsUsed: only parts actually installed/consumed \u2014 never a part that is merely proposed or possibly needed. Empty string if none actually used yet. laborTime: only work actually performed (e.g. "continued diagnosis of the lighting system"), not planned work; a short duration like "1.5 hrs" if a duration is stated, else a short phrase of the work done, else empty string. recommendations: planned or recommended next steps explicitly supported by the input (e.g. needing a part, needing customer approval, needing further inspection) \u2014 match the mechanic\u2019s exact stated strength, never escalate "inspect" into "replace" or similar. Empty string if none. estimatedCost: ONLY if the mechanic states an explicit dollar amount or range (e.g. "about $200", "$300\u2013$450") \u2014 copy it as stated. Leave empty if no amount was mentioned; never invent a price. Return an empty string for any field not clearly supported by the input \u2014 do not pad, guess, or invent.'
     );
     this.setState({
       logAiLoading: false,
@@ -2541,11 +2549,12 @@ class Component extends DCLogic {
       logRawNotesFinal: raw,
       logFields: {
         customerUpdate: fields.customerUpdate || '',
-        privateNotes: fields.privateNotes || raw,
+        privateNotes: raw,
         findings: fields.findings || '',
         partsUsed: fields.partsUsed || '',
         laborTime: fields.laborTime || '',
         recommendations: fields.recommendations || '',
+        estimatedCost: fields.estimatedCost || '',
       },
     });
   };
@@ -2556,6 +2565,7 @@ class Component extends DCLogic {
   setLogFieldParts = (e) => this.setState({ logFields: { ...this.state.logFields, partsUsed: e.target.value } });
   setLogFieldLabor = (e) => this.setState({ logFields: { ...this.state.logFields, laborTime: e.target.value } });
   setLogFieldRecommendations = (e) => this.setState({ logFields: { ...this.state.logFields, recommendations: e.target.value } });
+  setLogFieldEstimatedCost = (e) => this.setState({ logFields: { ...this.state.logFields, estimatedCost: e.target.value } });
 
   saveLogEntry = async () => {
     if (this.state.logSaveBusy) return;
@@ -2564,7 +2574,7 @@ class Component extends DCLogic {
     const lf = this.state.logFields;
     const hasContent = !!(
       (lf.customerUpdate || '').trim() || (lf.findings || '').trim() || (lf.partsUsed || '').trim() ||
-      (lf.laborTime || '').trim() || (lf.recommendations || '').trim() || (lf.privateNotes || '').trim()
+      (lf.laborTime || '').trim() || (lf.recommendations || '').trim() || (lf.privateNotes || '').trim() || (lf.estimatedCost || '').trim()
     );
     if (!hasContent) { this.setState({ logSaveError: 'Nothing to save \u2014 add details first.' }); return; }
     if (!jobId || !p) { this.setState({ logSaveError: 'Could not save \u2014 no job selected or not signed in.' }); return; }
@@ -2580,6 +2590,7 @@ class Component extends DCLogic {
         laborTime: (lf.laborTime || '').trim(),
         recommendations: (lf.recommendations || '').trim(),
         rawNotes: (lf.privateNotes || '').trim(),
+        estimatedCost: (lf.estimatedCost || '').trim(),
       },
       attachments: this.state.logSelectedPhotoIds || [],
     };
@@ -2591,7 +2602,7 @@ class Component extends DCLogic {
         jobActivities: [...s.jobActivities, act],
         expandedDayKeys: Array.from(new Set([...s.expandedDayKeys, this.dayKeyFor(act.createdAt)])),
         logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [],
-        logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '' },
+        logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' },
         logSaveBusy: false, logSaveError: '',
       }));
       const j = this.state.jobs.find(x => x.id === jobId);
@@ -3019,6 +3030,8 @@ class Component extends DCLogic {
           laborTime: (a.meta && a.meta.laborTime) || '\u2014',
           customerUpdate: a.body || '\u2014',
           partsUsed: (a.meta && a.meta.partsUsed) || 'None',
+          estimatedCost: (a.meta && a.meta.estimatedCost) || '',
+          hasEstimatedCost: !!(a.meta && a.meta.estimatedCost),
         })),
         noWorkLogPrint: workLogActivities.length === 0,
         invoicePhotosDisplay: invoicePhotos.slice().sort((a, b) => a.createdAt - b.createdAt).map(p => {
@@ -3119,6 +3132,8 @@ class Component extends DCLogic {
         hasParts: !!(a.meta && a.meta.partsUsed),
         hasLabor: !!(a.meta && a.meta.laborTime),
         hasRecommendations: !!(a.meta && a.meta.recommendations),
+        estimatedCost: (a.meta && a.meta.estimatedCost) || '',
+        hasEstimatedCost: !!(a.meta && a.meta.estimatedCost),
         showNoCustomerUpdateNote: a.activityType === 'work_log' && !(a.body && a.body.trim()),
         hasRawNotes: !!(a.meta && a.meta.rawNotes),
         rawNotes: (a.meta && a.meta.rawNotes) || '',
@@ -3532,6 +3547,7 @@ class Component extends DCLogic {
       setLogFieldCustomerUpdate: this.setLogFieldCustomerUpdate, setLogFieldPrivateNotes: this.setLogFieldPrivateNotes,
       setLogFieldFindings: this.setLogFieldFindings, setLogFieldParts: this.setLogFieldParts,
       setLogFieldLabor: this.setLogFieldLabor, setLogFieldRecommendations: this.setLogFieldRecommendations,
+      setLogFieldEstimatedCost: this.setLogFieldEstimatedCost,
       logPhotoPickerDisplay,
       pickLogNewPhoto: this.pickLogNewPhoto,
       saveLogEntry: this.saveLogEntry,
