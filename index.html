@@ -327,7 +327,12 @@
           <div style="font:800 17px 'Archivo',sans-serif;color:#fff;margin-top:2px;">{{ selectedJob.customerName }}</div>
           <div style="font:500 12px 'Public Sans',sans-serif;color:#B9C0C4;margin-top:2px;">{{ selectedJob.phone }} &middot; {{ selectedJob.boatMakeModel }}</div>
         </div>
-        <div style="{{ selectedJob.riskBadgeStyle }}">{{ selectedJob.riskBadgeLabel }}</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <sc-if value="{{ canEditJobDetails }}" hint-placeholder-val="{{ false }}">
+            <div class="no-print" style="width:30px;height:30px;border-radius:6px;background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;" onClick="{{ openJobEdit }}" title="Edit job details">&#9998;</div>
+          </sc-if>
+          <div style="{{ selectedJob.riskBadgeStyle }}">{{ selectedJob.riskBadgeLabel }}</div>
+        </div>
       </div>
       <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px;">
         <div style="font:600 13.5px 'Public Sans',sans-serif;color:#16283D;line-height:1.4;">{{ selectedJob.issue }}</div>
@@ -912,6 +917,101 @@
   </div>
   </sc-if>
 
+  <!-- ============ EDIT JOB DETAILS MODAL ============ -->
+  <sc-if value="{{ isJobEditOpen }}" hint-placeholder-val="{{ false }}">
+  <div class="no-print" style="position:fixed;inset:0;background:rgba(22,40,61,.7);display:flex;align-items:center;justify-content:center;z-index:300;padding:16px;overflow:auto;">
+    <div style="background:#fff;border-radius:10px;width:100%;max-width:460px;max-height:90dvh;display:flex;flex-direction:column;overflow:hidden;">
+      <div style="background:#16283D;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex:none;">
+        <div>
+          <div style="font:800 14px 'Archivo',sans-serif;color:#fff;">EDIT JOB DETAILS</div>
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#8FBFAE;margin-top:2px;">{{ selectedJob.id }} &middot; job code never changes</div>
+        </div>
+        <div style="color:#8FBFAE;font:700 18px 'Public Sans',sans-serif;cursor:pointer;" onClick="{{ closeJobEdit }}">&times;</div>
+      </div>
+      <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;">
+        <div>
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">CUSTOMER NAME</div>
+          <input style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 12px;font:600 15px 'Public Sans',sans-serif;color:#16283D;" value="{{ jobEditForm.customerName }}" onChange="{{ setJobEditCustomerName }}"/>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr;gap:12px;">
+          <div>
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">CUSTOMER PHONE</div>
+            <input type="tel" style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 12px;font:600 15px 'Public Sans',sans-serif;color:#16283D;" value="{{ jobEditForm.phone }}" onChange="{{ setJobEditPhone }}"/>
+          </div>
+          <div>
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">CUSTOMER EMAIL (optional)</div>
+            <input type="email" style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 12px;font:600 15px 'Public Sans',sans-serif;color:#16283D;" value="{{ jobEditForm.customerEmail }}" onChange="{{ setJobEditEmail }}"/>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+          <div>
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">YEAR</div>
+            <input style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 8px;font:600 14px 'Public Sans',sans-serif;color:#16283D;" value="{{ jobEditForm.boatYear }}" onChange="{{ setJobEditBoatYear }}"/>
+          </div>
+          <div>
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">MAKE</div>
+            <input style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 8px;font:600 14px 'Public Sans',sans-serif;color:#16283D;" value="{{ jobEditForm.boatMake }}" onChange="{{ setJobEditBoatMake }}"/>
+          </div>
+          <div>
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">MODEL</div>
+            <input style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 8px;font:600 14px 'Public Sans',sans-serif;color:#16283D;" value="{{ jobEditForm.boatModel }}" onChange="{{ setJobEditBoatModel }}"/>
+          </div>
+        </div>
+        <div>
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">CUSTOMER CONCERN</div>
+          <textarea style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 12px;font:500 14px 'Public Sans',sans-serif;color:#16283D;min-height:70px;resize:vertical;" value="{{ jobEditForm.issue }}" onChange="{{ setJobEditIssue }}"></textarea>
+        </div>
+        <div>
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">PRIORITY</div>
+          <div style="display:flex;gap:8px;">
+            <sc-for list="{{ jobEditPriorityOptions }}" as="opt" hint-placeholder-count="2">
+              <div style="{{ opt.style }}" onClick="{{ opt.onSelect }}">{{ opt.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+        <div>
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">JOB SIZE</div>
+          <div style="display:flex;gap:8px;">
+            <sc-for list="{{ jobEditSizeOptions }}" as="opt" hint-placeholder-count="3">
+              <div style="{{ opt.style }}" onClick="{{ opt.onSelect }}">{{ opt.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+        <div>
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">STATUS</div>
+          <div style="display:flex;gap:8px;">
+            <sc-for list="{{ jobEditStatusOptions }}" as="opt" hint-placeholder-count="3">
+              <div style="{{ opt.style }}" onClick="{{ opt.onSelect }}">{{ opt.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+        <div>
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">ASSIGN MECHANIC</div>
+          <select style="width:100%;box-sizing:border-box;background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:12px 10px;font:600 14px 'Public Sans',sans-serif;color:#16283D;" value="{{ jobEditForm.assignedMechanic }}" onChange="{{ setJobEditMechanic }}">
+            <sc-for list="{{ mechanicChoiceOptions }}" as="opt" hint-placeholder-count="5">
+              <option value="{{ opt.value }}">{{ opt.label }}</option>
+            </sc-for>
+          </select>
+        </div>
+        <div>
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">&#128274; PRIVATE SHOP NOTES (not customer-facing)</div>
+          <textarea style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 12px;font:500 13px 'Public Sans',sans-serif;color:#16283D;min-height:60px;resize:vertical;" value="{{ jobEditForm.privateNotes }}" onChange="{{ setJobEditPrivateNotes }}"></textarea>
+        </div>
+        <sc-if value="{{ hasJobEditError }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:10px 12px;font:600 12.5px 'Public Sans',sans-serif;color:#C0392B;">{{ jobEditErrorMessage }}</div>
+        </sc-if>
+        <sc-if value="{{ hasJobEditSuccess }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#EFF6F5;border:1px solid #1F6F78;border-radius:4px;padding:10px 12px;font:600 12.5px 'Public Sans',sans-serif;color:#1F6F78;">{{ jobEditSuccessMessage }}</div>
+        </sc-if>
+      </div>
+      <div style="padding:14px 18px;border-top:1px solid rgba(22,40,61,.1);display:flex;gap:10px;flex:none;">
+        <div style="flex:1;{{ jobEditSaveButtonStyle }}" onClick="{{ saveJobEdit }}">{{ jobEditSaveLabel }}</div>
+        <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 13px 'Public Sans',sans-serif;padding:13px 18px;border-radius:4px;cursor:pointer;" onClick="{{ closeJobEdit }}">CANCEL</div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
   <!-- ============ SCAN MODAL ============ -->
   <sc-if value="{{ showScanModal }}" hint-placeholder-val="{{ false }}">
   <div class="no-print" style="position:fixed;inset:0;background:rgba(22,40,61,.55);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px;" onClick="{{ closeScanModal }}">
@@ -992,26 +1092,74 @@
   <!-- ============ PHOTO LIGHTBOX ============ -->
   <sc-if value="{{ showLightbox }}" hint-placeholder-val="{{ false }}">
   <div class="no-print" style="position:fixed;inset:0;background:rgba(22,40,61,.85);display:flex;align-items:center;justify-content:center;z-index:250;padding:16px;" onClick="{{ closeLightbox }}">
-    <div style="background:#fff;border-radius:10px;width:100%;max-width:480px;overflow:hidden;" onClick="{{ stopPropagation }}">
-      <img src="{{ lightboxUrl }}" style="width:100%;max-height:50vh;object-fit:contain;background:#16283D;display:block;"/>
-      <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px;">
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <sc-for list="{{ lightboxCategories }}" as="cat" hint-placeholder-count="2">
-            <div style="background:#EDE6D6;color:#16283D;font:700 9px 'IBM Plex Mono',monospace;padding:4px 8px;border-radius:2px;">{{ cat }}</div>
-          </sc-for>
-        </div>
-        <sc-if value="{{ lightboxHasCaption }}" hint-placeholder-val="{{ false }}">
-          <div style="font:500 13px 'Public Sans',sans-serif;color:#16283D;">{{ lightboxCaption }}</div>
-        </sc-if>
-        <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);">{{ lightboxMeta }}</div>
-        <div class="no-print" style="display:flex;align-items:center;justify-content:space-between;background:#F6F1E4;border-radius:4px;padding:9px 11px;">
-          <div style="font:600 12px 'Public Sans',sans-serif;color:#16283D;">&#128196; Include on customer invoice</div>
-          <div style="{{ lightboxInvoiceTrackStyle }}" onClick="{{ toggleLightboxInvoice }}">
-            <div style="{{ lightboxInvoiceKnobStyle }}"></div>
+    <div style="background:#fff;border-radius:10px;width:100%;max-width:480px;max-height:90dvh;display:flex;flex-direction:column;overflow:hidden;" onClick="{{ stopPropagation }}">
+      <img src="{{ lightboxUrl }}" style="width:100%;max-height:38dvh;object-fit:contain;background:#16283D;display:block;flex:none;"/>
+      <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+
+        <!-- ---- read-only view ---- -->
+        <sc-if value="{{ lightboxViewMode }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <sc-for list="{{ lightboxCategories }}" as="cat" hint-placeholder-count="2">
+              <div style="background:#EDE6D6;color:#16283D;font:700 9px 'IBM Plex Mono',monospace;padding:4px 8px;border-radius:2px;">{{ cat }}</div>
+            </sc-for>
           </div>
-        </div>
-        <sc-if value="{{ canDeleteLightboxPhoto }}" hint-placeholder-val="{{ false }}">
-          <div style="background:#FBEAEA;color:#C0392B;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ deleteLightboxPhoto }}">DELETE PHOTO</div>
+          <sc-if value="{{ lightboxHasCaption }}" hint-placeholder-val="{{ false }}">
+            <div style="font:500 13px 'Public Sans',sans-serif;color:#16283D;">{{ lightboxCaption }}</div>
+          </sc-if>
+          <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);">{{ lightboxMeta }}</div>
+          <div class="no-print" style="display:flex;align-items:center;justify-content:space-between;background:#F6F1E4;border-radius:4px;padding:9px 11px;">
+            <div style="font:600 12px 'Public Sans',sans-serif;color:#16283D;">&#128196; Include on customer invoice</div>
+            <div style="{{ lightboxInvoiceTrackStyle }}" onClick="{{ toggleLightboxInvoice }}">
+              <div style="{{ lightboxInvoiceKnobStyle }}"></div>
+            </div>
+          </div>
+          <sc-if value="{{ hasLightboxError }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ lightboxErrorMessage }}</div>
+          </sc-if>
+          <div style="display:flex;gap:8px;">
+            <sc-if value="{{ canEditLightboxPhoto }}" hint-placeholder-val="{{ false }}">
+              <div style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ startLightboxEdit }}">&#9998; EDIT DETAILS</div>
+            </sc-if>
+            <sc-if value="{{ canDeleteLightboxPhoto }}" hint-placeholder-val="{{ false }}">
+              <div style="flex:1;background:#FBEAEA;color:#C0392B;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ deleteLightboxPhoto }}">DELETE PHOTO</div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <!-- ---- edit mode ---- -->
+        <sc-if value="{{ lightboxEditing }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">CAPTION</div>
+            <textarea style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:10px 12px;font:500 13px 'Public Sans',sans-serif;color:#16283D;min-height:56px;resize:vertical;" placeholder="Optional caption" value="{{ lightboxDraft.caption }}" onChange="{{ setLightboxDraftCaption }}"></textarea>
+          </div>
+          <div>
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">CATEGORIES</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <sc-for list="{{ lightboxDraftCategoryOptions }}" as="cat" hint-placeholder-count="9">
+                <div style="{{ cat.style }}" onClick="{{ cat.onToggle }}">{{ cat.label }}</div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="font:600 12px 'Public Sans',sans-serif;color:#16283D;">Visible to customer</div>
+            <div style="{{ lightboxDraftVisibleTrackStyle }}" onClick="{{ toggleLightboxDraftVisible }}">
+              <div style="{{ lightboxDraftVisibleKnobStyle }}"></div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="font:600 12px 'Public Sans',sans-serif;color:#16283D;">Include on customer invoice</div>
+            <div style="{{ lightboxDraftInvoiceTrackStyle }}" onClick="{{ toggleLightboxDraftInvoice }}">
+              <div style="{{ lightboxDraftInvoiceKnobStyle }}"></div>
+            </div>
+          </div>
+          <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);">{{ lightboxMeta }}</div>
+          <sc-if value="{{ hasLightboxError }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ lightboxErrorMessage }}</div>
+          </sc-if>
+          <div style="display:flex;gap:8px;">
+            <div style="flex:1;{{ lightboxSaveButtonStyle }}" onClick="{{ saveLightboxEdit }}">{{ lightboxSaveLabel }}</div>
+            <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 13px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ cancelLightboxEdit }}">CANCEL</div>
+          </div>
         </sc-if>
       </div>
     </div>
@@ -1075,6 +1223,12 @@ class Component extends DCLogic {
     scanError: false,
     jobNotFoundCode: null,
 
+    jobEditOpen: false,
+    jobEditForm: null,
+    jobEditSaving: false,
+    jobEditError: '',
+    jobEditSuccess: '',
+
     intakeStep: 'dictate',
     intakeRecording: false,
     intakeRecBusy: false,
@@ -1108,6 +1262,10 @@ class Component extends DCLogic {
     photoCategoryFilter: 'all',
     photoEditor: null,
     lightboxPhotoId: null,
+    lightboxEditing: false,
+    lightboxDraft: null,
+    lightboxSaving: false,
+    lightboxError: '',
 
     jobActivities: [],
     jobActivitiesLoading: false,
@@ -1644,6 +1802,7 @@ class Component extends DCLogic {
     mechanic_note:     { label: 'MECHANIC NOTE',   category: 'notes',     compact: false },
     customer_note:     { label: 'CUSTOMER NOTE',   category: 'notes',     compact: false },
     status_change:     { label: 'STATUS',          category: 'status',    compact: true },
+    job_edited:        { label: 'JOB DETAILS UPDATED', category: 'status', compact: true },
     photo_added:       { label: 'PHOTO',           category: 'photos',    compact: true },
     quote_sent:        { label: 'QUOTE SENT',      category: 'financial', compact: true },
     approval_received: { label: 'APPROVAL',        category: 'financial', compact: true },
@@ -1833,8 +1992,8 @@ class Component extends DCLogic {
     }
   };
 
-  openLightbox = (photoId) => this.setState({ lightboxPhotoId: photoId });
-  closeLightbox = () => this.setState({ lightboxPhotoId: null });
+  openLightbox = (photoId) => this.setState({ lightboxPhotoId: photoId, lightboxEditing: false, lightboxDraft: null, lightboxError: '' });
+  closeLightbox = () => this.setState({ lightboxPhotoId: null, lightboxEditing: false, lightboxDraft: null, lightboxError: '' });
   toggleLightboxInvoice = async () => {
     const photo = this.state.jobPhotos.find(p => p.id === this.state.lightboxPhotoId);
     if (!photo || !this._dataMod) return;
@@ -1851,6 +2010,65 @@ class Component extends DCLogic {
     }
   };
   markInvoicePhotoFailed = (id) => this.setState(s => s.failedInvoicePhotoIds.includes(id) ? s : { failedInvoicePhotoIds: [...s.failedInvoicePhotoIds, id] });
+
+  // ---------- lightbox photo-details editing ----------
+  startLightboxEdit = () => {
+    const photo = this.state.jobPhotos.find(p => p.id === this.state.lightboxPhotoId);
+    if (!photo) return;
+    this.setState({
+      lightboxEditing: true,
+      lightboxError: '',
+      lightboxDraft: {
+        caption: photo.caption || '',
+        categories: [...(photo.categories || [])],
+        customerVisible: photo.customerVisible !== false,
+        includeOnInvoice: !!photo.includeOnInvoice,
+      },
+    });
+  };
+  cancelLightboxEdit = () => this.setState({ lightboxEditing: false, lightboxDraft: null, lightboxError: '' });
+  setLightboxDraftCaption = (e) => this.setState(s => ({ lightboxDraft: { ...s.lightboxDraft, caption: e.target.value } }));
+  toggleLightboxDraftCategory = (cat) => {
+    const d = this.state.lightboxDraft;
+    if (!d) return;
+    const has = d.categories.includes(cat);
+    this.setState({ lightboxDraft: { ...d, categories: has ? d.categories.filter(c => c !== cat) : [...d.categories, cat] } });
+  };
+  toggleLightboxDraftVisible = () => {
+    const d = this.state.lightboxDraft;
+    if (!d) return;
+    this.setState({ lightboxDraft: { ...d, customerVisible: !d.customerVisible } });
+  };
+  toggleLightboxDraftInvoice = () => {
+    const d = this.state.lightboxDraft;
+    if (!d) return;
+    this.setState({ lightboxDraft: { ...d, includeOnInvoice: !d.includeOnInvoice } });
+  };
+  saveLightboxEdit = async () => {
+    const s = this.state;
+    const d = s.lightboxDraft;
+    const photo = s.jobPhotos.find(p => p.id === s.lightboxPhotoId);
+    if (!d || !photo || s.lightboxSaving) return;
+    if (!this._dataMod) { this.setState({ lightboxError: 'Not connected to the database \u2014 cannot save.' }); return; }
+    this.setState({ lightboxSaving: true, lightboxError: '' });
+    try {
+      const saved = await this._dataMod.updateWorkOrderPhoto(photo.id, {
+        caption: d.caption.trim(),
+        categories: d.categories,
+        customerVisible: d.customerVisible,
+        includeOnInvoice: d.includeOnInvoice,
+      });
+      this.setState(st => ({
+        jobPhotos: st.jobPhotos.map(p => p.id === saved.id ? saved : p),
+        lightboxEditing: false,
+        lightboxDraft: null,
+        lightboxSaving: false,
+      }));
+    } catch (e) {
+      console.error('Failed to save photo details', e);
+      this.setState({ lightboxSaving: false, lightboxError: (e && e.message) || 'Could not save photo details. Please try again.' });
+    }
+  };
   deleteLightboxPhoto = async () => {
     const photo = this.state.jobPhotos.find(p => p.id === this.state.lightboxPhotoId);
     if (!photo) return;
@@ -2204,6 +2422,124 @@ class Component extends DCLogic {
   };
 
   isShopOwner() { return !!(this.state.profile && this.state.profile.role === 'shop_owner'); }
+  isServiceAdvisor() { return !!(this.state.profile && this.state.profile.role === 'service_advisor'); }
+
+  static normalizePhone(v) {
+    const digits = (v || '').replace(/\D/g, '');
+    if (digits.length === 10) return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
+    if (digits.length === 11 && digits[0] === '1') return `(${digits.slice(1,4)}) ${digits.slice(4,7)}-${digits.slice(7)}`;
+    return (v || '').trim();
+  }
+
+  // ---------- edit job details ----------
+  openJobEdit = () => {
+    const s = this.state;
+    const sj = s.jobs.find(j => j.id === s.selectedJobId);
+    if (!sj) return;
+    this.setState({
+      jobEditOpen: true,
+      jobEditError: '',
+      jobEditSuccess: '',
+      jobEditForm: {
+        customerName: sj.customerName || '',
+        phone: sj.phone || '',
+        customerEmail: sj.customerEmail || '',
+        boatYear: sj.boatYear || '',
+        boatMake: sj.boatMake || '',
+        boatModel: sj.boatModel || '',
+        issue: sj.issue || '',
+        priority: sj.priority || 'normal',
+        size: sj.size || 'M',
+        status: sj.status || 'open',
+        assignedMechanic: sj.assignedMechanic || '',
+        privateNotes: sj.intakeRawNotes || '',
+      },
+    });
+  };
+  closeJobEdit = () => this.setState({ jobEditOpen: false, jobEditForm: null, jobEditError: '' });
+  setJobEditField = (key, value) => this.setState(s => ({ jobEditForm: { ...s.jobEditForm, [key]: value } }));
+  setJobEditCustomerName = (e) => this.setJobEditField('customerName', e.target.value);
+  setJobEditPhone = (e) => this.setJobEditField('phone', e.target.value);
+  setJobEditEmail = (e) => this.setJobEditField('customerEmail', e.target.value);
+  setJobEditBoatYear = (e) => this.setJobEditField('boatYear', e.target.value);
+  setJobEditBoatMake = (e) => this.setJobEditField('boatMake', e.target.value);
+  setJobEditBoatModel = (e) => this.setJobEditField('boatModel', e.target.value);
+  setJobEditIssue = (e) => this.setJobEditField('issue', e.target.value);
+  setJobEditPrivateNotes = (e) => this.setJobEditField('privateNotes', e.target.value);
+  setJobEditMechanic = (e) => this.setJobEditField('assignedMechanic', e.target.value);
+
+  saveJobEdit = async () => {
+    const s = this.state;
+    const f = s.jobEditForm;
+    if (!f || s.jobEditSaving) return;
+    if (!f.customerName.trim()) { this.setState({ jobEditError: 'Customer name is required.' }); return; }
+    if (!f.phone.trim()) { this.setState({ jobEditError: 'Customer phone is required.' }); return; }
+    if (!f.boatMake.trim()) { this.setState({ jobEditError: 'Boat make is required.' }); return; }
+    if (!f.issue.trim()) { this.setState({ jobEditError: 'Customer concern is required.' }); return; }
+    if (!this._dataMod) { this.setState({ jobEditError: 'Not connected to the database \u2014 cannot save.' }); return; }
+
+    const sj = s.jobs.find(j => j.id === s.selectedJobId);
+    if (!sj) return;
+    this.setState({ jobEditSaving: true, jobEditError: '', jobEditSuccess: '' });
+
+    const normalizedPhone = Component.normalizePhone(f.phone);
+    const patch = {
+      customerName: f.customerName.trim(),
+      phone: normalizedPhone,
+      customerEmail: f.customerEmail.trim(),
+      boatYear: f.boatYear.trim(),
+      boatMake: f.boatMake.trim(),
+      boatModel: f.boatModel.trim(),
+      issue: f.issue.trim(),
+      priority: f.priority,
+      size: f.size,
+      status: f.status,
+      assignedMechanic: f.assignedMechanic,
+      intakeRawNotes: f.privateNotes,
+    };
+
+    // Field-level diff for the audit trail — only changed fields are recorded.
+    const FIELD_LABELS = {
+      customerName: 'Customer name', phone: 'Customer phone', customerEmail: 'Customer email',
+      boatYear: 'Boat year', boatMake: 'Boat make', boatModel: 'Boat model', issue: 'Customer concern',
+      priority: 'Priority', size: 'Job size', status: 'Status', assignedMechanic: 'Assigned mechanic',
+      intakeRawNotes: 'Private shop notes',
+    };
+    const before = {
+      customerName: sj.customerName || '', phone: sj.phone || '', customerEmail: sj.customerEmail || '',
+      boatYear: sj.boatYear || '', boatMake: sj.boatMake || '', boatModel: sj.boatModel || '', issue: sj.issue || '',
+      priority: sj.priority || '', size: sj.size || '', status: sj.status || '', assignedMechanic: sj.assignedMechanic || '',
+      intakeRawNotes: sj.intakeRawNotes || '',
+    };
+    const after = { ...patch };
+    const changedFields = Object.keys(FIELD_LABELS).filter(k => (before[k] || '') !== (after[k] || ''));
+
+    try {
+      const saved = await this._dataMod.updateWorkOrder(sj.id, patch);
+      this.setState(st => ({
+        jobs: st.jobs.map(j => j.id === saved.id ? saved : j),
+        jobEditSaving: false,
+        jobEditSuccess: 'Saved \u2014 job details updated.',
+      }));
+      if (changedFields.length) {
+        const p = this.state.profile;
+        try {
+          await this._dataMod.createActivity(sj.id, {
+            activityType: 'job_edited',
+            visibility: 'private',
+            body: `Job details updated: ${changedFields.map(k => FIELD_LABELS[k]).join(', ')}.`,
+            meta: { changes: changedFields.map(k => ({ field: FIELD_LABELS[k], from: before[k], to: after[k] })) },
+          }, p ? { id: p.id, name: p.name, role: p.role } : null);
+          if (this.state.selectedJobId === sj.id) this.loadActivities(sj.id);
+        } catch (e2) {
+          console.error('Failed to record job-edit activity', e2);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to save job details', e);
+      this.setState({ jobEditSaving: false, jobEditError: (e && e.message) || 'Could not save job details. Please try again.' });
+    }
+  };
 
   // ---------- render ----------
   renderVals() {
@@ -2526,6 +2862,23 @@ class Component extends DCLogic {
 
     const mechanicChoiceOptions = s.mechanics.map(m => ({ value: m.id, label: m.name + (m.outOfOffice ? ' (OOO)' : '') }));
 
+    const jf = s.jobEditForm || {};
+    const jobEditPriorityOptions = [{ v: 'normal', l: 'NORMAL' }, { v: 'high', l: 'HIGH' }].map(p => ({
+      label: p.l,
+      style: `flex:1;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:9px 6px;border-radius:3px;cursor:pointer;background:${jf.priority === p.v ? '#D97706' : '#F6F1E4'};color:${jf.priority === p.v ? '#fff' : '#16283D'};`,
+      onSelect: () => this.setJobEditField('priority', p.v),
+    }));
+    const jobEditSizeOptions = ['S', 'M', 'L'].map(sz => ({
+      label: sz,
+      style: `flex:1;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:9px 6px;border-radius:3px;cursor:pointer;background:${jf.size === sz ? '#1F6F78' : '#F6F1E4'};color:${jf.size === sz ? '#fff' : '#16283D'};`,
+      onSelect: () => this.setJobEditField('size', sz),
+    }));
+    const jobEditStatusOptions = ['open', 'in progress', 'done'].map(st => ({
+      label: st.toUpperCase(),
+      style: `flex:1;text-align:center;font:700 10.5px 'IBM Plex Mono',monospace;padding:9px 6px;border-radius:3px;cursor:pointer;background:${jf.status === st ? '#16283D' : '#EDE6D6'};color:${jf.status === st ? '#fff' : '#16283D'};`,
+      onSelect: () => this.setJobEditField('status', st),
+    }));
+
     const statusFilterOptions = [{ value: 'all', label: 'ALL STATUS' }, { value: 'open', label: 'OPEN' }, { value: 'in progress', label: 'IN PROGRESS' }, { value: 'done', label: 'DONE' }];
     const sizeFilterOptions = [{ value: 'all', label: 'ALL SIZES' }, { value: 'S', label: 'SMALL' }, { value: 'M', label: 'MEDIUM' }, { value: 'L', label: 'LARGE' }];
     const priorityFilterOptions = [{ value: 'all', label: 'ALL PRIORITY' }, { value: 'normal', label: 'NORMAL' }, { value: 'high', label: 'HIGH' }];
@@ -2547,6 +2900,8 @@ class Component extends DCLogic {
     }));
 
     const isShopOwner = this.isShopOwner();
+    const isServiceAdvisor = this.isServiceAdvisor();
+    const canEditJobDetails = isShopOwner || isServiceAdvisor;
     const archivedJobsDisplay = s.archivedJobs.map(job => ({
       id: job.id,
       title: `${job.customerName} \u00b7 ${job.boatMakeModel} \u2014 ${job.issue}`,
@@ -2598,6 +2953,13 @@ class Component extends DCLogic {
     });
     const lbPhoto = s.jobPhotos.find(p => p.id === s.lightboxPhotoId);
     const isShopOwnerForPhotos = this.isShopOwner();
+    const canEditLightboxPhoto = !!lbPhoto && (isShopOwnerForPhotos || isServiceAdvisor || (lbPhoto.createdBy === (s.profile && s.profile.id)));
+    const lbDraft = s.lightboxDraft;
+    const lightboxDraftCategoryOptions = CATS.map(cat => ({
+      label: cat,
+      style: `font:700 9.5px 'IBM Plex Mono',monospace;padding:6px 10px;border-radius:12px;cursor:pointer;background:${lbDraft && lbDraft.categories.includes(cat) ? '#1F6F78' : '#EDE6D6'};color:${lbDraft && lbDraft.categories.includes(cat) ? '#fff' : '#16283D'};`,
+      onToggle: () => this.toggleLightboxDraftCategory(cat),
+    }));
 
     const pe = s.photoEditor;
     const editorCategories = pe ? pe.categories : [];
@@ -2625,9 +2987,28 @@ class Component extends DCLogic {
       scanError: s.scanError,
 
       isShopOwner,
+      canEditJobDetails,
       currentUserName: s.profile ? s.profile.name : '',
-      currentUserRoleLabel: s.profile ? (s.profile.role === 'shop_owner' ? 'SHOP OWNER' : 'MECHANIC') : '',
+      currentUserRoleLabel: s.profile ? (s.profile.role === 'shop_owner' ? 'SHOP OWNER' : s.profile.role === 'service_advisor' ? 'SERVICE ADVISOR' : 'MECHANIC') : '',
       handleSignOut: this.handleSignOut,
+
+      isJobEditOpen: s.jobEditOpen,
+      jobEditForm: jf,
+      jobEditPriorityOptions, jobEditSizeOptions, jobEditStatusOptions,
+      setJobEditCustomerName: this.setJobEditCustomerName,
+      setJobEditPhone: this.setJobEditPhone,
+      setJobEditEmail: this.setJobEditEmail,
+      setJobEditBoatYear: this.setJobEditBoatYear,
+      setJobEditBoatMake: this.setJobEditBoatMake,
+      setJobEditBoatModel: this.setJobEditBoatModel,
+      setJobEditIssue: this.setJobEditIssue,
+      setJobEditPrivateNotes: this.setJobEditPrivateNotes,
+      setJobEditMechanic: this.setJobEditMechanic,
+      openJobEdit: this.openJobEdit, closeJobEdit: this.closeJobEdit, saveJobEdit: this.saveJobEdit,
+      hasJobEditError: !!s.jobEditError, jobEditErrorMessage: s.jobEditError,
+      hasJobEditSuccess: !!s.jobEditSuccess, jobEditSuccessMessage: s.jobEditSuccess,
+      jobEditSaveButtonStyle: `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:13px;border-radius:4px;cursor:pointer;border:none;background:${s.jobEditSaving ? '#B9C0C4' : '#1F6F78'};color:#fff;`,
+      jobEditSaveLabel: s.jobEditSaving ? 'SAVING\u2026' : 'SAVE CHANGES',
 
       goDashboard: this.goDashboard, goIntake: this.goIntake, goRoster: this.goRoster,
       goArchive: this.goArchive, goAudit: this.goAudit,
@@ -2779,8 +3160,27 @@ class Component extends DCLogic {
       lightboxInvoiceKnobStyle: `width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${lbPhoto && lbPhoto.includeOnInvoice ? '23px' : '3px'};transition:left .15s;`,
       toggleLightboxInvoice: this.toggleLightboxInvoice,
       canDeleteLightboxPhoto: !!lbPhoto && (isShopOwnerForPhotos || (lbPhoto.createdBy === (s.profile && s.profile.id))),
+      canEditLightboxPhoto,
       closeLightbox: this.closeLightbox,
       deleteLightboxPhoto: this.deleteLightboxPhoto,
+
+      lightboxEditing: !!s.lightboxEditing,
+      lightboxViewMode: !s.lightboxEditing,
+      lightboxDraft: lbDraft || { caption: '', categories: [] },
+      lightboxDraftCategoryOptions,
+      startLightboxEdit: this.startLightboxEdit,
+      cancelLightboxEdit: this.cancelLightboxEdit,
+      setLightboxDraftCaption: this.setLightboxDraftCaption,
+      toggleLightboxDraftVisible: this.toggleLightboxDraftVisible,
+      toggleLightboxDraftInvoice: this.toggleLightboxDraftInvoice,
+      lightboxDraftVisibleTrackStyle: `width:44px;height:24px;border-radius:12px;cursor:pointer;position:relative;background:${lbDraft && lbDraft.customerVisible ? '#1F6F78' : '#B9C0C4'};transition:background .15s;`,
+      lightboxDraftVisibleKnobStyle: `width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${lbDraft && lbDraft.customerVisible ? '23px' : '3px'};transition:left .15s;`,
+      lightboxDraftInvoiceTrackStyle: `width:44px;height:24px;border-radius:12px;cursor:pointer;position:relative;background:${lbDraft && lbDraft.includeOnInvoice ? '#1F6F78' : '#B9C0C4'};transition:background .15s;`,
+      lightboxDraftInvoiceKnobStyle: `width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${lbDraft && lbDraft.includeOnInvoice ? '23px' : '3px'};transition:left .15s;`,
+      saveLightboxEdit: this.saveLightboxEdit,
+      lightboxSaveButtonStyle: `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:pointer;border:none;background:${s.lightboxSaving ? '#B9C0C4' : '#1F6F78'};color:#fff;`,
+      lightboxSaveLabel: s.lightboxSaving ? 'SAVING\u2026' : 'SAVE CHANGES',
+      hasLightboxError: !!s.lightboxError, lightboxErrorMessage: s.lightboxError,
 
       mechanicsDisplay,
 

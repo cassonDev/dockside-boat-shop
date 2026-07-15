@@ -90,6 +90,7 @@ function jobFromRow(row) {
     boatYear: row.boat_year || '',
     boatMake: row.boat_make || '',
     boatModel: row.boat_model || '',
+    customerEmail: row.customer_email || '',
     // Older rows written before the year/make/model split only have
     // boat_make_model — fall back to it so existing jobs still display fine.
     boatMakeModel: (row.boat_year || row.boat_make || row.boat_model)
@@ -204,6 +205,7 @@ export async function insertJob(job, createdByUserId) {
     boat_make: job.boatMake || '',
     boat_model: job.boatModel || '',
     boat_make_model: job.boatMakeModel || composeBoatMakeModel(job.boatYear, job.boatMake, job.boatModel),
+    customer_email: job.customerEmail || '',
     issue: job.issue,
     photos: job.photos || [],
     size: job.size,
@@ -222,6 +224,35 @@ export async function insertJob(job, createdByUserId) {
 export async function updateJobStatus(id, status) {
   const { error } = await supabase.from('work_orders').update({ status }).eq('id', id);
   if (error) throw error;
+}
+
+// Full work-order/customer-details edit (Edit Job Details modal). Never
+// touches id, created_at, or created_by — the QR/job code and provenance
+// stay stable across edits. RLS + the guard_work_order_edits trigger decide
+// who is actually permitted to change which columns (shop_owner and
+// service_advisor: everything; mechanic: none of these fields, only status
+// via updateJobStatus above).
+export async function updateWorkOrder(id, patch) {
+  const row = {};
+  if (patch.customerName !== undefined) row.customer_name = patch.customerName;
+  if (patch.phone !== undefined) row.phone = patch.phone;
+  if (patch.customerEmail !== undefined) row.customer_email = patch.customerEmail;
+  if (patch.boatYear !== undefined) row.boat_year = patch.boatYear;
+  if (patch.boatMake !== undefined) row.boat_make = patch.boatMake;
+  if (patch.boatModel !== undefined) row.boat_model = patch.boatModel;
+  if (patch.boatYear !== undefined || patch.boatMake !== undefined || patch.boatModel !== undefined) {
+    row.boat_make_model = composeBoatMakeModel(patch.boatYear, patch.boatMake, patch.boatModel);
+  }
+  if (patch.issue !== undefined) row.issue = patch.issue;
+  if (patch.size !== undefined) row.size = patch.size;
+  if (patch.priority !== undefined) row.priority = patch.priority;
+  if (patch.assignedMechanic !== undefined) row.assigned_mechanic = patch.assignedMechanic || null;
+  if (patch.status !== undefined) row.status = patch.status;
+  if (patch.intakeRawNotes !== undefined) row.intake_raw_notes = patch.intakeRawNotes;
+  row.updated_at = new Date().toISOString();
+  const { data, error } = await supabase.from('work_orders').update(row).eq('id', id).select().single();
+  if (error) throw error;
+  return jobFromRow(data);
 }
 
 export async function appendJobEntry(id, entries, statusOverride) {

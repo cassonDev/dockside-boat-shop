@@ -626,6 +626,75 @@ create policy "activity_history: insert own" on public.activity_history
   for insert with check (public.is_active_user() and edited_by = auth.uid());
 
 -- ---------------------------------------------------------------------------
+-- 15. Job Details + Photo Details editing (2026-07)
+--    - customer_email is a new persisted field on the Edit Job Details form.
+--    - service_advisor previously had NO update policy on work_orders at all
+--      (only shop_owner-full-access and mechanic-update-own existed), and the
+--      column guardrail trigger blocked non-shop-owners from touching
+--      customer/boat/issue/priority/size fields even if they had a row-level
+--      policy. Both are fixed here so service advisors can edit full job
+--      details, same as shop_owner, while mechanics remain limited to
+--      status/entries/photos on jobs assigned to them (unchanged).
+--    - job_edited is a new activities.activity_type so "Job details updated"
+--      shows in the job's own activity timeline (distinct from the raw,
+--      shop-owner-only audit_log, which already captured every field-level
+--      change automatically via the existing audit_work_orders trigger).
+-- ---------------------------------------------------------------------------
+alter table public.work_orders add column if not exists customer_email text not null default '';
+
+create or replace function public.enforce_work_order_edits()
+returns trigger
+language plpgsql security definer
+set search_path = public
+as $$
+begin
+  if public.is_shop_owner() or public.is_service_advisor() then
+    new.updated_at := now();
+    return new; -- shop owner / service advisor: no restrictions
+  end if;
+
+  -- mechanics: must be the assigned mechanic on the existing row
+  if old.assigned_mechanic is distinct from auth.uid() then
+    raise exception 'Not permitted: you are not assigned to this work order';
+  end if;
+
+  -- mechanics cannot change these fields
+  if new.assigned_mechanic is distinct from old.assigned_mechanic
+     or new.customer_name is distinct from old.customer_name
+     or new.customer_email is distinct from old.customer_email
+     or new.phone is distinct from old.phone
+     or new.boat_make_model is distinct from old.boat_make_model
+     or new.boat_year is distinct from old.boat_year
+     or new.boat_make is distinct from old.boat_make
+     or new.boat_model is distinct from old.boat_model
+     or new.issue is distinct from old.issue
+     or new.priority is distinct from old.priority
+     or new.size is distinct from old.size
+     or new.active is distinct from old.active
+     or new.archived_at is distinct from old.archived_at
+     or new.archived_by is distinct from old.archived_by then
+    raise exception 'Not permitted: mechanics may only update status, work-log entries, and photos';
+  end if;
+
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+drop policy if exists "work_orders: service_advisor full access" on public.work_orders;
+create policy "work_orders: service_advisor full access" on public.work_orders
+  for update using (public.is_active_user() and public.is_service_advisor())
+  with check (public.is_active_user() and public.is_service_advisor());
+
+alter table public.activities drop constraint if exists activities_activity_type_check;
+alter table public.activities add constraint activities_activity_type_check check (activity_type in (
+  'work_log', 'inspection', 'ai_summary', 'mechanic_note', 'customer_note',
+  'status_change', 'photo_added', 'quote_sent', 'approval_received',
+  'invoice_generated', 'payment_received', 'part_ordered', 'part_received',
+  'job_edited'
+));
+
+-- ---------------------------------------------------------------------------
 -- 11. Seed data note
 -- ---------------------------------------------------------------------------
 -- No anonymous seed rows are inserted here on purpose — every work_order and
