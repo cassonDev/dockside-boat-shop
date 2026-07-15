@@ -3,6 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+  // Deep-link routes like /job/:code sit one path segment below the site
+  // root, so plain "./" asset references would resolve one directory too
+  // deep (e.g. /job/support.js) and 404 there. Only THIS route shape needs
+  // root-relative resolution — everything else (including local preview,
+  // which is served from its own non-root path) must keep working with
+  // ordinary relative paths, so this only fires when the pathname matches.
+  if (/^\/job\//.test(location.pathname)) {
+    var __base = document.createElement('base');
+    __base.href = location.origin + '/';
+    document.head.appendChild(__base);
+  }
+</script>
 <script src="./support.js"></script>
 </head>
 <body>
