@@ -320,7 +320,7 @@ export const ACTIVITY_TYPES = [
   'invoice_generated', 'payment_received', 'part_ordered', 'part_received',
 ];
 // Types whose body/meta may be edited in place after creation (audit-trailed).
-export const EDITABLE_ACTIVITY_TYPES = ['customer_note'];
+export const EDITABLE_ACTIVITY_TYPES = ['customer_note', 'work_log'];
 
 function activityFromRow(row) {
   return {

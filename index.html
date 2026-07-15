@@ -399,8 +399,8 @@
 
     <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);margin-top:14px;">
       <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-        <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">ACTIVITY <span style="font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);">({{ activityCountLabel }})</span></div>
-        <div class="no-print" style="background:#D97706;color:#fff;font:700 11px 'Public Sans',sans-serif;padding:8px 14px;border-radius:4px;cursor:pointer;" onClick="{{ openLogWork }}">+ LOG WORK</div>
+        <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">JOB TIMELINE <span style="font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);">({{ activityCountLabel }})</span></div>
+        <div class="no-print" style="font:700 11px 'Public Sans',sans-serif;color:#1F6F78;cursor:pointer;padding:8px 4px;" onClick="{{ toggleQuickUpdate }}">{{ quickUpdateToggleLabel }}</div>
       </div>
 
       <div class="no-print" style="padding:12px 20px 0;display:flex;gap:6px;flex-wrap:wrap;">
@@ -409,59 +409,64 @@
         </sc-for>
       </div>
 
-      <div class="no-print" style="margin:14px 20px 0;padding:12px;background:#F6F1E4;border-radius:6px;display:flex;flex-direction:column;gap:8px;">
-        <textarea placeholder="Add a note to this job's activity feed&hellip;" style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:10px 11px;font:500 13.5px 'Public Sans',sans-serif;color:#16283D;min-height:56px;resize:vertical;background:#fff;" value="{{ newActivityBody }}" onChange="{{ setNewActivityBody }}"></textarea>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <div style="{{ visibilityPrivateStyle }}" onClick="{{ setVisibilityPrivate }}">&#128274; MECHANIC NOTE &middot; PRIVATE</div>
-            <div style="{{ visibilityPublicStyle }}" onClick="{{ setVisibilityPublic }}">CUSTOMER NOTE &middot; PUBLIC</div>
+      <sc-if value="{{ isLogComposeStep }}" hint-placeholder-val="{{ true }}">
+      <div class="no-print" style="margin:14px 20px 0;padding:18px;display:flex;flex-direction:column;gap:12px;background:#F6F1E4;border-radius:6px;border:1px solid rgba(217,119,6,.35);">
+        <div>
+          <div style="font:800 16px 'Archivo',sans-serif;color:#16283D;">What happened?</div>
+          <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);margin-top:2px;">Speak or type naturally &mdash; AI will organize everything for you.</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="{{ logMicButtonStyle }}" onClick="{{ toggleLogRecording }}">
+            <div style="color:#fff;font:700 11px 'Archivo',sans-serif;">{{ logMicButtonLabel }}</div>
           </div>
-          <div style="{{ postActivityButtonStyle }}" onClick="{{ submitActivity }}">{{ postActivityButtonLabel }}</div>
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;">{{ logMicStatusLabel }}</div>
         </div>
-        <sc-if value="{{ hasActivityComposerError }}" hint-placeholder-val="{{ false }}">
-          <div style="font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ activityComposerError }}</div>
-        </sc-if>
-      </div>
-
-      <sc-if value="{{ isLogDictateStep }}" hint-placeholder-val="{{ false }}">
-      <div style="margin:14px 20px 0;padding:18px;display:flex;flex-direction:column;align-items:center;gap:12px;background:#F6F1E4;border-radius:6px;">
-        <div style="{{ logMicButtonStyle }}" onClick="{{ toggleLogRecording }}">
-          <div style="color:#fff;font:700 12px 'Archivo',sans-serif;">{{ logMicButtonLabel }}</div>
-        </div>
-        <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;">{{ logMicStatusLabel }}</div>
         <sc-if value="{{ hasLogMicError }}" hint-placeholder-val="{{ false }}">
           <div style="width:100%;box-sizing:border-box;background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:8px 10px;font:600 11.5px 'Public Sans',sans-serif;color:#C0392B;">{{ logMicErrorLabel }}</div>
         </sc-if>
-        <div style="width:100%;background:#fff;border:1px dashed rgba(22,40,61,.3);border-radius:4px;padding:10px;font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.75);line-height:1.5;min-height:44px;box-sizing:border-box;">{{ logTranscriptDisplay }}</div>
-        <textarea style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:9px 11px;font:500 12.5px 'Public Sans',sans-serif;color:#16283D;min-height:50px;resize:vertical;" placeholder="Or type findings, fix, time, materials..." value="{{ logTyped }}" onChange="{{ setLogTyped }}"></textarea>
-        <div style="display:flex;gap:8px;width:100%;">
-          <div style="flex:1;{{ logExtractButtonStyle }}" onClick="{{ runLogExtraction }}">{{ logExtractButtonLabel }}</div>
-          <div style="background:#EDE6D6;color:#16283D;font:700 12px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;text-align:center;" onClick="{{ closeLogWork }}">CANCEL</div>
-        </div>
+        <sc-if value="{{ hasLogTranscript }}" hint-placeholder-val="{{ false }}">
+          <div style="width:100%;box-sizing:border-box;background:#fff;border:1px dashed rgba(22,40,61,.3);border-radius:4px;padding:10px;font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.75);line-height:1.5;">{{ logTranscriptDisplay }}</div>
+        </sc-if>
+        <textarea style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 13px;font:500 14px 'Public Sans',sans-serif;color:#16283D;min-height:88px;resize:vertical;" placeholder="e.g. Changed the impeller today. Water pressure is back to normal. Also found a cracked cooling hose &mdash; customer should replace before next use." value="{{ logTyped }}" onChange="{{ setLogTyped }}"></textarea>
+        <div style="{{ logExtractButtonStyle }}" onClick="{{ runLogExtraction }}">{{ logExtractButtonLabel }}</div>
       </div>
       </sc-if>
 
       <sc-if value="{{ isLogReviewStep }}" hint-placeholder-val="{{ false }}">
-      <div style="margin:14px 20px 0;padding:18px;display:flex;flex-direction:column;gap:9px;background:#F6F1E4;border-radius:6px;">
-        <div style="font:700 10px 'IBM Plex Mono',monospace;color:#1F6F78;letter-spacing:.5px;">&#10003; AI EXTRACTED &mdash; REVIEW &amp; EDIT</div>
-        <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
-          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">FINDINGS</div>
-          <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 13px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:36px;resize:vertical;" value="{{ logFields.findings }}" onChange="{{ setLogFieldFindings }}"></textarea>
+      <div class="no-print" style="margin:14px 20px 0;padding:18px;display:flex;flex-direction:column;gap:10px;background:#F6F1E4;border-radius:6px;border:1px solid rgba(31,111,120,.35);">
+        <div style="font:700 10px 'IBM Plex Mono',monospace;color:#1F6F78;letter-spacing:.5px;">&#10024; HERE&rsquo;S WHAT I UNDERSTOOD &mdash; REVIEW &amp; EDIT BEFORE SAVING</div>
+
+        <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+          <div style="font:700 9px 'IBM Plex Mono',monospace;color:#1F6F78;margin-bottom:4px;">CUSTOMER UPDATE &middot; EDITABLE</div>
+          <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:64px;resize:vertical;" value="{{ logFields.customerUpdate }}" onChange="{{ setLogFieldCustomerUpdate }}"></textarea>
         </div>
-        <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
-          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">FIX</div>
-          <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 13px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:36px;resize:vertical;" value="{{ logFields.fix }}" onChange="{{ setLogFieldFix }}"></textarea>
+
+        <div style="background:#FBF6E8;border:1px dashed #B08A2E;border-radius:4px;padding:10px 12px;">
+          <div style="font:700 9px 'IBM Plex Mono',monospace;color:#8A6A1E;margin-bottom:4px;">&#128274; PRIVATE MECHANIC NOTES &middot; NEVER CUSTOMER VISIBLE</div>
+          <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:500 13px 'Public Sans',sans-serif;color:#5C4A1A;outline:none;min-height:52px;resize:vertical;" value="{{ logFields.privateNotes }}" onChange="{{ setLogFieldPrivateNotes }}"></textarea>
         </div>
-        <div style="display:flex;gap:8px;">
-          <div style="flex:1;background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
-            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">TIME SPENT</div>
-            <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 13px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ logFields.timeSpent }}" onChange="{{ setLogFieldTime }}"/>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:140px;background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">FINDINGS</div>
+            <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 12.5px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:34px;resize:vertical;" value="{{ logFields.findings }}" onChange="{{ setLogFieldFindings }}"></textarea>
           </div>
-          <div style="flex:1;background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
-            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">MATERIALS</div>
-            <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 13px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ logFields.materials }}" onChange="{{ setLogFieldMaterials }}"/>
+          <div style="flex:1;min-width:140px;background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">PARTS USED</div>
+            <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 12.5px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:34px;resize:vertical;" value="{{ logFields.partsUsed }}" onChange="{{ setLogFieldParts }}"></textarea>
           </div>
         </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:140px;background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">LABOR</div>
+            <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 12.5px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ logFields.laborTime }}" onChange="{{ setLogFieldLabor }}"/>
+          </div>
+          <div style="flex:1;min-width:140px;background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">RECOMMENDATIONS</div>
+            <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 12.5px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:34px;resize:vertical;" value="{{ logFields.recommendations }}" onChange="{{ setLogFieldRecommendations }}"></textarea>
+          </div>
+        </div>
+
         <div>
           <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">ATTACH PHOTOS FROM GALLERY</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -481,8 +486,27 @@
           </div>
         </div>
         <div style="display:flex;gap:8px;">
-          <div style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ saveLogEntry }}">SAVE ENTRY</div>
+          <div style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ saveLogEntry }}">SAVE UPDATE</div>
+          <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ backToDictate }}">EDIT</div>
+          <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ cancelLogReview }}">CANCEL</div>
         </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ quickUpdateOpen }}" hint-placeholder-val="{{ false }}">
+      <div class="no-print" style="margin:14px 20px 0;padding:12px;background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;display:flex;flex-direction:column;gap:8px;">
+        <div style="font:700 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;">QUICK UPDATE &middot; NO AI &mdash; e.g. &ldquo;waiting on parts&rdquo;, &ldquo;customer called&rdquo;, &ldquo;boat picked up&rdquo;</div>
+        <textarea placeholder="Add a quick note to this job's timeline&hellip;" style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:10px 11px;font:500 13.5px 'Public Sans',sans-serif;color:#16283D;min-height:56px;resize:vertical;background:#fff;" value="{{ newActivityBody }}" onChange="{{ setNewActivityBody }}"></textarea>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <div style="{{ visibilityPrivateStyle }}" onClick="{{ setVisibilityPrivate }}">&#128274; INTERNAL</div>
+            <div style="{{ visibilityPublicStyle }}" onClick="{{ setVisibilityPublic }}">CUSTOMER VISIBLE</div>
+          </div>
+          <div style="{{ postActivityButtonStyle }}" onClick="{{ submitActivity }}">{{ postActivityButtonLabel }}</div>
+        </div>
+        <sc-if value="{{ hasActivityComposerError }}" hint-placeholder-val="{{ false }}">
+          <div style="font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ activityComposerError }}</div>
+        </sc-if>
       </div>
       </sc-if>
 
@@ -528,18 +552,6 @@
                     </div>
                     <div style="font:600 10.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);margin-bottom:6px;">{{ act.authorName }} <span style="color:rgba(22,40,61,.4);">&middot; {{ act.authorRoleLabel }}</span></div>
 
-                    <sc-if value="{{ act.isWorkLog }}" hint-placeholder-val="{{ false }}">
-                      <div style="font:600 13px 'Public Sans',sans-serif;color:#16283D;"><b>Findings:</b> {{ act.findings }}</div>
-                      <div style="font:600 13px 'Public Sans',sans-serif;color:#16283D;margin-top:2px;"><b>Fix:</b> {{ act.fix }}</div>
-                      <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-top:2px;"><b>Time:</b> {{ act.timeSpent }} &middot; <b>Materials:</b> {{ act.materials }}</div>
-                      <sc-if value="{{ act.hasRawNotes }}" hint-placeholder-val="{{ false }}">
-                        <div style="margin-top:8px;background:#FBF6E8;border:1px dashed #B08A2E;border-radius:4px;padding:8px 10px;">
-                          <div style="font:700 9px 'IBM Plex Mono',monospace;color:#8A6A1E;letter-spacing:.5px;margin-bottom:2px;">&#128274; PRIVATE &mdash; ORIGINAL DICTATION</div>
-                          <div style="font:500 11.5px 'Public Sans',sans-serif;color:#5C4A1A;line-height:1.4;">{{ act.rawNotes }}</div>
-                        </div>
-                      </sc-if>
-                    </sc-if>
-
                     <sc-if value="{{ act.isEditing }}" hint-placeholder-val="{{ false }}">
                       <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
                         <textarea style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.25);border-radius:4px;padding:9px;font:500 13px 'Public Sans',sans-serif;color:#16283D;min-height:70px;resize:vertical;" value="{{ act.editDraftBody }}" onChange="{{ act.onEditBodyChange }}"></textarea>
@@ -557,6 +569,21 @@
                       <div style="font:500 13px 'Public Sans',sans-serif;color:#16283D;line-height:1.5;white-space:pre-wrap;">{{ act.bodyDisplay }}</div>
                       <sc-if value="{{ act.isLong }}" hint-placeholder-val="{{ false }}">
                         <div class="no-print" style="font:700 11px 'Public Sans',sans-serif;color:#1F6F78;cursor:pointer;margin-top:4px;" onClick="{{ act.onToggleExpand }}">{{ act.expandLabel }}</div>
+                      </sc-if>
+                    </sc-if>
+
+                    <sc-if value="{{ act.isWorkLog }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:10px;font:500 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.65);">
+                        <sc-if value="{{ act.hasFindings }}" hint-placeholder-val="{{ false }}"><span><b>Findings:</b> {{ act.findings }}</span></sc-if>
+                        <sc-if value="{{ act.hasParts }}" hint-placeholder-val="{{ false }}"><span><b>Parts:</b> {{ act.partsUsed }}</span></sc-if>
+                        <sc-if value="{{ act.hasLabor }}" hint-placeholder-val="{{ false }}"><span><b>Labor:</b> {{ act.laborTime }}</span></sc-if>
+                        <sc-if value="{{ act.hasRecommendations }}" hint-placeholder-val="{{ false }}"><span><b>Recommends:</b> {{ act.recommendations }}</span></sc-if>
+                      </div>
+                      <sc-if value="{{ act.hasRawNotes }}" hint-placeholder-val="{{ false }}">
+                        <div style="margin-top:8px;background:#FBF6E8;border:1px dashed #B08A2E;border-radius:4px;padding:8px 10px;">
+                          <div style="font:700 9px 'IBM Plex Mono',monospace;color:#8A6A1E;letter-spacing:.5px;margin-bottom:2px;">&#128274; PRIVATE MECHANIC NOTES</div>
+                          <div style="font:500 11.5px 'Public Sans',sans-serif;color:#5C4A1A;line-height:1.4;">{{ act.rawNotes }}</div>
+                        </div>
                       </sc-if>
                     </sc-if>
 
@@ -863,11 +890,10 @@
         <sc-for list="{{ selectedJob.workLogPrintDisplay }}" as="entry" hint-placeholder-count="1">
           <div style="border-top:1px solid rgba(22,40,61,.12);padding-top:10px;">
             <div style="display:flex;justify-content:space-between;font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);margin-bottom:4px;">
-              <span>{{ entry.dateLabel }}</span><span>{{ entry.timeSpent }}</span>
+              <span>{{ entry.dateLabel }}</span><span>{{ entry.laborTime }}</span>
             </div>
-            <div style="font:600 13.5px 'Public Sans',sans-serif;color:#16283D;"><b>Findings:</b> {{ entry.findings }}</div>
-            <div style="font:600 13.5px 'Public Sans',sans-serif;color:#16283D;margin-top:2px;"><b>Fix:</b> {{ entry.fix }}</div>
-            <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-top:2px;"><b>Materials:</b> {{ entry.materials }}</div>
+            <div style="font:600 13.5px 'Public Sans',sans-serif;color:#16283D;">{{ entry.customerUpdate }}</div>
+            <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-top:2px;"><b>Parts:</b> {{ entry.partsUsed }}</div>
           </div>
         </sc-for>
         <sc-if value="{{ selectedJob.noWorkLogPrint }}" hint-placeholder-val="{{ false }}">
@@ -1407,8 +1433,9 @@ class Component extends DCLogic {
     logTyped: '',
     logRawNotesFinal: '',
     logAiLoading: false,
-    logFields: { findings: '', fix: '', timeSpent: '', materials: '' },
+    logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '' },
     logSelectedPhotoIds: [],
+    quickUpdateOpen: false,
 
     jobPhotos: [],
     jobPhotosLoading: false,
@@ -1831,7 +1858,7 @@ class Component extends DCLogic {
     }
   };
   openJob = (id, opts) => {
-    this.setState({ screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'closed', showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '' });
+    this.setState({ screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', quickUpdateOpen: false, showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '' });
     if (!(opts && opts.skipHistory) && typeof window !== 'undefined' && window.history) {
       window.history.pushState({ jobId: id }, '', '/job/' + encodeURIComponent(id));
     }
@@ -2409,12 +2436,17 @@ class Component extends DCLogic {
     }
   };
 
-  // ---------- log work ----------
+  // ---------- log work (AI "What happened?" workflow) ----------
   openLogWork = () => this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRecording: false, logRecBusy: false, logMicError: '', logRawNotesFinal: '', logSelectedPhotoIds: [] });
   closeLogWork = () => {
     if (this._logRec) { try { this._logRec.stop(); } catch (e) {} }
-    this.setState({ logStep: 'closed', logRecording: false, logRecBusy: false });
+    this.setState({ logStep: 'dictate', logRecording: false, logRecBusy: false });
   };
+  backToDictate = () => this.setState({ logStep: 'dictate' });
+  cancelLogReview = () => {
+    this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '' } });
+  };
+  toggleQuickUpdate = () => this.setState(s => ({ quickUpdateOpen: !s.quickUpdateOpen }));
   toggleLogRecording = () => {
     if (this.state.logRecBusy) { console.log('[mic] log toggle ignored \u2014 session busy'); return; }
     if (this.state.logRecording) { this.stopLogRecording(); } else { this.startLogRecording(); }
@@ -2487,26 +2519,30 @@ class Component extends DCLogic {
     this.setState({ logAiLoading: true });
     const fields = await this.runExtraction(
       raw,
-      ['findings', 'fix', 'timeSpent', 'materials'],
-      'Rewrite findings and fix as clean, professional, customer-facing sentences (no shop slang, no filler words like "uh" or "so basically") suitable to print on an invoice the customer will read. timeSpent is a short duration like "1.5 hrs". materials is a short comma-separated list of parts/supplies used. The mechanic\u2019s original raw dictation is kept separately as a private shop note, so it is fine to tidy up the wording here.'
+      ['customerUpdate', 'privateNotes', 'findings', 'partsUsed', 'laborTime', 'recommendations'],
+      'The mechanic just dictated or typed what happened on a repair job. customerUpdate: a professional, friendly, jargon-free summary of what was done and found, written for the customer to read \u2014 no shop slang, no filler words like "uh" or "so basically", suitable to print on an invoice. privateNotes: a lightly cleaned-up version of the mechanic\u2019s own words (internal only, never shown to the customer) \u2014 keep it terse and factual. findings: a short phrase naming what was found/diagnosed. partsUsed: short comma-separated list of parts/materials used, empty string if none mentioned. laborTime: a short duration like "1.5 hrs", empty string if not mentioned. recommendations: any follow-up work, safety issues, or warranty-relevant items the customer should know about before using the boat again, empty string if none.'
     );
     this.setState({
       logAiLoading: false,
       logStep: 'review',
       logRawNotesFinal: raw,
       logFields: {
+        customerUpdate: fields.customerUpdate || '',
+        privateNotes: fields.privateNotes || raw,
         findings: fields.findings || '',
-        fix: fields.fix || '',
-        timeSpent: fields.timeSpent || '',
-        materials: fields.materials || '',
+        partsUsed: fields.partsUsed || '',
+        laborTime: fields.laborTime || '',
+        recommendations: fields.recommendations || '',
       },
     });
   };
 
+  setLogFieldCustomerUpdate = (e) => this.setState({ logFields: { ...this.state.logFields, customerUpdate: e.target.value } });
+  setLogFieldPrivateNotes = (e) => this.setState({ logFields: { ...this.state.logFields, privateNotes: e.target.value } });
   setLogFieldFindings = (e) => this.setState({ logFields: { ...this.state.logFields, findings: e.target.value } });
-  setLogFieldFix = (e) => this.setState({ logFields: { ...this.state.logFields, fix: e.target.value } });
-  setLogFieldTime = (e) => this.setState({ logFields: { ...this.state.logFields, timeSpent: e.target.value } });
-  setLogFieldMaterials = (e) => this.setState({ logFields: { ...this.state.logFields, materials: e.target.value } });
+  setLogFieldParts = (e) => this.setState({ logFields: { ...this.state.logFields, partsUsed: e.target.value } });
+  setLogFieldLabor = (e) => this.setState({ logFields: { ...this.state.logFields, laborTime: e.target.value } });
+  setLogFieldRecommendations = (e) => this.setState({ logFields: { ...this.state.logFields, recommendations: e.target.value } });
 
   saveLogEntry = async () => {
     const jobId = this.state.selectedJobId;
@@ -2516,18 +2552,19 @@ class Component extends DCLogic {
       return j && j.status === 'open' ? 'in progress' : null;
     })();
     const jobs = newStatus ? this.state.jobs.map(j => j.id === jobId ? { ...j, status: newStatus } : j) : this.state.jobs;
-    this.setState({ jobs, logStep: 'closed', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [] });
+    this.setState({ jobs, logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '' } });
     try {
       const act = await this._dataMod.createActivity(jobId, {
         activityType: 'work_log',
-        visibility: 'private',
-        body: this.state.logFields.findings || '',
+        visibility: 'public',
+        aiGenerated: true,
+        body: this.state.logFields.customerUpdate || '',
         meta: {
           findings: this.state.logFields.findings || '',
-          fix: this.state.logFields.fix || '',
-          timeSpent: this.state.logFields.timeSpent || '',
-          materials: this.state.logFields.materials || '',
-          rawNotes: this.state.logRawNotesFinal || '',
+          partsUsed: this.state.logFields.partsUsed || '',
+          laborTime: this.state.logFields.laborTime || '',
+          recommendations: this.state.logFields.recommendations || '',
+          rawNotes: this.state.logFields.privateNotes || '',
         },
         attachments: this.state.logSelectedPhotoIds || [],
       }, p ? { id: p.id, name: p.name, role: p.role } : null);
@@ -2618,7 +2655,7 @@ class Component extends DCLogic {
       const act = await this._dataMod.createActivity(jobId, { activityType, visibility, body }, { id: p.id, name: p.name, role: p.role });
       this.setState(s => ({
         jobActivities: [...s.jobActivities, act],
-        newActivityBody: '', activityComposerBusy: false, activityComposerError: '',
+        newActivityBody: '', activityComposerBusy: false, activityComposerError: '', quickUpdateOpen: false,
         expandedDayKeys: Array.from(new Set([...s.expandedDayKeys, this.dayKeyFor(act.createdAt)])),
       }));
     } catch (e) {
@@ -2922,7 +2959,7 @@ class Component extends DCLogic {
       const risk = this.isAtRisk(sj);
       const workLogActivities = s.jobActivities.filter(a => a.activityType === 'work_log');
       const totalHrs = workLogActivities.reduce((sum, a) => {
-        const n = parseFloat(a.meta && a.meta.timeSpent);
+        const n = parseFloat(a.meta && a.meta.laborTime);
         return sum + (isNaN(n) ? 0 : n);
       }, 0);
       const invoicePhotos = s.jobPhotos.filter(p => p.includeOnInvoice);
@@ -2946,10 +2983,9 @@ class Component extends DCLogic {
         intakeNoteDisplay: sj.intakeRawNotes || '',
         workLogPrintDisplay: workLogActivities.slice().sort((a, b) => a.createdAt - b.createdAt).map(a => ({
           dateLabel: new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + new Date(a.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
-          timeSpent: (a.meta && a.meta.timeSpent) || '\u2014',
-          findings: (a.meta && a.meta.findings) || '\u2014',
-          fix: (a.meta && a.meta.fix) || '\u2014',
-          materials: (a.meta && a.meta.materials) || 'None',
+          laborTime: (a.meta && a.meta.laborTime) || '\u2014',
+          customerUpdate: a.body || '\u2014',
+          partsUsed: (a.meta && a.meta.partsUsed) || 'None',
         })),
         noWorkLogPrint: workLogActivities.length === 0,
         invoicePhotosDisplay: invoicePhotos.slice().sort((a, b) => a.createdAt - b.createdAt).map(p => {
@@ -3042,10 +3078,14 @@ class Component extends DCLogic {
         isPrivate,
         aiGenerated: a.aiGenerated,
         isWorkLog: a.activityType === 'work_log',
-        findings: (a.meta && a.meta.findings) || '\u2014',
-        fix: (a.meta && a.meta.fix) || '\u2014',
-        timeSpent: (a.meta && a.meta.timeSpent) || '\u2014',
-        materials: (a.meta && a.meta.materials) || 'None',
+        findings: (a.meta && a.meta.findings) || '',
+        partsUsed: (a.meta && a.meta.partsUsed) || '',
+        laborTime: (a.meta && a.meta.laborTime) || '',
+        recommendations: (a.meta && a.meta.recommendations) || '',
+        hasFindings: !!(a.meta && a.meta.findings),
+        hasParts: !!(a.meta && a.meta.partsUsed),
+        hasLabor: !!(a.meta && a.meta.laborTime),
+        hasRecommendations: !!(a.meta && a.meta.recommendations),
         hasRawNotes: !!(a.meta && a.meta.rawNotes),
         rawNotes: (a.meta && a.meta.rawNotes) || '',
         bodyDisplay,
@@ -3065,7 +3105,7 @@ class Component extends DCLogic {
         onCancelEdit: this.cancelEditActivity,
         hasEditError: !!s.editError,
         editError: s.editError,
-        canEdit: a.activityType === 'customer_note' && !isEditing && (this.isShopOwner() || (s.profile && s.profile.role === 'service_advisor') || (s.profile && s.profile.id === a.authorId)),
+        canEdit: (a.activityType === 'customer_note' || a.activityType === 'work_log') && !isEditing && (this.isShopOwner() || (s.profile && s.profile.role === 'service_advisor') || (s.profile && s.profile.id === a.authorId)),
         onStartEdit: () => this.startEditActivity(a),
         isEdited,
         version: a.version,
@@ -3434,20 +3474,25 @@ class Component extends DCLogic {
       selectedJob,
       statusChoiceOptions,
       openLogWork: this.openLogWork, closeLogWork: this.closeLogWork,
-      isLogDictateStep: s.logStep === 'dictate', isLogReviewStep: s.logStep === 'review',
+      backToDictate: this.backToDictate, cancelLogReview: this.cancelLogReview,
+      isLogComposeStep: s.logStep !== 'review', isLogReviewStep: s.logStep === 'review',
+      quickUpdateOpen: s.quickUpdateOpen, toggleQuickUpdate: this.toggleQuickUpdate,
+      quickUpdateToggleLabel: s.quickUpdateOpen ? '\u2013 HIDE QUICK UPDATE' : '+ QUICK UPDATE',
       logMicButtonStyle, logMicButtonLabel: logMicButtonBusy ? '\u2026' : (logMicRecording ? '\u25a0 STOP' : '\u25cf REC'),
       logMicStatusLabel: logMicButtonBusy ? 'ONE MOMENT\u2026' : (logMicRecording ? 'LISTENING\u2026' : 'TAP TO DICTATE'),
       logMicErrorLabel: s.logMicError,
       hasLogMicError: !!s.logMicError,
-      logTranscriptDisplay: logRaw.trim() || 'Transcript will appear here\u2026',
+      hasLogTranscript: !!logRaw.trim(),
+      logTranscriptDisplay: logRaw.trim(),
       logTyped: s.logTyped, setLogTyped: this.setLogTyped,
       toggleLogRecording: this.toggleLogRecording,
-      logExtractButtonStyle: `text-align:center;font:700 12px 'Public Sans',sans-serif;padding:13px;border-radius:4px;cursor:pointer;background:${s.logAiLoading ? '#B9C0C4' : '#16283D'};color:#fff;`,
-      logExtractButtonLabel: s.logAiLoading ? 'EXTRACTING\u2026' : '\u2728 EXTRACT WITH AI',
+      logExtractButtonStyle: `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:14px;border-radius:4px;cursor:pointer;background:${s.logAiLoading ? '#B9C0C4' : '#D97706'};color:#fff;`,
+      logExtractButtonLabel: s.logAiLoading ? 'ORGANIZING\u2026' : '\u2728 GENERATE UPDATE',
       runLogExtraction: this.runLogExtraction,
       logFields: s.logFields,
-      setLogFieldFindings: this.setLogFieldFindings, setLogFieldFix: this.setLogFieldFix,
-      setLogFieldTime: this.setLogFieldTime, setLogFieldMaterials: this.setLogFieldMaterials,
+      setLogFieldCustomerUpdate: this.setLogFieldCustomerUpdate, setLogFieldPrivateNotes: this.setLogFieldPrivateNotes,
+      setLogFieldFindings: this.setLogFieldFindings, setLogFieldParts: this.setLogFieldParts,
+      setLogFieldLabor: this.setLogFieldLabor, setLogFieldRecommendations: this.setLogFieldRecommendations,
       logPhotoPickerDisplay,
       pickLogNewPhoto: this.pickLogNewPhoto,
       saveLogEntry: this.saveLogEntry,

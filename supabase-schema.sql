@@ -566,15 +566,15 @@ begin
     return new; -- managers may edit/restore/deactivate anything
   end if;
 
-  if old.activity_type <> 'customer_note' and (
+  if old.activity_type not in ('customer_note', 'work_log') and (
     new.body is distinct from old.body or new.meta is distinct from old.meta or new.active is distinct from old.active
   ) then
-    raise exception 'Not permitted: only customer-facing notes can be edited after creation';
+    raise exception 'Not permitted: only customer-facing notes and work-log customer updates can be edited after creation';
   end if;
 
-  if old.activity_type = 'customer_note' and (new.body is distinct from old.body or new.meta is distinct from old.meta) then
+  if old.activity_type in ('customer_note', 'work_log') and (new.body is distinct from old.body or new.meta is distinct from old.meta) then
     if not (old.author_id = auth.uid() or public.is_service_advisor()) then
-      raise exception 'Not permitted: only the author, a service advisor, or a manager may edit this customer note';
+      raise exception 'Not permitted: only the author, a service advisor, or a manager may edit this update';
     end if;
   end if;
 
@@ -607,7 +607,7 @@ create policy "activities: author, advisor, or shop_owner update" on public.acti
     public.is_active_user() and (
       author_id = auth.uid()
       or public.is_shop_owner()
-      or (activity_type = 'customer_note' and public.is_service_advisor())
+      or (activity_type in ('customer_note', 'work_log') and public.is_service_advisor())
     )
   )
   with check (public.is_active_user());
@@ -693,6 +693,17 @@ alter table public.activities add constraint activities_activity_type_check chec
   'invoice_generated', 'payment_received', 'part_ordered', 'part_received',
   'job_edited'
 ));
+
+-- ---------------------------------------------------------------------------
+-- 17. AI-first Job Timeline (2026-07): "What happened?" is now the single
+--    primary way mechanics log an update. The AI draft's customer-facing
+--    body (stored as a `work_log` activity, same as before) is editable
+--    after saving — same as a customer_note — since a mechanic or advisor
+--    may need to fix wording before it prints on an invoice. Widens the
+--    edit guardrail above (section 14) from customer_note-only to also
+--    allow work_log, with identical author/advisor/manager permission
+--    checks and full activity_history versioning.
+-- ---------------------------------------------------------------------------
 
 -- ---------------------------------------------------------------------------
 -- 16. Mechanic Profile: availability + role-change requests (2026-07)
