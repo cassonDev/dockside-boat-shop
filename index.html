@@ -761,6 +761,17 @@
   </div>
   </sc-if>
 
+  <!-- ============ JOB NOT FOUND (deep link) ============ -->
+  <sc-if value="{{ isJobNotFound }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:480px;margin:60px auto;padding:0 16px;">
+    <div style="background:#fff;border:1px solid #C0392B;border-radius:8px;padding:20px;">
+      <div style="font:800 15px 'Archivo',sans-serif;color:#C0392B;margin-bottom:6px;">Work order not found</div>
+      <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);line-height:1.5;margin-bottom:16px;">No work order matches the code &ldquo;{{ jobNotFoundCode }}&rdquo;. It may have been archived, or the QR code is out of date.</div>
+      <div style="display:inline-block;font:700 12px 'IBM Plex Mono',monospace;padding:11px 18px;border-radius:4px;cursor:pointer;background:#1F6F78;color:#fff;" onClick="{{ dismissJobNotFound }}">BACK TO DASHBOARD</div>
+    </div>
+  </div>
+  </sc-if>
+
   <!-- ============ AUTH: CHECKING SESSION ============ -->
   <sc-if value="{{ isAuthChecking }}" hint-placeholder-val="{{ true }}">
   <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
@@ -1049,6 +1060,7 @@ class Component extends DCLogic {
     showScanModal: false,
     scanInput: '',
     scanError: false,
+    jobNotFoundCode: null,
 
     intakeStep: 'dictate',
     intakeRecording: false,
@@ -1105,6 +1117,17 @@ class Component extends DCLogic {
 
   async componentDidMount() {
     this._initResizeListener();
+    this._pendingJobCode = this._parseJobCodeFromLocation();
+    this._onPopState = () => {
+      const code = this._parseJobCodeFromLocation();
+      if (code) {
+        const job = (this.state.jobs || []).find(j => j.id === code);
+        if (job) { this.openJob(job.id, { skipHistory: true }); }
+      } else {
+        this.setState({ screen: 'dashboard', jobNotFoundCode: null });
+      }
+    };
+    if (typeof window !== 'undefined') window.addEventListener('popstate', this._onPopState);
     const mod = await import('./supabase-client.js');
     this._dataMod = mod;
 
@@ -1170,9 +1193,27 @@ class Component extends DCLogic {
   componentWillUnmount() {
     if (this._authSub) { try { this._authSub.unsubscribe(); } catch (e) {} }
     if (this._onResize) window.removeEventListener('resize', this._onResize);
+    if (this._onPopState && typeof window !== 'undefined') window.removeEventListener('popstate', this._onPopState);
     this.unsubscribeComments();
     this.unsubscribeActivities();
   }
+  _parseJobCodeFromLocation() {
+    if (typeof window === 'undefined') return null;
+    const m = window.location.pathname.match(/^\/job\/([A-Za-z0-9]+)/);
+    return m ? decodeURIComponent(m[1]).toUpperCase() : null;
+  }
+  resolvePendingJob = () => {
+    const code = this._pendingJobCode;
+    if (!code) return;
+    this._pendingJobCode = null;
+    const job = (this.state.jobs || []).find(j => j.id === code);
+    if (job) { this.openJob(job.id, { skipHistory: true }); }
+    else { this.setState({ jobNotFoundCode: code }); }
+  };
+  dismissJobNotFound = () => {
+    this.setState({ jobNotFoundCode: null, screen: 'dashboard' });
+    if (typeof window !== 'undefined' && window.history) window.history.pushState({}, '', '/');
+  };
   _initResizeListener() {
     if (this._onResize || typeof window === 'undefined') return;
     this._onResize = () => this.setState({ viewportWidth: window.innerWidth });
@@ -1196,7 +1237,9 @@ class Component extends DCLogic {
         return;
       }
       const [mechanics, jobs] = await Promise.all([mod.fetchMechanics(), mod.fetchJobs()]);
-      this.setState({ profile, mechanics, jobs, loaded: true, authChecking: false, loadError: '' });
+      this.setState({ profile, mechanics, jobs, loaded: true, authChecking: false, loadError: '' }, () => {
+        this.resolvePendingJob();
+      });
     } catch (e) {
       this.setState({ authChecking: false, loaded: true, loadError: (e && e.message) || 'Could not reach Supabase.' });
     }
@@ -1346,7 +1389,11 @@ class Component extends DCLogic {
   };
 
   // ---------- navigation ----------
-  goDashboard = () => { this.unsubscribeComments(); this.setState({ screen: 'dashboard', showScanModal: false }); };
+  goDashboard = () => {
+    this.unsubscribeComments();
+    this.setState({ screen: 'dashboard', showScanModal: false, jobNotFoundCode: null });
+    if (typeof window !== 'undefined' && window.history) window.history.pushState({}, '', '/');
+  };
   goIntake = () => { this.unsubscribeComments(); this.setState({
     screen: 'intake', intakeStep: 'dictate', intakeTranscript: '', intakeTyped: '',
     intakeFields: { customerName: '', phone: '', boatYear: '', boatMake: '', boatModel: '', issue: '' },
@@ -1356,8 +1403,11 @@ class Component extends DCLogic {
     intakeSaving: false, intakeSaveError: '', intakeRecBusy: false,
   }); };
   goRoster = () => { this.unsubscribeComments(); this.setState({ screen: 'roster', showScanModal: false }); };
-  openJob = (id) => {
-    this.setState({ screen: 'jobDetail', selectedJobId: id, logStep: 'closed', showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '' });
+  openJob = (id, opts) => {
+    this.setState({ screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'closed', showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '' });
+    if (!(opts && opts.skipHistory) && typeof window !== 'undefined' && window.history) {
+      window.history.pushState({ jobId: id }, '', '/job/' + encodeURIComponent(id));
+    }
     this.loadActivities(id);
     this.loadJobPhotos(id);
     this.subscribeActivities(id);
@@ -1375,10 +1425,7 @@ class Component extends DCLogic {
     const code = (this.state.scanInput || '').trim().toUpperCase();
     const job = this.state.jobs.find(j => j.id === code);
     if (job) {
-      this.setState({ screen: 'jobDetail', selectedJobId: job.id, showScanModal: false, logStep: 'closed', photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '' });
-      this.loadActivities(job.id);
-      this.loadJobPhotos(job.id);
-      this.subscribeActivities(job.id);
+      this.openJob(job.id);
     } else {
       this.setState({ scanError: true });
     }
@@ -2197,6 +2244,12 @@ class Component extends DCLogic {
         loadErrorMessage: s.loadError,
       };
     }
+    if (s.jobNotFoundCode) {
+      return {
+        ...blankScreens, isAuthChecking: false, isAuthScreen: false,
+        isJobNotFound: true, jobNotFoundCode: s.jobNotFoundCode, dismissJobNotFound: this.dismissJobNotFound,
+      };
+    }
 
     const navBtn = (active) => `font:700 11.5px 'IBM Plex Mono',monospace;letter-spacing:.4px;padding:12px 14px;border-radius:3px;cursor:pointer;color:${active ? '#fff' : '#B9C0C4'};background:${active ? '#1F6F78' : 'rgba(255,255,255,.06)'};`;
     const navBtnFull = (active) => `font:700 12.5px 'IBM Plex Mono',monospace;letter-spacing:.4px;padding:13px 14px;border-radius:3px;cursor:pointer;color:${active ? '#fff' : '#B9C0C4'};background:${active ? '#1F6F78' : 'rgba(255,255,255,.06)'};`;
@@ -2282,7 +2335,7 @@ class Component extends DCLogic {
         riskBadgeStyle: `font:700 10px 'IBM Plex Mono',monospace;padding:6px 10px;border-radius:3px;background:${risk ? '#C0392B' : 'rgba(255,255,255,.12)'};color:#fff;flex:none;letter-spacing:.4px;height:fit-content;`,
         createdDateLabel: new Date(sj.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
         totalTimeLabel: totalHrs > 0 ? `${totalHrs.toFixed(1)} hrs` : '\u2014',
-        qrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&data=${encodeURIComponent(sj.id)}`,
+        qrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=8&ecc=M&data=${encodeURIComponent(`${(typeof window !== 'undefined' ? window.location.origin : 'https://boatshop.netlify.app')}/job/${sj.id}`)}`,
         hasQr: true,
         hasIntakeNote: !!sj.intakeRawNotes,
         intakeNoteDisplay: sj.intakeRawNotes || '',
@@ -2545,6 +2598,7 @@ class Component extends DCLogic {
     return {
       navVisible: true,
       isAuthChecking: false, isAuthScreen: false,
+      isJobNotFound: false, jobNotFoundCode: '', dismissJobNotFound: this.dismissJobNotFound,
       isDashboard: s.screen === 'dashboard',
       isIntake: s.screen === 'intake',
       isJobDetail: s.screen === 'jobDetail' && !!sj,
