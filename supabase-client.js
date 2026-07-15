@@ -444,6 +444,8 @@ function photoFromRow(row) {
     categories: row.categories || [],
     displayOrder: row.display_order || 0,
     customerVisible: row.customer_visible !== false,
+    includeOnInvoice: row.include_on_invoice === true,
+    activityId: row.activity_id || null,
     createdAt: new Date(row.created_at).getTime(),
     createdBy: row.created_by,
   };
@@ -486,6 +488,8 @@ export async function uploadWorkOrderPhoto(workOrderId, photo, userId) {
     caption: photo.caption || '',
     categories: photo.categories || [],
     customer_visible: photo.customerVisible !== false,
+    include_on_invoice: !!photo.includeOnInvoice,
+    activity_id: photo.activityId || null,
     created_by: userId || null,
   };
   const { data, error } = await supabase.from('work_order_photos').insert(row).select().single();
@@ -493,14 +497,26 @@ export async function uploadWorkOrderPhoto(workOrderId, photo, userId) {
   return photoFromRow(data);
 }
 
+// Patches apply immediately to Supabase — callers never hold a selection
+// (e.g. "include on invoice") only in local state; this always returns the
+// saved row so the caller can sync it back into state precisely.
 export async function updateWorkOrderPhoto(photoId, patch) {
   const row = {};
   if (patch.caption !== undefined) row.caption = patch.caption;
   if (patch.categories !== undefined) row.categories = patch.categories;
   if (patch.customerVisible !== undefined) row.customer_visible = patch.customerVisible;
+  if (patch.includeOnInvoice !== undefined) row.include_on_invoice = patch.includeOnInvoice;
+  if (patch.activityId !== undefined) row.activity_id = patch.activityId;
   if (patch.displayOrder !== undefined) row.display_order = patch.displayOrder;
-  const { error } = await supabase.from('work_order_photos').update(row).eq('id', photoId);
+  const { data, error } = await supabase.from('work_order_photos').update(row).eq('id', photoId).select().single();
   if (error) throw error;
+  return photoFromRow(data);
+}
+
+// Thin, explicit wrapper for the one action the invoice-selection UI needs —
+// persists immediately to Supabase, never held only in frontend state.
+export async function setPhotoInvoiceInclusion(photoId, include) {
+  return updateWorkOrderPhoto(photoId, { includeOnInvoice: !!include });
 }
 
 export async function deleteWorkOrderPhoto(photoId, userId) {

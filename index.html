@@ -366,6 +366,9 @@
               <sc-if value="{{ photo.hiddenFromCustomer }}" hint-placeholder-val="{{ false }}">
                 <div style="position:absolute;top:4px;right:4px;background:rgba(22,40,61,.75);color:#fff;font:700 8px 'IBM Plex Mono',monospace;padding:2px 5px;border-radius:2px;">PRIVATE</div>
               </sc-if>
+              <sc-if value="{{ photo.onInvoice }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;top:4px;left:4px;background:#1F6F78;color:#fff;font:700 8px 'IBM Plex Mono',monospace;padding:2px 5px;border-radius:2px;">&#128196; INVOICE</div>
+              </sc-if>
             </div>
           </sc-for>
         </div>
@@ -542,7 +545,7 @@
                     <sc-if value="{{ act.hasPhotos }}" hint-placeholder-val="{{ false }}">
                       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-top:10px;">
                         <sc-for list="{{ act.photos }}" as="p" hint-placeholder-count="0">
-                          <img src="{{ p.thumbUrl }}" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1px solid rgba(22,40,61,.15);"/>
+                          <img src="{{ p.thumbUrl }}" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1px solid rgba(22,40,61,.15);cursor:pointer;" onClick="{{ p.onOpen }}"/>
                         </sc-for>
                       </div>
                     </sc-if>
@@ -720,6 +723,30 @@
         <div style="font:700 12px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);">TOTAL TIME</div>
         <div style="font:800 15px 'Public Sans',sans-serif;color:#16283D;">{{ selectedJob.totalTimeLabel }}</div>
       </div>
+
+      <sc-if value="{{ selectedJob.hasInvoicePhotos }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top:24px;border-top:2px solid #16283D;padding-top:16px;">
+        <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:12px;">CUSTOMER PHOTOS</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;">
+          <sc-for list="{{ selectedJob.invoicePhotosDisplay }}" as="ivp" hint-placeholder-count="0">
+            <div style="break-inside:avoid;page-break-inside:avoid;display:flex;flex-direction:column;gap:5px;">
+              <sc-if value="{{ ivp.showImage }}" hint-placeholder-val="{{ true }}">
+                <img src="{{ ivp.url }}" style="width:100%;height:auto;max-width:100%;object-fit:contain;border:1px solid rgba(22,40,61,.2);border-radius:4px;background:#F6F1E4;display:block;"/>
+              </sc-if>
+              <sc-if value="{{ ivp.showFallback }}" hint-placeholder-val="{{ false }}">
+                <div style="width:100%;aspect-ratio:4/3;border:1px dashed rgba(22,40,61,.35);border-radius:4px;background:#F6F1E4;display:flex;align-items:center;justify-content:center;text-align:center;padding:8px;">
+                  <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);">&#9888; Image unavailable</div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ ivp.hasCaption }}" hint-placeholder-val="{{ false }}">
+                <div style="font:600 11.5px 'Public Sans',sans-serif;color:#16283D;">{{ ivp.caption }}</div>
+              </sc-if>
+              <div style="font:600 9.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);">{{ ivp.metaLabel }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
     </div>
   </div>
   </sc-if>
@@ -953,6 +980,12 @@
           <div style="font:500 13px 'Public Sans',sans-serif;color:#16283D;">{{ lightboxCaption }}</div>
         </sc-if>
         <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);">{{ lightboxMeta }}</div>
+        <div class="no-print" style="display:flex;align-items:center;justify-content:space-between;background:#F6F1E4;border-radius:4px;padding:9px 11px;">
+          <div style="font:600 12px 'Public Sans',sans-serif;color:#16283D;">&#128196; Include on customer invoice</div>
+          <div style="{{ lightboxInvoiceTrackStyle }}" onClick="{{ toggleLightboxInvoice }}">
+            <div style="{{ lightboxInvoiceKnobStyle }}"></div>
+          </div>
+        </div>
         <sc-if value="{{ canDeleteLightboxPhoto }}" hint-placeholder-val="{{ false }}">
           <div style="background:#FBEAEA;color:#C0392B;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ deleteLightboxPhoto }}">DELETE PHOTO</div>
         </sc-if>
@@ -1067,6 +1100,7 @@ class Component extends DCLogic {
     editError: '',
     historyOpenActivityId: null,
     activityHistory: {},
+    failedInvoicePhotoIds: [],
   };
 
   async componentDidMount() {
@@ -1707,9 +1741,30 @@ class Component extends DCLogic {
       } else {
         if (!this._dataMod || !this.state.selectedJobId) throw new Error('No job selected \u2014 cannot upload photo.');
         const saved = await this._dataMod.uploadWorkOrderPhoto(this.state.selectedJobId, { ...processed, ...meta }, this.state.profile && this.state.profile.id);
-        const jobPhotos = [...this.state.jobPhotos, saved];
+        let jobPhotos = [...this.state.jobPhotos, saved];
         const logSelectedPhotoIds = pe.context === 'log' ? [...this.state.logSelectedPhotoIds, saved.id] : this.state.logSelectedPhotoIds;
         this.setState({ jobPhotos, logSelectedPhotoIds, photoEditor: null });
+        // Standalone gallery uploads (not attached to a work-log entry or
+        // note) get their own "photo_added" activity so they show up in the
+        // unified timeline too, and the photo row is linked back to it.
+        if (pe.context === 'gallery') {
+          try {
+            const p = this.state.profile;
+            const act = await this._dataMod.createActivity(this.state.selectedJobId, {
+              activityType: 'photo_added', visibility: saved.customerVisible ? 'public' : 'private',
+              body: saved.caption ? `Photo added: ${saved.caption}` : 'Photo added to gallery.',
+              attachments: [saved.id],
+            }, p ? { id: p.id, name: p.name, role: p.role } : null);
+            const linked = await this._dataMod.updateWorkOrderPhoto(saved.id, { activityId: act.id });
+            this.setState(s => ({
+              jobActivities: [...s.jobActivities, act],
+              jobPhotos: s.jobPhotos.map(p2 => p2.id === linked.id ? linked : p2),
+              expandedDayKeys: Array.from(new Set([...s.expandedDayKeys, this.dayKeyFor(act.createdAt)])),
+            }));
+          } catch (e2) {
+            console.error('Failed to create photo_added activity', e2);
+          }
+        }
       }
       if (pe.previewObjectUrl) { try { URL.revokeObjectURL(pe.previewObjectUrl); } catch (e) {} }
     } catch (e) {
@@ -1720,6 +1775,22 @@ class Component extends DCLogic {
 
   openLightbox = (photoId) => this.setState({ lightboxPhotoId: photoId });
   closeLightbox = () => this.setState({ lightboxPhotoId: null });
+  toggleLightboxInvoice = async () => {
+    const photo = this.state.jobPhotos.find(p => p.id === this.state.lightboxPhotoId);
+    if (!photo || !this._dataMod) return;
+    const next = !photo.includeOnInvoice;
+    // Optimistic local update, but the source of truth write happens right
+    // away too \u2014 this selection is never held only in frontend state.
+    this.setState(s => ({ jobPhotos: s.jobPhotos.map(p => p.id === photo.id ? { ...p, includeOnInvoice: next } : p) }));
+    try {
+      const saved = await this._dataMod.setPhotoInvoiceInclusion(photo.id, next);
+      this.setState(s => ({ jobPhotos: s.jobPhotos.map(p => p.id === saved.id ? saved : p) }));
+    } catch (e) {
+      console.error('Failed to save invoice-photo selection', e);
+      this.setState(s => ({ jobPhotos: s.jobPhotos.map(p => p.id === photo.id ? { ...p, includeOnInvoice: !next } : p) }));
+    }
+  };
+  markInvoicePhotoFailed = (id) => this.setState(s => s.failedInvoicePhotoIds.includes(id) ? s : { failedInvoicePhotoIds: [...s.failedInvoicePhotoIds, id] });
   deleteLightboxPhoto = async () => {
     const photo = this.state.jobPhotos.find(p => p.id === this.state.lightboxPhotoId);
     if (!photo) return;
@@ -1928,6 +1999,17 @@ class Component extends DCLogic {
       }, p ? { id: p.id, name: p.name, role: p.role } : null);
       this.setState(s => ({ jobActivities: [...s.jobActivities, act], expandedDayKeys: Array.from(new Set([...s.expandedDayKeys, this.dayKeyFor(act.createdAt)])) }));
       if (newStatus) await this._dataMod.updateJobStatus(jobId, newStatus);
+      // Link each attached gallery photo back to this work-log activity.
+      if (act.attachments && act.attachments.length) {
+        for (const photoId of act.attachments) {
+          try {
+            const linked = await this._dataMod.updateWorkOrderPhoto(photoId, { activityId: act.id });
+            this.setState(s => ({ jobPhotos: s.jobPhotos.map(p => p.id === linked.id ? linked : p) }));
+          } catch (e3) {
+            console.error('Failed to link photo to work-log activity', e3);
+          }
+        }
+      }
     } catch (e) {
       console.error('Failed to save work log activity to Supabase', e);
     }
@@ -2169,6 +2251,14 @@ class Component extends DCLogic {
       priorityLabel: '', priorityChipStyle: '', mechanicName: '', riskBadgeLabel: '', riskBadgeStyle: '',
       createdDateLabel: '', totalTimeLabel: '', qrUrl: BLANK_IMG, hasQr: false,
       hasIntakeNote: false, intakeNoteDisplay: '', workLogPrintDisplay: [], noWorkLogPrint: true,
+      invoicePhotosDisplay: [], noInvoicePhotos: true, hasInvoicePhotos: false,
+    };
+    const uploaderName = (id) => {
+      if (!id) return 'Unknown';
+      const m = this.mechanicById(id);
+      if (m) return m.name;
+      if (s.profile && s.profile.id === id) return s.profile.name;
+      return 'Team member';
     };
     if (sj) {
       const risk = this.isAtRisk(sj);
@@ -2177,6 +2267,7 @@ class Component extends DCLogic {
         const n = parseFloat(a.meta && a.meta.timeSpent);
         return sum + (isNaN(n) ? 0 : n);
       }, 0);
+      const invoicePhotos = s.jobPhotos.filter(p => p.includeOnInvoice);
       selectedJob = {
         id: sj.id,
         customerName: sj.customerName,
@@ -2203,6 +2294,22 @@ class Component extends DCLogic {
           materials: (a.meta && a.meta.materials) || 'None',
         })),
         noWorkLogPrint: workLogActivities.length === 0,
+        invoicePhotosDisplay: invoicePhotos.slice().sort((a, b) => a.createdAt - b.createdAt).map(p => {
+          const url = p.url || p.thumbUrl || '';
+          const broken = !url || s.failedInvoicePhotoIds.includes(p.id);
+          return {
+            id: p.id,
+            url,
+            showImage: !!url && !s.failedInvoicePhotoIds.includes(p.id),
+            showFallback: broken,
+            hasCaption: !!p.caption,
+            caption: p.caption || '',
+            metaLabel: `${new Date(p.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} \u00b7 ${uploaderName(p.createdBy)}`,
+            onError: () => this.markInvoicePhotoFailed(p.id),
+          };
+        }),
+        noInvoicePhotos: invoicePhotos.length === 0,
+        hasInvoicePhotos: invoicePhotos.length > 0,
       };
     }
 
@@ -2260,7 +2367,7 @@ class Component extends DCLogic {
         hasReason: !!h.changeReason,
         changeReason: h.changeReason,
       }));
-      const photos = (a.attachments || []).map(id => jobPhotosById[id]).filter(Boolean).map(p => ({ thumbUrl: p.thumbUrl }));
+      const photos = (a.attachments || []).map(id => jobPhotosById[id]).filter(Boolean).map(p => ({ id: p.id, thumbUrl: p.thumbUrl, onOpen: () => this.openLightbox(p.id) }));
 
       return {
         id: a.id,
@@ -2411,6 +2518,7 @@ class Component extends DCLogic {
     const jobPhotosDisplay = filteredPhotos.map(p => ({
       thumbUrl: p.thumbUrl,
       hiddenFromCustomer: !p.customerVisible,
+      onInvoice: !!p.includeOnInvoice,
       onOpen: () => this.openLightbox(p.id),
     }));
     const logPhotoPickerDisplay = s.jobPhotos.map(p => {
@@ -2600,6 +2708,9 @@ class Component extends DCLogic {
       lightboxHasCaption: !!(lbPhoto && lbPhoto.caption),
       lightboxCaption: lbPhoto ? lbPhoto.caption : '',
       lightboxMeta: lbPhoto ? (new Date(lbPhoto.createdAt).toLocaleDateString() + (lbPhoto.customerVisible ? '' : ' \u00b7 PRIVATE')) : '',
+      lightboxInvoiceTrackStyle: `width:44px;height:24px;border-radius:12px;cursor:pointer;position:relative;background:${lbPhoto && lbPhoto.includeOnInvoice ? '#1F6F78' : '#B9C0C4'};transition:background .15s;`,
+      lightboxInvoiceKnobStyle: `width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${lbPhoto && lbPhoto.includeOnInvoice ? '23px' : '3px'};transition:left .15s;`,
+      toggleLightboxInvoice: this.toggleLightboxInvoice,
       canDeleteLightboxPhoto: !!lbPhoto && (isShopOwnerForPhotos || (lbPhoto.createdBy === (s.profile && s.profile.id))),
       closeLightbox: this.closeLightbox,
       deleteLightboxPhoto: this.deleteLightboxPhoto,

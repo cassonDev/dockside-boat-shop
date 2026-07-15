@@ -380,6 +380,8 @@ create table if not exists public.work_order_photos (
   categories text[] not null default '{}',   -- e.g. {"Before Repair","Damage"} — free-form, app-validated list
   display_order int not null default 0,
   customer_visible boolean not null default true,
+  include_on_invoice boolean not null default false,  -- explicit curation flag: only these print on the customer invoice
+  activity_id uuid references public.activities(id) on delete set null, -- which activity this photo was attached from (work log / customer note / standalone photo_added), if any
   annotations jsonb not null default '[]'::jsonb,   -- reserved for future markup/drawing overlays
   created_at timestamptz not null default now(),
   created_by uuid references public.profiles(id),
@@ -388,8 +390,14 @@ create table if not exists public.work_order_photos (
   archived_by uuid references public.profiles(id)
 );
 
+-- Backfill for tables that already existed before this migration (must run
+-- before the invoice index below, which depends on this column existing).
+alter table public.work_order_photos add column if not exists include_on_invoice boolean not null default false;
+alter table public.work_order_photos add column if not exists activity_id uuid references public.activities(id) on delete set null;
+
 create index if not exists work_order_photos_wo_idx on public.work_order_photos (work_order_id, active, display_order, created_at);
 create index if not exists work_order_photos_categories_idx on public.work_order_photos using gin (categories);
+create index if not exists work_order_photos_invoice_idx on public.work_order_photos (work_order_id, include_on_invoice) where include_on_invoice = true;
 
 alter table public.work_order_photos enable row level security;
 
@@ -401,6 +409,7 @@ create trigger audit_work_order_photos
 -- work_order_photos RLS ------------------------------------------------------
 drop policy if exists "photos: shop_owner full access" on public.work_order_photos;
 drop policy if exists "photos: read active" on public.work_order_photos;
+drop policy if exists "photos: advisor insert any job" on public.work_order_photos;
 drop policy if exists "photos: mechanic insert own job" on public.work_order_photos;
 drop policy if exists "photos: uploader update own" on public.work_order_photos;
 
@@ -430,6 +439,14 @@ create policy "photos: mechanic insert own job" on public.work_order_photos
 create policy "photos: uploader update own" on public.work_order_photos
   for update using (public.is_active_user() and created_by = auth.uid())
   with check (public.is_active_user() and created_by = auth.uid());
+
+-- Service advisors curate which photos print on the customer invoice — they
+-- may not have uploaded the photo themselves, so this is scoped separately
+-- from "uploader update own" above (both can coexist on the same row).
+drop policy if exists "photos: advisor curate any" on public.work_order_photos;
+create policy "photos: advisor curate any" on public.work_order_photos
+  for update using (public.is_active_user() and public.is_service_advisor())
+  with check (public.is_active_user() and public.is_service_advisor());
 
 -- Storage RLS -----------------------------------------------------------------
 -- The bucket is public for READS (simplest way to serve thumbnails/full-res
