@@ -358,6 +358,25 @@
       </div>
     </div>
 
+    <div class="no-print" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;">
+      <div style="{{ workspaceCheckinStyle }}" onClick="{{ setWorkspaceCheckin }}">
+        <div style="font-size:19px;line-height:1;">&#128295;</div>
+        <div style="font:800 11.5px 'Archivo',sans-serif;letter-spacing:.2px;">CHECK-IN</div>
+        <div style="font:600 9px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">Timeline &middot; Notes &middot; Status</div>
+      </div>
+      <div style="{{ workspaceUnitStyle }}" onClick="{{ setWorkspaceUnit }}">
+        <div style="font-size:19px;line-height:1;">&#9881;</div>
+        <div style="font:800 11.5px 'Archivo',sans-serif;letter-spacing:.2px;">UNIT</div>
+        <div style="font:600 9px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">Photos &middot; Serials &middot; Specs</div>
+      </div>
+      <div style="{{ workspaceWorkOrderStyle }}" onClick="{{ setWorkspaceWorkOrder }}">
+        <div style="font-size:19px;line-height:1;">&#128203;</div>
+        <div style="font:800 11.5px 'Archivo',sans-serif;letter-spacing:.2px;">WORK ORDER</div>
+        <div style="font:600 9px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">Labor &middot; Parts &middot; Findings</div>
+      </div>
+    </div>
+
+    <sc-if value="{{ isUnitWorkspace }}" hint-placeholder-val="{{ false }}">
     <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);margin-top:14px;">
       <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
         <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">SERIAL NUMBERS</div>
@@ -451,7 +470,9 @@
         </sc-if>
       </div>
     </div>
+    </sc-if>
 
+    <sc-if value="{{ isCheckinWorkspace }}" hint-placeholder-val="{{ true }}">
     <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);margin-top:14px;">
       <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
         <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">JOB TIMELINE <span style="font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);">({{ activityCountLabel }})</span></div>
@@ -560,7 +581,7 @@
 
       <sc-if value="{{ quickUpdateOpen }}" hint-placeholder-val="{{ false }}">
       <div class="no-print" style="margin:14px 20px 0;padding:12px;background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;display:flex;flex-direction:column;gap:8px;">
-        <div style="font:700 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;">QUICK UPDATE &middot; NO AI &mdash; e.g. &ldquo;waiting on parts&rdquo;, &ldquo;customer called&rdquo;, &ldquo;boat picked up&rdquo;</div>
+        <div style="font:700 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;">CHECK-IN NOTE &middot; NO AI &mdash; e.g. &ldquo;waiting on parts&rdquo;, &ldquo;customer called&rdquo;, &ldquo;boat picked up&rdquo;</div>
         <textarea placeholder="Add a quick note to this job's timeline&hellip;" style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:10px 11px;font:500 13.5px 'Public Sans',sans-serif;color:#16283D;min-height:56px;resize:vertical;background:#fff;" value="{{ newActivityBody }}" onChange="{{ setNewActivityBody }}"></textarea>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -702,6 +723,48 @@
         </sc-if>
       </div>
     </div>
+    </sc-if>
+
+    <sc-if value="{{ isWorkOrderWorkspace }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);margin-top:14px;">
+      <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);">
+        <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">LABOR &amp; FINDINGS</div>
+      </div>
+      <div style="padding:6px 20px 18px;display:flex;flex-direction:column;gap:12px;">
+        <sc-for list="{{ selectedJob.workLogPrintDisplay }}" as="entry" hint-placeholder-count="1">
+          <div style="border-top:1px solid rgba(22,40,61,.1);padding-top:10px;">
+            <div style="display:flex;justify-content:space-between;font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);margin-bottom:4px;">
+              <span>{{ entry.dateLabel }}</span><span>{{ entry.laborTime }}</span>
+            </div>
+            <div style="font:600 13.5px 'Public Sans',sans-serif;color:#16283D;">{{ entry.customerUpdate }}</div>
+            <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-top:2px;"><b>Parts:</b> {{ entry.partsUsed }}</div>
+            <sc-if value="{{ entry.hasEstimatedCost }}" hint-placeholder-val="{{ false }}">
+              <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-top:2px;"><b>Est. Cost:</b> {{ entry.estimatedCost }}</div>
+            </sc-if>
+          </div>
+        </sc-for>
+        <sc-if value="{{ selectedJob.noWorkLogPrint }}" hint-placeholder-val="{{ false }}">
+          <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No labor or findings logged yet.</div>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{ selectedJob.hasCustomerSerialNumbers }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:14px 20px;border-top:1px solid rgba(22,40,61,.1);">
+        <div style="font:700 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.4px;margin-bottom:8px;">EQUIPMENT IDENTIFICATION &middot; CUSTOMER-VISIBLE</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <sc-for list="{{ selectedJob.customerSerialNumbersDisplay }}" as="csn" hint-placeholder-count="0">
+            <div style="font:600 13px 'Public Sans',sans-serif;color:#16283D;">{{ csn.label }}: {{ csn.serialNumber }}</div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <div class="no-print" style="padding:14px 20px;border-top:1px solid rgba(22,40,61,.1);display:flex;gap:8px;">
+        <div style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ goToInvoice }}">PRINT WORK ORDER</div>
+        <div style="flex:1;background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ goToInvoice }}">EXPORT WORK ORDER</div>
+      </div>
+    </div>
+    </sc-if>
   </div>
   </sc-if>
 
@@ -1656,6 +1719,7 @@ class Component extends DCLogic {
     logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' },
     logSelectedPhotoIds: [],
     quickUpdateOpen: false,
+    jobWorkspace: 'checkin',
 
     jobPhotos: [],
     jobPhotosLoading: false,
@@ -2100,7 +2164,7 @@ class Component extends DCLogic {
     }
   };
   openJob = (id, opts) => {
-    this.setState({ screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', quickUpdateOpen: false, showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '' });
+    this.setState({ screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', quickUpdateOpen: false, jobWorkspace: 'checkin', showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '' });
     if (!(opts && opts.skipHistory) && typeof window !== 'undefined' && window.history) {
       window.history.pushState({ jobId: id }, '', '/job/' + encodeURIComponent(id));
     }
@@ -2951,6 +3015,7 @@ class Component extends DCLogic {
     this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logSaveError: '', logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' } });
   };
   toggleQuickUpdate = () => this.setState(s => ({ quickUpdateOpen: !s.quickUpdateOpen }));
+  setJobWorkspace = (w) => this.setState({ jobWorkspace: w });
   toggleLogRecording = () => {
     if (this.state.logRecBusy) { console.log('[mic] log toggle ignored \u2014 session busy'); return; }
     if (this.state.logRecording) { this.stopLogRecording(); } else { this.startLogRecording(); }
@@ -3424,6 +3489,7 @@ class Component extends DCLogic {
     const navBtn = (active) => `font:700 11.5px 'IBM Plex Mono',monospace;letter-spacing:.4px;padding:12px 14px;border-radius:3px;cursor:pointer;color:${active ? '#fff' : '#B9C0C4'};background:${active ? '#1F6F78' : 'rgba(255,255,255,.06)'};`;
     const navBtnFull = (active) => `font:700 12.5px 'IBM Plex Mono',monospace;letter-spacing:.4px;padding:13px 14px;border-radius:3px;cursor:pointer;color:${active ? '#fff' : '#B9C0C4'};background:${active ? '#1F6F78' : 'rgba(255,255,255,.06)'};`;
     const isNarrowNav = s.viewportWidth < 860;
+    const workspaceBtnStyle = (active) => `display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;padding:12px 6px;border-radius:8px;cursor:pointer;min-height:72px;border:2px solid ${active ? '#1F6F78' : 'rgba(22,40,61,.12)'};background:${active ? '#EAF4F2' : '#fff'};color:#16283D;`;
 
     const jobs = s.jobs;
     const active = jobs.filter(j => j.status !== 'done');
@@ -3944,6 +4010,15 @@ class Component extends DCLogic {
       isDashboard: s.screen === 'dashboard',
       isIntake: s.screen === 'intake',
       isJobDetail: s.screen === 'jobDetail' && !!sj,
+      isCheckinWorkspace: s.jobWorkspace === 'checkin',
+      isUnitWorkspace: s.jobWorkspace === 'unit',
+      isWorkOrderWorkspace: s.jobWorkspace === 'workorder',
+      setWorkspaceCheckin: () => this.setJobWorkspace('checkin'),
+      setWorkspaceUnit: () => this.setJobWorkspace('unit'),
+      setWorkspaceWorkOrder: () => this.setJobWorkspace('workorder'),
+      workspaceCheckinStyle: workspaceBtnStyle(s.jobWorkspace === 'checkin'),
+      workspaceUnitStyle: workspaceBtnStyle(s.jobWorkspace === 'unit'),
+      workspaceWorkOrderStyle: workspaceBtnStyle(s.jobWorkspace === 'workorder'),
       isRoster: s.screen === 'roster',
       isMechanicProfile: s.screen === 'mechanicProfile' && !!profileMech,
       isTag: s.screen === 'tag' && !!sj,
@@ -4075,7 +4150,7 @@ class Component extends DCLogic {
       backToDictate: this.backToDictate, cancelLogReview: this.cancelLogReview,
       isLogComposeStep: s.logStep !== 'review', isLogReviewStep: s.logStep === 'review',
       quickUpdateOpen: s.quickUpdateOpen, toggleQuickUpdate: this.toggleQuickUpdate,
-      quickUpdateToggleLabel: s.quickUpdateOpen ? '\u2013 HIDE QUICK UPDATE' : '+ QUICK UPDATE',
+      quickUpdateToggleLabel: s.quickUpdateOpen ? '\u2013 HIDE CHECK-IN NOTE' : '+ CHECK-IN NOTE',
       logMicButtonStyle, logMicButtonLabel: logMicButtonBusy ? '\u2026' : (logMicRecording ? '\u25a0 STOP' : '\u25cf REC'),
       logMicStatusLabel: logMicButtonBusy ? 'ONE MOMENT\u2026' : (logMicRecording ? 'LISTENING\u2026' : 'TAP TO DICTATE'),
       logMicErrorLabel: s.logMicError,
