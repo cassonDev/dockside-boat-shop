@@ -124,6 +124,10 @@ function jobFromRow(row) {
     status: row.status,
     createdAt: new Date(row.created_at).getTime(),
     intakeRawNotes: row.intake_raw_notes || '',
+    customerConcern: row.customer_concern || '',
+    originalTranscript: row.original_transcript || '',
+    originalCustomerConcern: row.original_customer_concern || '',
+    originalExtraction: row.original_extraction || null,
     active: row.active !== false,
     archivedAt: row.archived_at ? new Date(row.archived_at).getTime() : null,
     entries: (row.entries || []).map(e => ({
@@ -233,6 +237,10 @@ export async function insertJob(job, createdByUserId) {
     assigned_mechanic: job.assignedMechanic,
     status: job.status,
     intake_raw_notes: job.intakeRawNotes || '',
+    customer_concern: job.customerConcern || '',
+    original_transcript: job.originalTranscript || '',
+    original_customer_concern: job.originalCustomerConcern || '',
+    original_extraction: job.originalExtraction || null,
     entries: [],
     created_by: createdByUserId || null,
   };
@@ -269,6 +277,7 @@ export async function updateWorkOrder(id, patch) {
   if (patch.assignedMechanic !== undefined) row.assigned_mechanic = patch.assignedMechanic || null;
   if (patch.status !== undefined) row.status = patch.status;
   if (patch.intakeRawNotes !== undefined) row.intake_raw_notes = patch.intakeRawNotes;
+  if (patch.customerConcern !== undefined) row.customer_concern = patch.customerConcern;
   row.updated_at = new Date().toISOString();
   const { data, error } = await supabase.from('work_orders').update(row).eq('id', id).select().single();
   if (error) throw error;

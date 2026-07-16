@@ -218,9 +218,33 @@
           <div style="width:100%;box-sizing:border-box;background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:8px 10px;font:600 11.5px 'Public Sans',sans-serif;color:#C0392B;">{{ micErrorLabel }}</div>
         </sc-if>
         <sc-if value="{{ hasIntakeTranscript }}" hint-placeholder-val="{{ false }}">
-          <div style="width:100%;box-sizing:border-box;background:#fff;border:1px dashed rgba(22,40,61,.3);border-radius:4px;padding:10px;font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.75);line-height:1.5;">{{ intakeTranscriptDisplay }}</div>
+          <div>
+            <div style="font:700 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.55);letter-spacing:.5px;margin-bottom:2px;">&#128274; ORIGINAL RECORDED TRANSCRIPT</div>
+            <div style="font:500 10.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);margin-bottom:6px;">Automatically transcribed from the intake recording.</div>
+            <div style="width:100%;box-sizing:border-box;background:#EFE9DA;border:1px solid rgba(22,40,61,.18);border-radius:4px;padding:11px 12px;font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.85);line-height:1.55;cursor:default;">{{ intakeTranscriptDisplay }}</div>
+            <sc-if value="{{ showIntakeDraftActions }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <div style="flex:1;text-align:center;font:700 11px 'IBM Plex Mono',monospace;padding:10px;border-radius:4px;cursor:pointer;background:#EDE6D6;color:#16283D;border:1px solid rgba(22,40,61,.2);" onClick="{{ toggleIntakeRecording }}">&#127908; ADD MORE</div>
+              <div style="flex:1;text-align:center;font:700 11px 'IBM Plex Mono',monospace;padding:10px;border-radius:4px;cursor:pointer;background:#FBEAEA;color:#C0392B;border:1px solid rgba(192,57,43,.3);" onClick="{{ requestIntakeStartOver }}">&#8635; START OVER</div>
+            </div>
+            </sc-if>
+          </div>
         </sc-if>
-        <textarea style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 13px;font:500 14px 'Public Sans',sans-serif;color:#16283D;min-height:88px;resize:vertical;" placeholder="Customer name, phone, boat make/model, issue..." value="{{ intakeTyped }}" onChange="{{ setIntakeTyped }}"></textarea>
+        <sc-if value="{{ intakeConfirmClear }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#fff;border:1px solid #C0392B;border-radius:6px;padding:12px 14px;">
+            <div style="font:700 12.5px 'Public Sans',sans-serif;color:#16283D;">Start the intake over?</div>
+            <div style="font:500 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-top:3px;">This clears the current transcript and any unsaved intake details. This can&rsquo;t be undone.</div>
+            <div style="display:flex;gap:8px;margin-top:10px;">
+              <div style="flex:1;text-align:center;font:700 11px 'IBM Plex Mono',monospace;padding:10px;border-radius:4px;cursor:pointer;background:#EDE6D6;color:#16283D;" onClick="{{ cancelIntakeStartOver }}">CANCEL</div>
+              <div style="flex:1;text-align:center;font:700 11px 'IBM Plex Mono',monospace;padding:10px;border-radius:4px;cursor:pointer;background:#C0392B;color:#fff;" onClick="{{ confirmIntakeStartOver }}">CLEAR &amp; START OVER</div>
+            </div>
+          </div>
+        </sc-if>
+        <div>
+          <div style="font:700 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.55);letter-spacing:.5px;margin-bottom:2px;">ADDITIONAL INTAKE DETAILS &mdash; OPTIONAL</div>
+          <div style="font:500 10.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);margin-bottom:6px;">Typed details you want AI to consider along with the recording.</div>
+          <textarea style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 13px;font:500 14px 'Public Sans',sans-serif;color:#16283D;min-height:78px;resize:vertical;" placeholder="Anything the recording missed &mdash; customer name spelling, phone, boat make/model&hellip;" value="{{ intakeTyped }}" onChange="{{ setIntakeTyped }}"></textarea>
+        </div>
         <div style="{{ extractButtonStyle }}" onClick="{{ runIntakeExtraction }}">{{ extractButtonLabel }}</div>
       </div>
       </sc-if>
@@ -228,6 +252,19 @@
       <sc-if value="{{ isIntakeReviewStep }}" hint-placeholder-val="{{ false }}">
       <div style="padding:20px;display:flex;flex-direction:column;gap:10px;">
         <div style="font:700 10px 'IBM Plex Mono',monospace;color:#1F6F78;letter-spacing:.5px;">&#10003; AI EXTRACTED &mdash; REVIEW &amp; EDIT</div>
+
+        <div style="background:#EFE9DA;border:1px solid rgba(22,40,61,.18);border-radius:4px;overflow:hidden;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;cursor:pointer;" onClick="{{ toggleReviewTranscript }}">
+            <div style="font:700 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.6);letter-spacing:.5px;">&#128274; ORIGINAL RECORDED TRANSCRIPT</div>
+            <div style="font:700 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);">{{ reviewTranscriptToggleIcon }}</div>
+          </div>
+          <sc-if value="{{ reviewTranscriptOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:0 12px 11px;">
+            <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.85);line-height:1.55;background:#fff;border:1px solid rgba(22,40,61,.12);border-radius:4px;padding:10px 11px;">{{ intakeRawNotesDisplay }}</div>
+            <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;margin-top:8px;" onClick="{{ backToIntakeDictate }}">&#8592; ADD MORE / START OVER &amp; RE-EXTRACT</div>
+          </div>
+          </sc-if>
+        </div>
 
         <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
           <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">CUSTOMER NAME</div>
@@ -257,6 +294,11 @@
         <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
           <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">ISSUE</div>
           <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 13px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:44px;resize:vertical;" value="{{ intakeFields.issue }}" onChange="{{ setFieldIssue }}"></textarea>
+        </div>
+        <div style="background:#EAF3F1;border:1px solid rgba(31,111,120,.3);border-radius:4px;padding:10px 12px;">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:#1F6F78;margin-bottom:2px;">CUSTOMER CONCERN</div>
+          <div style="font:500 10px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);margin-bottom:6px;">Customer-facing wording &mdash; may appear on the service order, invoice, or portal.</div>
+          <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 13px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:44px;resize:vertical;" value="{{ intakeFields.customerConcern }}" onChange="{{ setFieldCustomerConcern }}"></textarea>
         </div>
 
         <div style="display:flex;gap:8px;margin-top:4px;">
@@ -1723,7 +1765,11 @@ class Component extends DCLogic {
     intakeTyped: '',
     intakeRawNotesFinal: '',
     intakeAiLoading: false,
-    intakeFields: { customerName: '', phone: '', boatYear: '', boatMake: '', boatModel: '', issue: '' },
+    intakeFields: { customerName: '', phone: '', boatYear: '', boatMake: '', boatModel: '', issue: '', customerConcern: '' },
+    intakeConfirmClear: false,
+    reviewTranscriptOpen: false,
+    intakeOriginalConcern: null,
+    intakeOriginalExtraction: null,
     intakeSize: 'M',
     intakePriority: 'normal',
     phoneFieldError: false,
@@ -2075,16 +2121,23 @@ class Component extends DCLogic {
   // ---------- navigation ----------
   goDashboard = () => {
     this.unsubscribeComments();
-    this.setState({ screen: 'dashboard', showScanModal: false, jobNotFoundCode: null });
+    this._photoJobId = null;
+    this.setState({ screen: 'dashboard', showScanModal: false, jobNotFoundCode: null, jobPhotos: [], serialNumbers: [], serialEdits: {} });
     if (typeof window !== 'undefined' && window.history) window.history.pushState({}, '', '/');
   };
-  goIntake = () => { this.unsubscribeComments(); this.setState({
-    screen: 'intake', intakeStep: 'dictate', intakeTranscript: '', intakeTyped: '',
-    intakeFields: { customerName: '', phone: '', boatYear: '', boatMake: '', boatModel: '', issue: '' },
-    phoneFieldError: false,
+  goIntake = () => {
+    this.unsubscribeComments();
+    if (this._intakeRec) { try { this._intakeRec.stop(); } catch (e) {} this._intakeRec = null; this._intakeRecActive = false; }
+    this._photoJobId = null;
+    this.setState({
+    screen: 'intake', intakeStep: 'dictate', intakeTranscript: '', intakeTyped: '', _intakeInterim: '',
+    intakeFields: { customerName: '', phone: '', boatYear: '', boatMake: '', boatModel: '', issue: '', customerConcern: '' },
+    phoneFieldError: false, intakeConfirmClear: false, reviewTranscriptOpen: false,
+    intakeOriginalConcern: null, intakeOriginalExtraction: null,
     intakeSize: 'M', intakePriority: 'normal', intakeMechanic: (this.state.mechanics[0] || {}).id || '',
     intakeStagedPhotos: [], intakeRecording: false, intakeMicError: '', intakeRawNotesFinal: '', showScanModal: false,
     intakeSaving: false, intakeSaveError: '', intakeRecBusy: false, intakeStopping: false,
+    jobPhotos: [], selectedJobId: null,
   }); };
   goRoster = () => { this.unsubscribeComments(); this.setState({ screen: 'roster', showScanModal: false }); this.loadRoleChangeRequestsForRoster(); };
   goMechanicProfile = (id) => {
@@ -2191,7 +2244,8 @@ class Component extends DCLogic {
     }
   };
   openJob = (id, opts) => {
-    this.setState({ screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', quickUpdateOpen: false, jobWorkspace: 'checkin', showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '' });
+    this._photoJobId = id;
+    this.setState({ screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', quickUpdateOpen: false, jobWorkspace: 'checkin', showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '', jobPhotos: [], serialNumbers: [], serialEdits: {} });
     if (!(opts && opts.skipHistory) && typeof window !== 'undefined' && window.history) {
       window.history.pushState({ jobId: id }, '', '/job/' + encodeURIComponent(id));
     }
@@ -2331,6 +2385,15 @@ class Component extends DCLogic {
     return new Promise((resolve) => { this._intakeStopResolve = resolve; this.stopIntakeRecording(); });
   };
   setIntakeTyped = (e) => this.setState({ intakeTyped: e.target.value });
+  setFieldCustomerConcern = (e) => this.setState({ intakeFields: { ...this.state.intakeFields, customerConcern: e.target.value } });
+  requestIntakeStartOver = () => this.setState({ intakeConfirmClear: true });
+  cancelIntakeStartOver = () => this.setState({ intakeConfirmClear: false });
+  confirmIntakeStartOver = () => {
+    if (this._intakeRec) { try { this._intakeRec.stop(); } catch (e) {} this._intakeRec = null; this._intakeRecActive = false; }
+    this.setState({ intakeTranscript: '', _intakeInterim: '', intakeTyped: '', intakeRawNotesFinal: '', intakeMicError: '', intakeConfirmClear: false, intakeRecording: false, intakeStopping: false, intakeRecBusy: false });
+  };
+  backToIntakeDictate = () => this.setState({ intakeStep: 'dictate' });
+  toggleReviewTranscript = () => this.setState(s => ({ reviewTranscriptOpen: !s.reviewTranscriptOpen }));
 
   // Real extraction runs through the deployed Netlify Function (ai-extract.js),
   // which calls OpenAI server-side — this is what actually works once the app
@@ -2370,14 +2433,22 @@ class Component extends DCLogic {
     this.setState({ intakeAiLoading: true });
     const fields = await this.runExtraction(
       raw,
-      ['customerName', 'phone', 'boatYear', 'boatMake', 'boatModel', 'issue'],
-      'boatYear is the 4-digit model year if mentioned (e.g. "2016"), otherwise an empty string. boatMake is ONLY the boat/engine brand (e.g. "Sea-Doo", "Yamaha", "Bayliner", "Mercury", "Lund") \u2014 normalize common spellings ("sea doo" or "seadoo" \u2192 "Sea-Doo"). boatModel is the specific model name or number ONLY if it was explicitly said (e.g. "24 Cuddy Cabin"); if no model was mentioned, leave boatModel completely EMPTY \u2014 never guess or invent a model. phone should be formatted like (555) 010-0142 if a number is present. issue should be rewritten as a short, clean, customer-facing phrase describing the problem (professional tone, no shop slang or filler words) \u2014 the mechanic\u2019s raw wording is kept separately as a private note, so feel free to tidy it up here.'
+      ['customerName', 'phone', 'boatYear', 'boatMake', 'boatModel', 'issue', 'customerConcern'],
+      'boatYear is the 4-digit model year if mentioned (e.g. "2016"), otherwise an empty string. boatMake is ONLY the boat/engine brand (e.g. "Sea-Doo", "Yamaha", "Bayliner", "Mercury", "Lund") \u2014 normalize common spellings ("sea doo" or "seadoo" \u2192 "Sea-Doo"). boatModel is the specific model name or number ONLY if it was explicitly said (e.g. "24 Cuddy Cabin"); if no model was mentioned, leave boatModel completely EMPTY \u2014 never guess or invent a model. phone should be formatted like (555) 010-0142 if a number is present. issue should be rewritten as a short, clean, customer-facing phrase describing the problem (professional tone, no shop slang or filler words) \u2014 the mechanic\u2019s raw wording is kept separately as a private note, so feel free to tidy it up here. customerConcern is a polished, professional customer-facing sentence describing what the customer requested or is concerned about, suitable for a service order or invoice — written in the third person referring to "Customer" (e.g. "Customer requests inspection of cosmetic concerns on a 2001 Supra.").'
     );
     this.setState({
       intakeAiLoading: false,
       intakeStep: 'review',
       intakeRawNotesFinal: raw,
       phoneFieldError: false,
+      intakeConfirmClear: false,
+      intakeOriginalConcern: fields.customerConcern || fields.issue || '',
+      intakeOriginalExtraction: {
+        customerName: fields.customerName || '', phone: fields.phone || '',
+        boatYear: (fields.boatYear || '').trim(), boatMake: this.normalizeBoatMake(fields.boatMake || ''),
+        boatModel: (fields.boatModel || '').trim(), issue: fields.issue || '',
+        customerConcern: fields.customerConcern || fields.issue || '',
+      },
       intakeFields: {
         customerName: fields.customerName || '',
         phone: fields.phone || '',
@@ -2385,6 +2456,7 @@ class Component extends DCLogic {
         boatMake: this.normalizeBoatMake(fields.boatMake || ''),
         boatModel: (fields.boatModel || '').trim(),
         issue: fields.issue || '',
+        customerConcern: fields.customerConcern || fields.issue || '',
       },
     });
   };
@@ -2448,13 +2520,21 @@ class Component extends DCLogic {
   ];
 
   loadJobPhotos = async (jobId) => {
-    this.setState({ jobPhotosLoading: true });
+    // Data-isolation guard: never run a saved-work-order photo query without a
+    // valid id, always clear stale photos first, and drop any response whose
+    // job is no longer the active one (defends against a slow query from a
+    // previously-opened job landing on the job the user has since switched to).
+    if (!jobId) { this.setState({ jobPhotos: [], jobPhotosLoading: false }); return; }
+    this._photoJobId = jobId;
+    this.setState({ jobPhotos: [], jobPhotosLoading: true });
     try {
       const jobPhotos = await this._dataMod.fetchWorkOrderPhotos(jobId);
-      this.setState({ jobPhotos, jobPhotosLoading: false });
+      if (this._photoJobId !== jobId || this.state.selectedJobId !== jobId) return;
+      const safe = (jobPhotos || []).filter(p => p.workOrderId === jobId);
+      this.setState({ jobPhotos: safe, jobPhotosLoading: false });
     } catch (e) {
       console.error('Failed to load job photos', e);
-      this.setState({ jobPhotosLoading: false });
+      if (this._photoJobId === jobId) this.setState({ jobPhotosLoading: false });
     }
   };
   setPhotoCategoryFilter = (cat) => this.setState({ photoCategoryFilter: cat });
@@ -3003,6 +3083,10 @@ class Component extends DCLogic {
       status: 'open',
       createdAt: Date.now(),
       intakeRawNotes: this.state.intakeRawNotesFinal || '',
+      customerConcern: (f.customerConcern || f.issue || '').trim(),
+      originalTranscript: this.state.intakeRawNotesFinal || '',
+      originalCustomerConcern: this.state.intakeOriginalConcern != null ? this.state.intakeOriginalConcern : (f.customerConcern || '').trim(),
+      originalExtraction: this.state.intakeOriginalExtraction || null,
       entries: [],
     };
 
@@ -3938,7 +4022,7 @@ class Component extends DCLogic {
     // ---------- unified photo gallery / editor / lightbox render data ----------
     const CATS = Component.PHOTO_CATEGORIES;
     const filterCat = s.photoCategoryFilter;
-    const filteredPhotos = s.jobPhotos.filter(p => filterCat === 'all' || (p.categories || []).includes(filterCat));
+    const filteredPhotos = (s.jobPhotos || []).filter(p => (p.workOrderId === s.selectedJobId) && (filterCat === 'all' || (p.categories || []).includes(filterCat)));
     const categoryFilterChips = ['all', ...CATS].map(cat => ({
       label: cat === 'all' ? 'ALL' : cat.toUpperCase(),
       style: `font:700 9.5px 'IBM Plex Mono',monospace;padding:6px 10px;border-radius:12px;cursor:pointer;background:${filterCat === cat ? '#16283D' : '#F6F1E4'};color:${filterCat === cat ? '#fff' : '#16283D'};`,
@@ -4158,10 +4242,21 @@ class Component extends DCLogic {
       intakeTranscriptDisplay: intakeRaw.trim(),
       intakeTyped: s.intakeTyped, setIntakeTyped: this.setIntakeTyped,
       extractButtonStyle: (() => {
-        const disabled = s.intakeStopping || s.intakeAiLoading || !(intakeRaw.trim() || (s.intakeTyped || '').trim());
+        const disabled = s.intakeRecording || s.intakeStopping || s.intakeRecBusy || s.intakeAiLoading || !(intakeRaw.trim() || (s.intakeTyped || '').trim());
         return `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:14px;border-radius:4px;cursor:${disabled ? 'default' : 'pointer'};background:${disabled ? '#B9C0C4' : '#D97706'};color:#fff;`;
       })(),
-      extractButtonLabel: s.intakeAiLoading ? 'GENERATING\u2026' : s.intakeStopping ? 'STOPPING RECORDING\u2026' : !(intakeRaw.trim() || (s.intakeTyped || '').trim()) ? 'ADD DETAILS FIRST' : '\u2728 EXTRACT INTAKE',
+      extractButtonLabel: s.intakeAiLoading ? 'GENERATING\u2026' : (s.intakeRecording || s.intakeStopping) ? 'STOP RECORDING TO EXTRACT' : !(intakeRaw.trim() || (s.intakeTyped || '').trim()) ? 'ADD DETAILS FIRST' : '\u2728 EXTRACT INTAKE',
+      showIntakeDraftActions: !s.intakeRecording && !s.intakeStopping && !s.intakeRecBusy,
+      intakeConfirmClear: !!s.intakeConfirmClear,
+      requestIntakeStartOver: this.requestIntakeStartOver,
+      cancelIntakeStartOver: this.cancelIntakeStartOver,
+      confirmIntakeStartOver: this.confirmIntakeStartOver,
+      setFieldCustomerConcern: this.setFieldCustomerConcern,
+      backToIntakeDictate: this.backToIntakeDictate,
+      toggleReviewTranscript: this.toggleReviewTranscript,
+      reviewTranscriptOpen: !!s.reviewTranscriptOpen,
+      reviewTranscriptToggleIcon: s.reviewTranscriptOpen ? '\u2013' : '+',
+      intakeRawNotesDisplay: s.intakeRawNotesFinal || '(no transcript recorded)',
       runIntakeExtraction: this.runIntakeExtraction,
       toggleIntakeRecording: this.toggleIntakeRecording,
       intakeFields: s.intakeFields,
