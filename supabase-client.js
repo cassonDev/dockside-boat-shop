@@ -591,8 +591,6 @@ export async function uploadWorkOrderPhoto(workOrderId, photo, userId) {
     photo_type: photo.photoType || 'general',
     extracted_text: photo.extractedText || '',
     extraction_confidence: photo.extractionConfidence != null ? photo.extractionConfidence : null,
-    equipment_id: photo.equipmentId || null,
-    is_primary_serial_photo: !!photo.isPrimarySerialPhoto,
     created_by: userId || null,
   };
   const { data, error } = await supabase.from('work_order_photos').insert(row).select().single();
