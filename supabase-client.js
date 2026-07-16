@@ -622,6 +622,13 @@ export async function setPhotoInvoiceInclusion(photoId, include) {
   return updateWorkOrderPhoto(photoId, { includeOnInvoice: !!include });
 }
 
+// Single "Show to Customer" control used consistently across photos,
+// serial numbers, and activity — persists immediately, no separate
+// "include on invoice" flag.
+export async function setPhotoCustomerVisible(photoId, visible) {
+  return updateWorkOrderPhoto(photoId, { customerVisible: !!visible });
+}
+
 export async function deleteWorkOrderPhoto(photoId, userId) {
   const { error } = await supabase.from('work_order_photos').update({
     active: false, archived_at: new Date().toISOString(), archived_by: userId || null,

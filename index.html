@@ -350,7 +350,6 @@
         </div>
         <div class="no-print" style="display:flex;gap:8px;margin-top:6px;">
           <div style="flex:1;background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ goToTag }}">PRINT TAG</div>
-          <div style="flex:1;background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ goToInvoice }}">PRINT INVOICE</div>
           <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
             <div style="flex:1;background:#FBEAEA;color:#C0392B;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ archiveSelectedJob }}">ARCHIVE</div>
           </sc-if>
@@ -370,9 +369,9 @@
         <div style="font:600 9px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">Photos &middot; Serials &middot; Specs</div>
       </div>
       <div style="{{ workspaceWorkOrderStyle }}" onClick="{{ setWorkspaceWorkOrder }}">
-        <div style="font-size:19px;line-height:1;">&#128203;</div>
-        <div style="font:800 11.5px 'Archivo',sans-serif;letter-spacing:.2px;">WORK ORDER</div>
-        <div style="font:600 9px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">Labor &middot; Parts &middot; Findings</div>
+        <div style="font-size:19px;line-height:1;">&#128100;</div>
+        <div style="font:800 11.5px 'Archivo',sans-serif;letter-spacing:.2px;">CUSTOMER PREVIEW</div>
+        <div style="font:600 9px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">What the customer will see</div>
       </div>
     </div>
 
@@ -392,8 +391,8 @@
                 <input style="box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:8px 10px;font:700 11px 'IBM Plex Mono',monospace;color:#16283D;max-width:220px;" value="{{ sn.labelDraft }}" onChange="{{ sn.setLabelDraft }}"/>
                 <input style="box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:10px 12px;font:700 15px 'IBM Plex Mono',monospace;letter-spacing:1px;color:#16283D;max-width:260px;" value="{{ sn.valueDraft }}" onChange="{{ sn.setValueDraft }}"/>
                 <label style="display:flex;align-items:center;gap:8px;font:600 12px 'Public Sans',sans-serif;color:#16283D;margin-top:4px;">
-                  <input type="checkbox" checked="{{ sn.showToCustomerDraft }}" onChange="{{ sn.toggleShowToCustomerDraft }}"/>
-                  Show to customer
+                  <input type="checkbox" checked="{{ sn.showToCustomerDraft }}" onChange="{{ sn.toggleShowToCustomerDraft }}" style="width:17px;height:17px;accent-color:#16A34A;cursor:pointer;"/>
+                  Show to Customer
                 </label>
                 <sc-if value="{{ sn.hasEditError }}" hint-placeholder-val="{{ false }}">
                   <div style="font:600 11.5px 'Public Sans',sans-serif;color:#C0392B;">{{ sn.editError }}</div>
@@ -453,10 +452,7 @@
             <div style="position:relative;cursor:pointer;" onClick="{{ photo.onOpen }}">
               <img src="{{ photo.thumbUrl }}" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1px solid rgba(22,40,61,.15);display:block;"/>
               <sc-if value="{{ photo.hiddenFromCustomer }}" hint-placeholder-val="{{ false }}">
-                <div style="position:absolute;top:4px;right:4px;background:rgba(22,40,61,.75);color:#fff;font:700 8px 'IBM Plex Mono',monospace;padding:2px 5px;border-radius:2px;">PRIVATE</div>
-              </sc-if>
-              <sc-if value="{{ photo.onInvoice }}" hint-placeholder-val="{{ false }}">
-                <div style="position:absolute;top:4px;left:4px;background:#1F6F78;color:#fff;font:700 8px 'IBM Plex Mono',monospace;padding:2px 5px;border-radius:2px;">&#128196; INVOICE</div>
+                <div style="position:absolute;top:4px;right:4px;background:rgba(22,40,61,.75);color:#fff;font:700 8px 'IBM Plex Mono',monospace;padding:2px 5px;border-radius:2px;">INTERNAL</div>
               </sc-if>
               <sc-if value="{{ photo.isSerialNumber }}" hint-placeholder-val="{{ false }}">
                 <div style="position:absolute;bottom:4px;left:4px;right:4px;background:#D97706;color:#fff;font:700 7.5px 'IBM Plex Mono',monospace;padding:2px 4px;border-radius:2px;text-align:center;">SERIAL NUMBER</div>
@@ -584,10 +580,10 @@
         <div style="font:700 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;">CHECK-IN NOTE &middot; NO AI &mdash; e.g. &ldquo;waiting on parts&rdquo;, &ldquo;customer called&rdquo;, &ldquo;boat picked up&rdquo;</div>
         <textarea placeholder="Add a quick note to this job's timeline&hellip;" style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:10px 11px;font:500 13.5px 'Public Sans',sans-serif;color:#16283D;min-height:56px;resize:vertical;background:#fff;" value="{{ newActivityBody }}" onChange="{{ setNewActivityBody }}"></textarea>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <div style="{{ visibilityPrivateStyle }}" onClick="{{ setVisibilityPrivate }}">&#128274; INTERNAL</div>
-            <div style="{{ visibilityPublicStyle }}" onClick="{{ setVisibilityPublic }}">CUSTOMER VISIBLE</div>
-          </div>
+          <label style="display:flex;align-items:center;gap:8px;font:600 12px 'Public Sans',sans-serif;color:#16283D;cursor:pointer;">
+            <input type="checkbox" checked="{{ newActivityShowToCustomer }}" onChange="{{ toggleNewActivityVisibility }}" style="width:17px;height:17px;accent-color:#16A34A;cursor:pointer;"/>
+            Show to Customer
+          </label>
           <div style="{{ postActivityButtonStyle }}" onClick="{{ submitActivity }}">{{ postActivityButtonLabel }}</div>
         </div>
         <sc-if value="{{ hasActivityComposerError }}" hint-placeholder-val="{{ false }}">
@@ -727,30 +723,57 @@
 
     <sc-if value="{{ isWorkOrderWorkspace }}" hint-placeholder-val="{{ false }}">
     <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);margin-top:14px;">
-      <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);">
-        <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">LABOR &amp; FINDINGS</div>
+      <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">CUSTOMER PREVIEW</div>
+        <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);letter-spacing:.4px;">READ-ONLY &middot; EDIT AT THE SOURCE TO CHANGE</div>
       </div>
-      <div style="padding:6px 20px 18px;display:flex;flex-direction:column;gap:12px;">
-        <sc-for list="{{ selectedJob.workLogPrintDisplay }}" as="entry" hint-placeholder-count="1">
-          <div style="border-top:1px solid rgba(22,40,61,.1);padding-top:10px;">
-            <div style="display:flex;justify-content:space-between;font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);margin-bottom:4px;">
-              <span>{{ entry.dateLabel }}</span><span>{{ entry.laborTime }}</span>
+
+      <div style="padding:16px 20px;border-bottom:1px solid rgba(22,40,61,.08);display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;">
+        <div>
+          <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:4px;">CUSTOMER</div>
+          <div style="font:700 14px 'Public Sans',sans-serif;color:#16283D;">{{ selectedJob.customerName }}</div>
+          <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);">{{ selectedJob.phone }}</div>
+        </div>
+        <div>
+          <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:4px;">UNIT</div>
+          <div style="font:700 14px 'Public Sans',sans-serif;color:#16283D;">{{ selectedJob.boatMakeModel }}</div>
+          <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);">Mechanic: {{ selectedJob.mechanicName }}</div>
+        </div>
+      </div>
+
+      <div style="padding:16px 20px;border-bottom:1px solid rgba(22,40,61,.08);">
+        <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:6px;">CUSTOMER CONCERN</div>
+        <div style="font:600 13.5px 'Public Sans',sans-serif;color:#16283D;">{{ selectedJob.issue }}</div>
+      </div>
+
+      <div style="padding:16px 20px;border-bottom:1px solid rgba(22,40,61,.08);">
+        <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:10px;">WORK PERFORMED</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <sc-for list="{{ selectedJob.workLogPrintDisplay }}" as="entry" hint-placeholder-count="1">
+            <div style="border-top:1px solid rgba(22,40,61,.1);padding-top:10px;">
+              <div style="display:flex;justify-content:space-between;font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);margin-bottom:4px;">
+                <span>{{ entry.dateLabel }}</span><span>{{ entry.laborTime }}</span>
+              </div>
+              <div style="font:600 13.5px 'Public Sans',sans-serif;color:#16283D;">{{ entry.customerUpdate }}</div>
+              <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-top:2px;"><b>Parts:</b> {{ entry.partsUsed }}</div>
+              <sc-if value="{{ entry.hasEstimatedCost }}" hint-placeholder-val="{{ false }}">
+                <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-top:2px;"><b>Est. Cost:</b> {{ entry.estimatedCost }}</div>
+              </sc-if>
             </div>
-            <div style="font:600 13.5px 'Public Sans',sans-serif;color:#16283D;">{{ entry.customerUpdate }}</div>
-            <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-top:2px;"><b>Parts:</b> {{ entry.partsUsed }}</div>
-            <sc-if value="{{ entry.hasEstimatedCost }}" hint-placeholder-val="{{ false }}">
-              <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-top:2px;"><b>Est. Cost:</b> {{ entry.estimatedCost }}</div>
-            </sc-if>
-          </div>
-        </sc-for>
-        <sc-if value="{{ selectedJob.noWorkLogPrint }}" hint-placeholder-val="{{ false }}">
-          <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No labor or findings logged yet.</div>
-        </sc-if>
+          </sc-for>
+          <sc-if value="{{ selectedJob.noWorkLogPrint }}" hint-placeholder-val="{{ false }}">
+            <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">Nothing customer-facing recorded yet &mdash; add it in Check-In.</div>
+          </sc-if>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-top:2px solid #16283D;padding-top:12px;margin-top:12px;">
+          <div style="font:700 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);">TOTAL TIME</div>
+          <div style="font:800 14px 'Public Sans',sans-serif;color:#16283D;">{{ selectedJob.totalTimeLabel }}</div>
+        </div>
       </div>
 
       <sc-if value="{{ selectedJob.hasCustomerSerialNumbers }}" hint-placeholder-val="{{ false }}">
-      <div style="padding:14px 20px;border-top:1px solid rgba(22,40,61,.1);">
-        <div style="font:700 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.4px;margin-bottom:8px;">EQUIPMENT IDENTIFICATION &middot; CUSTOMER-VISIBLE</div>
+      <div style="padding:16px 20px;border-bottom:1px solid rgba(22,40,61,.08);">
+        <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:8px;">EQUIPMENT IDENTIFICATION</div>
         <div style="display:flex;flex-direction:column;gap:8px;">
           <sc-for list="{{ selectedJob.customerSerialNumbersDisplay }}" as="csn" hint-placeholder-count="0">
             <div style="font:600 13px 'Public Sans',sans-serif;color:#16283D;">{{ csn.label }}: {{ csn.serialNumber }}</div>
@@ -759,9 +782,19 @@
       </div>
       </sc-if>
 
-      <div class="no-print" style="padding:14px 20px;border-top:1px solid rgba(22,40,61,.1);display:flex;gap:8px;">
-        <div style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ goToInvoice }}">PRINT WORK ORDER</div>
-        <div style="flex:1;background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ goToInvoice }}">EXPORT WORK ORDER</div>
+      <sc-if value="{{ selectedJob.hasInvoicePhotos }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:16px 20px;border-bottom:1px solid rgba(22,40,61,.08);">
+        <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:10px;">CUSTOMER PHOTOS</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;">
+          <sc-for list="{{ selectedJob.invoicePhotosDisplay }}" as="ivp" hint-placeholder-count="0">
+            <img src="{{ ivp.url }}" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1px solid rgba(22,40,61,.15);display:block;"/>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <div class="no-print" style="padding:16px 20px;">
+        <div style="background:#1F6F78;color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:13px;border-radius:4px;cursor:pointer;" onClick="{{ goToInvoice }}">&#128424; PRINT</div>
       </div>
     </div>
     </sc-if>
@@ -1456,8 +1489,8 @@
           </sc-if>
 
           <label style="display:flex;align-items:center;gap:8px;font:600 13px 'Public Sans',sans-serif;color:#16283D;">
-            <input type="checkbox" checked="{{ serialScanShowToCustomer }}" onChange="{{ toggleSerialScanShowToCustomer }}"/>
-            Show to customer
+            <input type="checkbox" checked="{{ serialScanShowToCustomer }}" onChange="{{ toggleSerialScanShowToCustomer }}" style="width:17px;height:17px;accent-color:#16A34A;cursor:pointer;"/>
+            Show to Customer
           </label>
 
           <sc-if value="{{ hasSerialScanError }}" hint-placeholder-val="{{ false }}">
@@ -1515,12 +1548,10 @@
             </sc-for>
           </div>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <div style="font:600 12px 'Public Sans',sans-serif;color:#16283D;">Visible to customer</div>
-          <div style="{{ photoEditorVisibleTrackStyle }}" onClick="{{ togglePhotoEditorVisible }}">
-            <div style="{{ photoEditorVisibleKnobStyle }}"></div>
-          </div>
-        </div>
+        <label style="display:flex;align-items:center;gap:8px;font:600 12px 'Public Sans',sans-serif;color:#16283D;cursor:pointer;">
+          <input type="checkbox" checked="{{ photoEditorVisible }}" onChange="{{ togglePhotoEditorVisible }}" style="width:17px;height:17px;accent-color:#16A34A;cursor:pointer;"/>
+          Show to Customer
+        </label>
         <sc-if value="{{ photoEditorError }}" hint-placeholder-val="{{ false }}">
           <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ photoEditorErrorMessage }}</div>
         </sc-if>
@@ -1551,12 +1582,10 @@
             <div style="font:500 13px 'Public Sans',sans-serif;color:#16283D;">{{ lightboxCaption }}</div>
           </sc-if>
           <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);">{{ lightboxMeta }}</div>
-          <div class="no-print" style="display:flex;align-items:center;justify-content:space-between;background:#F6F1E4;border-radius:4px;padding:9px 11px;">
-            <div style="font:600 12px 'Public Sans',sans-serif;color:#16283D;">&#128196; Include on customer invoice</div>
-            <div style="{{ lightboxInvoiceTrackStyle }}" onClick="{{ toggleLightboxInvoice }}">
-              <div style="{{ lightboxInvoiceKnobStyle }}"></div>
-            </div>
-          </div>
+          <label class="no-print" style="display:flex;align-items:center;gap:8px;background:#F6F1E4;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#16283D;cursor:pointer;">
+            <input type="checkbox" checked="{{ lightboxCustomerVisible }}" onChange="{{ toggleLightboxVisible }}" style="width:17px;height:17px;accent-color:#16A34A;cursor:pointer;"/>
+            Show to Customer
+          </label>
           <sc-if value="{{ hasLightboxError }}" hint-placeholder-val="{{ false }}">
             <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ lightboxErrorMessage }}</div>
           </sc-if>
@@ -1584,18 +1613,10 @@
               </sc-for>
             </div>
           </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;">
-            <div style="font:600 12px 'Public Sans',sans-serif;color:#16283D;">Visible to customer</div>
-            <div style="{{ lightboxDraftVisibleTrackStyle }}" onClick="{{ toggleLightboxDraftVisible }}">
-              <div style="{{ lightboxDraftVisibleKnobStyle }}"></div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;">
-            <div style="font:600 12px 'Public Sans',sans-serif;color:#16283D;">Include on customer invoice</div>
-            <div style="{{ lightboxDraftInvoiceTrackStyle }}" onClick="{{ toggleLightboxDraftInvoice }}">
-              <div style="{{ lightboxDraftInvoiceKnobStyle }}"></div>
-            </div>
-          </div>
+          <label style="display:flex;align-items:center;gap:8px;font:600 12px 'Public Sans',sans-serif;color:#16283D;cursor:pointer;">
+            <input type="checkbox" checked="{{ lightboxDraftVisible }}" onChange="{{ toggleLightboxDraftVisible }}" style="width:17px;height:17px;accent-color:#16A34A;cursor:pointer;"/>
+            Show to Customer
+          </label>
           <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);">{{ lightboxMeta }}</div>
           <sc-if value="{{ hasLightboxError }}" hint-placeholder-val="{{ false }}">
             <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ lightboxErrorMessage }}</div>
@@ -2591,19 +2612,19 @@ class Component extends DCLogic {
 
   openLightbox = (photoId) => this.setState({ lightboxPhotoId: photoId, lightboxEditing: false, lightboxDraft: null, lightboxError: '' });
   closeLightbox = () => this.setState({ lightboxPhotoId: null, lightboxEditing: false, lightboxDraft: null, lightboxError: '' });
-  toggleLightboxInvoice = async () => {
+  toggleLightboxVisible = async () => {
     const photo = this.state.jobPhotos.find(p => p.id === this.state.lightboxPhotoId);
     if (!photo || !this._dataMod) return;
-    const next = !photo.includeOnInvoice;
+    const next = !photo.customerVisible;
     // Optimistic local update, but the source of truth write happens right
     // away too \u2014 this selection is never held only in frontend state.
-    this.setState(s => ({ jobPhotos: s.jobPhotos.map(p => p.id === photo.id ? { ...p, includeOnInvoice: next } : p) }));
+    this.setState(s => ({ jobPhotos: s.jobPhotos.map(p => p.id === photo.id ? { ...p, customerVisible: next } : p) }));
     try {
-      const saved = await this._dataMod.setPhotoInvoiceInclusion(photo.id, next);
+      const saved = await this._dataMod.setPhotoCustomerVisible(photo.id, next);
       this.setState(s => ({ jobPhotos: s.jobPhotos.map(p => p.id === saved.id ? saved : p) }));
     } catch (e) {
-      console.error('Failed to save invoice-photo selection', e);
-      this.setState(s => ({ jobPhotos: s.jobPhotos.map(p => p.id === photo.id ? { ...p, includeOnInvoice: !next } : p) }));
+      console.error('Failed to save customer-visibility selection', e);
+      this.setState(s => ({ jobPhotos: s.jobPhotos.map(p => p.id === photo.id ? { ...p, customerVisible: !next } : p) }));
     }
   };
   markInvoicePhotoFailed = (id) => this.setState(s => s.failedInvoicePhotoIds.includes(id) ? s : { failedInvoicePhotoIds: [...s.failedInvoicePhotoIds, id] });
@@ -2873,7 +2894,6 @@ class Component extends DCLogic {
         caption: photo.caption || '',
         categories: [...(photo.categories || [])],
         customerVisible: photo.customerVisible !== false,
-        includeOnInvoice: !!photo.includeOnInvoice,
       },
     });
   };
@@ -2890,11 +2910,6 @@ class Component extends DCLogic {
     if (!d) return;
     this.setState({ lightboxDraft: { ...d, customerVisible: !d.customerVisible } });
   };
-  toggleLightboxDraftInvoice = () => {
-    const d = this.state.lightboxDraft;
-    if (!d) return;
-    this.setState({ lightboxDraft: { ...d, includeOnInvoice: !d.includeOnInvoice } });
-  };
   saveLightboxEdit = async () => {
     const s = this.state;
     const d = s.lightboxDraft;
@@ -2907,7 +2922,6 @@ class Component extends DCLogic {
         caption: d.caption.trim(),
         categories: d.categories,
         customerVisible: d.customerVisible,
-        includeOnInvoice: d.includeOnInvoice,
       });
       this.setState(st => ({
         jobPhotos: st.jobPhotos.map(p => p.id === saved.id ? saved : p),
@@ -3232,8 +3246,7 @@ class Component extends DCLogic {
   };
   setActivityFilter = (key) => this.setState({ activityFilter: key });
   setNewActivityBody = (e) => this.setState({ newActivityBody: e.target.value });
-  setVisibilityPrivate = () => this.setState({ newActivityVisibility: 'private' });
-  setVisibilityPublic = () => this.setState({ newActivityVisibility: 'public' });
+  toggleNewActivityVisibility = () => this.setState(s => ({ newActivityVisibility: s.newActivityVisibility === 'public' ? 'private' : 'public' }));
   submitActivity = async () => {
     if (this.state.activityComposerBusy) return;
     const body = (this.state.newActivityBody || '').trim();
@@ -3557,7 +3570,7 @@ class Component extends DCLogic {
         const n = parseFloat(a.meta && a.meta.laborTime);
         return sum + (isNaN(n) ? 0 : n);
       }, 0);
-      const invoicePhotos = s.jobPhotos.filter(p => p.includeOnInvoice);
+      const invoicePhotos = s.jobPhotos.filter(p => p.customerVisible !== false);
       selectedJob = {
         id: sj.id,
         customerName: sj.customerName,
@@ -3735,8 +3748,7 @@ class Component extends DCLogic {
 
     const activityCountLabel = `${s.jobActivities.length}`;
     const noActivities = s.jobActivities.length === 0;
-    const visibilityPrivateStyle = `font:700 10px 'IBM Plex Mono',monospace;padding:8px 11px;border-radius:3px;cursor:pointer;background:${s.newActivityVisibility === 'private' ? '#B08A2E' : '#EDE6D6'};color:${s.newActivityVisibility === 'private' ? '#fff' : '#16283D'};`;
-    const visibilityPublicStyle = `font:700 10px 'IBM Plex Mono',monospace;padding:8px 11px;border-radius:3px;cursor:pointer;background:${s.newActivityVisibility === 'public' ? '#1F6F78' : '#EDE6D6'};color:${s.newActivityVisibility === 'public' ? '#fff' : '#16283D'};`;
+    const newActivityShowToCustomer = s.newActivityVisibility === 'public';
     const postActivityButtonStyle = `background:${s.activityComposerBusy ? '#B9C0C4' : '#1F6F78'};color:#fff;font:700 12px 'Public Sans',sans-serif;padding:10px 18px;border-radius:4px;cursor:pointer;text-align:center;`;
     const postActivityButtonLabel = s.activityComposerBusy ? 'POSTING\u2026' : 'POST';
     const hasActivityComposerError = !!s.activityComposerError;
@@ -3913,7 +3925,6 @@ class Component extends DCLogic {
     const jobPhotosDisplay = filteredPhotos.map(p => ({
       thumbUrl: p.thumbUrl,
       hiddenFromCustomer: !p.customerVisible,
-      onInvoice: !!p.includeOnInvoice,
       isSerialNumber: p.photoType === 'serial_number',
       onOpen: () => this.openLightbox(p.id),
     }));
@@ -3933,8 +3944,8 @@ class Component extends DCLogic {
         openPhoto: () => photo && this.openLightbox(photo.id),
         label: sn.label,
         serialNumber: sn.serialNumber || '(not read)',
-        visibilityLabel: sn.showToCustomer ? 'CUSTOMER VISIBLE' : 'SHOP ONLY',
-        visibilityBadgeStyle: `display:inline-block;font:700 9px 'IBM Plex Mono',monospace;padding:3px 7px;border-radius:3px;letter-spacing:.3px;width:fit-content;background:${sn.showToCustomer ? '#1F6F78' : '#EDE6D6'};color:${sn.showToCustomer ? '#fff' : '#16283D'};`,
+        visibilityLabel: sn.showToCustomer ? 'SHOWN TO CUSTOMER' : 'INTERNAL ONLY',
+        visibilityBadgeStyle: `display:inline-block;font:700 9px 'IBM Plex Mono',monospace;padding:3px 7px;border-radius:3px;letter-spacing:.3px;width:fit-content;background:${sn.showToCustomer ? '#16A34A' : '#EDE6D6'};color:${sn.showToCustomer ? '#fff' : '#16283D'};`,
         isEditing: !!edit,
         isViewing: !edit,
         labelDraft: edit ? edit.label : sn.label,
@@ -4089,7 +4100,7 @@ class Component extends DCLogic {
 
       activityFilterChips, activityDayGroups, activityCountLabel, noActivities,
       newActivityBody: s.newActivityBody, setNewActivityBody: this.setNewActivityBody,
-      visibilityPrivateStyle, visibilityPublicStyle, setVisibilityPrivate: this.setVisibilityPrivate, setVisibilityPublic: this.setVisibilityPublic,
+      newActivityShowToCustomer, toggleNewActivityVisibility: this.toggleNewActivityVisibility,
       postActivityButtonStyle, postActivityButtonLabel, submitActivity: this.submitActivity,
       hasActivityComposerError, activityComposerError: s.activityComposerError,
       archiveSelectedJob: this.archiveSelectedJob,
@@ -4241,8 +4252,7 @@ class Component extends DCLogic {
       setPhotoEditorSaturation: this.setPhotoEditorSaturation,
       photoEditorCaption: pe ? pe.caption : '', setPhotoEditorCaption: this.setPhotoEditorCaption,
       photoEditorCategoryOptions,
-      photoEditorVisibleTrackStyle: `width:46px;height:26px;border-radius:14px;cursor:pointer;position:relative;background:${pe && pe.customerVisible ? '#1F6F78' : '#B9C0C4'};`,
-      photoEditorVisibleKnobStyle: `width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${pe && pe.customerVisible ? '23px' : '3px'};transition:left .15s;`,
+      photoEditorVisible: !!(pe && pe.customerVisible),
       togglePhotoEditorVisible: this.togglePhotoEditorVisible,
       photoEditorError: !!(pe && pe.error), photoEditorErrorMessage: pe ? pe.error : '',
       photoEditorSaveButtonStyle: `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:${pe && pe.saving ? 'default' : 'pointer'};color:#fff;background:${pe && pe.saving ? '#B9C0C4' : '#1F6F78'};`,
@@ -4256,9 +4266,8 @@ class Component extends DCLogic {
       lightboxHasCaption: !!(lbPhoto && lbPhoto.caption),
       lightboxCaption: lbPhoto ? lbPhoto.caption : '',
       lightboxMeta: lbPhoto ? (new Date(lbPhoto.createdAt).toLocaleDateString() + (lbPhoto.customerVisible ? '' : ' \u00b7 PRIVATE')) : '',
-      lightboxInvoiceTrackStyle: `width:44px;height:24px;border-radius:12px;cursor:pointer;position:relative;background:${lbPhoto && lbPhoto.includeOnInvoice ? '#1F6F78' : '#B9C0C4'};transition:background .15s;`,
-      lightboxInvoiceKnobStyle: `width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${lbPhoto && lbPhoto.includeOnInvoice ? '23px' : '3px'};transition:left .15s;`,
-      toggleLightboxInvoice: this.toggleLightboxInvoice,
+      lightboxCustomerVisible: !!(lbPhoto && lbPhoto.customerVisible),
+      toggleLightboxVisible: this.toggleLightboxVisible,
       canDeleteLightboxPhoto: !!lbPhoto && (isShopOwnerForPhotos || (lbPhoto.createdBy === (s.profile && s.profile.id))),
       canEditLightboxPhoto,
       closeLightbox: this.closeLightbox,
@@ -4272,11 +4281,7 @@ class Component extends DCLogic {
       cancelLightboxEdit: this.cancelLightboxEdit,
       setLightboxDraftCaption: this.setLightboxDraftCaption,
       toggleLightboxDraftVisible: this.toggleLightboxDraftVisible,
-      toggleLightboxDraftInvoice: this.toggleLightboxDraftInvoice,
-      lightboxDraftVisibleTrackStyle: `width:44px;height:24px;border-radius:12px;cursor:pointer;position:relative;background:${lbDraft && lbDraft.customerVisible ? '#1F6F78' : '#B9C0C4'};transition:background .15s;`,
-      lightboxDraftVisibleKnobStyle: `width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${lbDraft && lbDraft.customerVisible ? '23px' : '3px'};transition:left .15s;`,
-      lightboxDraftInvoiceTrackStyle: `width:44px;height:24px;border-radius:12px;cursor:pointer;position:relative;background:${lbDraft && lbDraft.includeOnInvoice ? '#1F6F78' : '#B9C0C4'};transition:background .15s;`,
-      lightboxDraftInvoiceKnobStyle: `width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${lbDraft && lbDraft.includeOnInvoice ? '23px' : '3px'};transition:left .15s;`,
+      lightboxDraftVisible: !!(lbDraft && lbDraft.customerVisible),
       saveLightboxEdit: this.saveLightboxEdit,
       lightboxSaveButtonStyle: `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:pointer;border:none;background:${s.lightboxSaving ? '#B9C0C4' : '#1F6F78'};color:#fff;`,
       lightboxSaveLabel: s.lightboxSaving ? 'SAVING\u2026' : 'SAVE CHANGES',
