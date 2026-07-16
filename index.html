@@ -203,21 +203,25 @@
       </div>
 
       <sc-if value="{{ isIntakeDictateStep }}" hint-placeholder-val="{{ true }}">
-      <div style="padding:24px 20px;display:flex;flex-direction:column;align-items:center;gap:14px;">
-        <div style="{{ micButtonStyle }}" onClick="{{ toggleIntakeRecording }}">
-          <div style="color:#fff;font:700 13px 'Archivo',sans-serif;">{{ micButtonLabel }}</div>
+      <div class="no-print" style="margin:14px 20px 0;padding:18px;display:flex;flex-direction:column;gap:12px;background:#F6F1E4;border-radius:6px;border:1px solid rgba(217,119,6,.35);">
+        <div>
+          <div style="font:800 16px 'Archivo',sans-serif;color:#16283D;">New job intake</div>
+          <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);margin-top:2px;">Speak or type naturally &mdash; AI will organize everything for you.</div>
         </div>
-        <div style="font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;">{{ micStatusLabel }}</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="{{ micButtonStyle }}" onClick="{{ toggleIntakeRecording }}">
+            <div style="color:#fff;font:700 11px 'Archivo',sans-serif;">{{ micButtonLabel }}</div>
+          </div>
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;">{{ micStatusLabel }}</div>
+        </div>
         <sc-if value="{{ hasMicError }}" hint-placeholder-val="{{ false }}">
-          <div style="width:100%;box-sizing:border-box;background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ micErrorLabel }}</div>
+          <div style="width:100%;box-sizing:border-box;background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:8px 10px;font:600 11.5px 'Public Sans',sans-serif;color:#C0392B;">{{ micErrorLabel }}</div>
         </sc-if>
-
-        <div style="width:100%;background:#F6F1E4;border:1px dashed rgba(22,40,61,.3);border-radius:4px;padding:12px;font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.75);line-height:1.5;min-height:60px;box-sizing:border-box;">{{ intakeTranscriptDisplay }}</div>
-
-        <div style="width:100%;font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;align-self:flex-start;">OR TYPE IT INSTEAD</div>
-        <textarea style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:10px 12px;font:500 13px 'Public Sans',sans-serif;color:#16283D;min-height:64px;resize:vertical;" placeholder="Customer name, phone, boat make/model, issue..." value="{{ intakeTyped }}" onChange="{{ setIntakeTyped }}"></textarea>
-
-        <div style="width:100%;{{ extractButtonStyle }}" onClick="{{ runIntakeExtraction }}">{{ extractButtonLabel }}</div>
+        <sc-if value="{{ hasIntakeTranscript }}" hint-placeholder-val="{{ false }}">
+          <div style="width:100%;box-sizing:border-box;background:#fff;border:1px dashed rgba(22,40,61,.3);border-radius:4px;padding:10px;font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.75);line-height:1.5;">{{ intakeTranscriptDisplay }}</div>
+        </sc-if>
+        <textarea style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 13px;font:500 14px 'Public Sans',sans-serif;color:#16283D;min-height:88px;resize:vertical;" placeholder="Customer name, phone, boat make/model, issue..." value="{{ intakeTyped }}" onChange="{{ setIntakeTyped }}"></textarea>
+        <div style="{{ extractButtonStyle }}" onClick="{{ runIntakeExtraction }}">{{ extractButtonLabel }}</div>
       </div>
       </sc-if>
 
@@ -1713,6 +1717,7 @@ class Component extends DCLogic {
     intakeStep: 'dictate',
     intakeRecording: false,
     intakeRecBusy: false,
+    intakeStopping: false,
     intakeMicError: '',
     intakeTranscript: '',
     intakeTyped: '',
@@ -2079,7 +2084,7 @@ class Component extends DCLogic {
     phoneFieldError: false,
     intakeSize: 'M', intakePriority: 'normal', intakeMechanic: (this.state.mechanics[0] || {}).id || '',
     intakeStagedPhotos: [], intakeRecording: false, intakeMicError: '', intakeRawNotesFinal: '', showScanModal: false,
-    intakeSaving: false, intakeSaveError: '', intakeRecBusy: false,
+    intakeSaving: false, intakeSaveError: '', intakeRecBusy: false, intakeStopping: false,
   }); };
   goRoster = () => { this.unsubscribeComments(); this.setState({ screen: 'roster', showScanModal: false }); this.loadRoleChangeRequestsForRoster(); };
   goMechanicProfile = (id) => {
@@ -2284,7 +2289,8 @@ class Component extends DCLogic {
       console.log('[mic] intake onend');
       this._intakeRecActive = false;
       this._intakeRec = null;
-      this.setState({ intakeRecording: false, intakeRecBusy: false, _intakeInterim: '' });
+      this.setState({ intakeRecording: false, intakeRecBusy: false, intakeStopping: false, _intakeInterim: '' });
+      if (this._intakeStopResolve) { const r = this._intakeStopResolve; this._intakeStopResolve = null; r(); }
     };
     this._intakeRec = rec;
     this.setState({ intakeRecBusy: true, intakeMicError: '' });
@@ -2315,6 +2321,14 @@ class Component extends DCLogic {
     console.log('[mic] intake stop() called');
     this.setState({ intakeRecBusy: true });
     if (this._intakeRec) { try { this._intakeRec.stop(); } catch (e) { console.log('[mic] intake stop() threw', e.name); } }
+  };
+  // Stops an active recording and resolves once SpeechRecognition's onend has
+  // fired and the final transcript is appended — so extraction never runs
+  // against a partial transcript.
+  stopIntakeRecordingAndWait = () => {
+    if (!this._intakeRecActive) return Promise.resolve();
+    this.setState({ intakeStopping: true });
+    return new Promise((resolve) => { this._intakeStopResolve = resolve; this.stopIntakeRecording(); });
   };
   setIntakeTyped = (e) => this.setState({ intakeTyped: e.target.value });
 
@@ -2350,6 +2364,7 @@ class Component extends DCLogic {
   }
 
   runIntakeExtraction = async () => {
+    if (this.state.intakeRecording) { await this.stopIntakeRecordingAndWait(); }
     const raw = [this.state.intakeTranscript, this.state.intakeTyped].filter(Boolean).join('. ');
     if (!raw.trim()) return;
     this.setState({ intakeAiLoading: true });
@@ -3020,7 +3035,7 @@ class Component extends DCLogic {
   };
 
   // ---------- log work (AI "What happened?" workflow) ----------
-  openLogWork = () => this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRecording: false, logRecBusy: false, logMicError: '', logRawNotesFinal: '', logSelectedPhotoIds: [] });
+  openLogWork = () => this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRecording: false, logRecBusy: false, logStopping: false, logMicError: '', logRawNotesFinal: '', logSelectedPhotoIds: [] });
   closeLogWork = () => {
     if (this._logRec) { try { this._logRec.stop(); } catch (e) {} }
     this.setState({ logStep: 'dictate', logRecording: false, logRecBusy: false });
@@ -3075,7 +3090,8 @@ class Component extends DCLogic {
       console.log('[mic] log onend');
       this._logRecActive = false;
       this._logRec = null;
-      this.setState({ logRecording: false, logRecBusy: false, _logInterim: '' });
+      this.setState({ logRecording: false, logRecBusy: false, logStopping: false, _logInterim: '' });
+      if (this._logStopResolve) { const r = this._logStopResolve; this._logStopResolve = null; r(); }
     };
     this._logRec = rec;
     this.setState({ logRecBusy: true, logMicError: '' });
@@ -3095,10 +3111,15 @@ class Component extends DCLogic {
     this.setState({ logRecBusy: true });
     if (this._logRec) { try { this._logRec.stop(); } catch (e) { console.log('[mic] log stop() threw', e.name); } }
   };
+  stopLogRecordingAndWait = () => {
+    if (!this._logRecActive) return Promise.resolve();
+    this.setState({ logStopping: true });
+    return new Promise((resolve) => { this._logStopResolve = resolve; this.stopLogRecording(); });
+  };
   setLogTyped = (e) => this.setState({ logTyped: e.target.value });
 
   runLogExtraction = async () => {
-    if (this.state.logRecording) { this.setState({ logExtractError: 'Stop recording before generating the update.' }); return; }
+    if (this.state.logRecording) { await this.stopLogRecordingAndWait(); }
     const raw = [this.state.logTranscript, this.state.logTyped].filter(Boolean).join('. ');
     if (!raw.trim()) { this.setState({ logExtractError: 'Add details first.' }); return; }
     this.setState({ logAiLoading: true, logExtractError: '' });
@@ -3906,7 +3927,7 @@ class Component extends DCLogic {
 
     const micRecording = s.intakeRecording;
     const micButtonBusy = s.intakeRecBusy;
-    const micButtonStyle = `width:96px;height:96px;border-radius:50%;background:${micButtonBusy ? '#B9C0C4' : micRecording ? '#C0392B' : '#D97706'};display:flex;align-items:center;justify-content:center;cursor:${micButtonBusy ? 'default' : 'pointer'};pointer-events:${micButtonBusy ? 'none' : 'auto'};${micRecording ? 'animation:dk-pulse 1.6s infinite;' : ''}`;
+    const micButtonStyle = `width:64px;height:64px;border-radius:50%;background:${micButtonBusy ? '#B9C0C4' : micRecording ? '#C0392B' : '#D97706'};display:flex;align-items:center;justify-content:center;cursor:${micButtonBusy ? 'default' : 'pointer'};pointer-events:${micButtonBusy ? 'none' : 'auto'};${micRecording ? 'animation:dk-pulse 1.6s infinite;' : ''}`;
     const logMicRecording = s.logRecording;
     const logMicButtonBusy = s.logRecBusy;
     const logMicButtonStyle = `width:64px;height:64px;border-radius:50%;background:${logMicButtonBusy ? '#B9C0C4' : logMicRecording ? '#C0392B' : '#D97706'};display:flex;align-items:center;justify-content:center;cursor:${logMicButtonBusy ? 'default' : 'pointer'};pointer-events:${logMicButtonBusy ? 'none' : 'auto'};${logMicRecording ? 'animation:dk-pulse 1.6s infinite;' : ''}`;
@@ -4133,10 +4154,14 @@ class Component extends DCLogic {
       micStatusLabel: micButtonBusy ? 'ONE MOMENT\u2026' : (micRecording ? 'LISTENING\u2026 TAP TO STOP' : 'TAP TO DICTATE'),
       micErrorLabel: s.intakeMicError,
       hasMicError: !!s.intakeMicError,
-      intakeTranscriptDisplay: intakeRaw.trim() || 'Transcript will appear here as you speak\u2026',
+      hasIntakeTranscript: !!intakeRaw.trim(),
+      intakeTranscriptDisplay: intakeRaw.trim(),
       intakeTyped: s.intakeTyped, setIntakeTyped: this.setIntakeTyped,
-      extractButtonStyle: `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:13px;border-radius:4px;cursor:pointer;background:${s.intakeAiLoading ? '#B9C0C4' : '#16283D'};color:#fff;`,
-      extractButtonLabel: s.intakeAiLoading ? 'EXTRACTING\u2026' : '\u2728 EXTRACT WITH AI',
+      extractButtonStyle: (() => {
+        const disabled = s.intakeStopping || s.intakeAiLoading || !(intakeRaw.trim() || (s.intakeTyped || '').trim());
+        return `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:14px;border-radius:4px;cursor:${disabled ? 'default' : 'pointer'};background:${disabled ? '#B9C0C4' : '#D97706'};color:#fff;`;
+      })(),
+      extractButtonLabel: s.intakeAiLoading ? 'GENERATING\u2026' : s.intakeStopping ? 'STOPPING RECORDING\u2026' : !(intakeRaw.trim() || (s.intakeTyped || '').trim()) ? 'ADD DETAILS FIRST' : '\u2728 EXTRACT INTAKE',
       runIntakeExtraction: this.runIntakeExtraction,
       toggleIntakeRecording: this.toggleIntakeRecording,
       intakeFields: s.intakeFields,
@@ -4174,10 +4199,10 @@ class Component extends DCLogic {
       logTyped: s.logTyped, setLogTyped: this.setLogTyped,
       toggleLogRecording: this.toggleLogRecording,
       logExtractButtonStyle: (() => {
-        const disabled = s.logRecording || s.logAiLoading || !(logRaw.trim() || (s.logTyped || '').trim());
-        return `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:14px;border-radius:4px;cursor:${disabled ? 'default' : 'pointer'};background:${disabled ? '#B9C0C4' : '#D97706'};color:#fff;opacity:${s.logRecording ? .7 : 1};`;
+        const disabled = s.logStopping || s.logAiLoading || !(logRaw.trim() || (s.logTyped || '').trim());
+        return `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:14px;border-radius:4px;cursor:${disabled ? 'default' : 'pointer'};background:${disabled ? '#B9C0C4' : '#D97706'};color:#fff;`;
       })(),
-      logExtractButtonLabel: s.logAiLoading ? 'GENERATING\u2026' : s.logRecording ? 'STOP RECORDING TO GENERATE' : !(logRaw.trim() || (s.logTyped || '').trim()) ? 'ADD DETAILS FIRST' : 'GENERATE UPDATE',
+      logExtractButtonLabel: s.logAiLoading ? 'GENERATING\u2026' : s.logStopping ? 'STOPPING RECORDING\u2026' : !(logRaw.trim() || (s.logTyped || '').trim()) ? 'ADD DETAILS FIRST' : 'GENERATE UPDATE',
       runLogExtraction: this.runLogExtraction,
       logFields: s.logFields,
       setLogFieldCustomerUpdate: this.setLogFieldCustomerUpdate, setLogFieldPrivateNotes: this.setLogFieldPrivateNotes,
