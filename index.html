@@ -63,6 +63,7 @@
             <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
             <div style="{{ navArchiveStyle }}" onClick="{{ goArchive }}">ARCHIVE</div>
             <div style="{{ navAuditStyle }}" onClick="{{ goAudit }}">AUDIT LOG</div>
+            <div style="{{ navConfigStyle }}" onClick="{{ goShopConfig }}">SHOP CONFIG</div>
             </sc-if>
           </div>
           <div style="text-align:right;">
@@ -82,6 +83,7 @@
         <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
         <div style="{{ navArchiveStyleFull }}" onClick="{{ navGoArchive }}">ARCHIVE</div>
         <div style="{{ navAuditStyleFull }}" onClick="{{ navGoAudit }}">AUDIT LOG</div>
+        <div style="{{ navConfigStyleFull }}" onClick="{{ navGoShopConfig }}">SHOP CONFIG</div>
         </sc-if>
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;margin-top:4px;border-top:1px solid rgba(255,255,255,.12);">
           <div>
@@ -358,34 +360,50 @@
 
     <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);margin-top:14px;">
       <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-        <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">SERIAL NUMBER</div>
-        <sc-if value="{{ hasSerialNumber }}" hint-placeholder-val="{{ false }}">
-          <div class="no-print" style="background:#EDE6D6;color:#16283D;font:700 11px 'IBM Plex Mono',monospace;padding:9px 12px;border-radius:4px;cursor:pointer;" onClick="{{ openSerialScan }}">RE-SCAN / CHANGE</div>
-        </sc-if>
+        <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">SERIAL NUMBERS</div>
       </div>
-      <div style="padding:14px 20px 18px;display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
-        <sc-if value="{{ hasSerialPhoto }}" hint-placeholder-val="{{ false }}">
-          <div style="position:relative;flex:none;cursor:pointer;" onClick="{{ openSerialPhotoLightbox }}">
-            <img src="{{ serialPhotoThumbUrl }}" style="width:76px;height:76px;object-fit:cover;border-radius:6px;border:1px solid rgba(22,40,61,.15);display:block;"/>
-            <div style="position:absolute;top:-6px;left:-6px;background:#1F6F78;color:#fff;font:700 7.5px 'IBM Plex Mono',monospace;padding:2px 5px;border-radius:2px;">S/N</div>
-          </div>
-        </sc-if>
-        <div style="flex:1;min-width:180px;display:flex;flex-direction:column;gap:8px;">
-          <sc-if value="{{ hasSerialNumber }}" hint-placeholder-val="{{ false }}">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <input style="flex:1;min-width:0;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:11px 12px;font:700 15px 'IBM Plex Mono',monospace;letter-spacing:1px;color:#16283D;" value="{{ serialNumberDraft }}" onChange="{{ setSerialNumberDraft }}"/>
-              <sc-if value="{{ serialNumberDirty }}" hint-placeholder-val="{{ false }}">
-                <div class="no-print" style="background:#1F6F78;color:#fff;font:700 11px 'Public Sans',sans-serif;padding:11px 14px;border-radius:4px;cursor:pointer;white-space:nowrap;" onClick="{{ saveSerialNumberEdit }}">{{ serialNumberSaveLabel }}</div>
+      <div style="display:flex;flex-direction:column;">
+        <sc-for list="{{ serialNumbersDisplay }}" as="sn" hint-placeholder-count="0">
+          <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.08);display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
+            <sc-if value="{{ sn.hasPhoto }}" hint-placeholder-val="{{ false }}">
+              <img src="{{ sn.thumbUrl }}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid rgba(22,40,61,.15);cursor:pointer;flex:none;" onClick="{{ sn.openPhoto }}"/>
+            </sc-if>
+            <div style="flex:1;min-width:180px;display:flex;flex-direction:column;gap:4px;">
+              <sc-if value="{{ sn.isEditing }}" hint-placeholder-val="{{ false }}">
+                <input style="box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:8px 10px;font:700 11px 'IBM Plex Mono',monospace;color:#16283D;max-width:220px;" value="{{ sn.labelDraft }}" onChange="{{ sn.setLabelDraft }}"/>
+                <input style="box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:10px 12px;font:700 15px 'IBM Plex Mono',monospace;letter-spacing:1px;color:#16283D;max-width:260px;" value="{{ sn.valueDraft }}" onChange="{{ sn.setValueDraft }}"/>
+                <label style="display:flex;align-items:center;gap:8px;font:600 12px 'Public Sans',sans-serif;color:#16283D;margin-top:4px;">
+                  <input type="checkbox" checked="{{ sn.showToCustomerDraft }}" onChange="{{ sn.toggleShowToCustomerDraft }}"/>
+                  Show to customer
+                </label>
+                <sc-if value="{{ sn.hasEditError }}" hint-placeholder-val="{{ false }}">
+                  <div style="font:600 11.5px 'Public Sans',sans-serif;color:#C0392B;">{{ sn.editError }}</div>
+                </sc-if>
+                <div style="display:flex;gap:8px;margin-top:6px;">
+                  <div class="no-print" style="background:#1F6F78;color:#fff;font:700 11px 'Public Sans',sans-serif;padding:9px 14px;border-radius:4px;cursor:pointer;" onClick="{{ sn.saveEdit }}">{{ sn.saveLabel }}</div>
+                  <div class="no-print" style="background:#EDE6D6;color:#16283D;font:700 11px 'Public Sans',sans-serif;padding:9px 14px;border-radius:4px;cursor:pointer;" onClick="{{ sn.cancelEdit }}">CANCEL</div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ sn.isViewing }}" hint-placeholder-val="{{ true }}">
+                <div style="font:700 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;">{{ sn.label }}</div>
+                <div style="font:700 16px 'IBM Plex Mono',monospace;letter-spacing:1px;color:#16283D;">{{ sn.serialNumber }}</div>
+                <div style="{{ sn.visibilityBadgeStyle }}">{{ sn.visibilityLabel }}</div>
+                <div class="no-print" style="display:flex;gap:14px;margin-top:6px;">
+                  <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;" onClick="{{ sn.startEdit }}">EDIT</div>
+                  <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;" onClick="{{ sn.rescan }}">RE-SCAN</div>
+                  <sc-if value="{{ sn.canDelete }}" hint-placeholder-val="{{ false }}">
+                    <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#C0392B;cursor:pointer;" onClick="{{ sn.remove }}">DELETE</div>
+                  </sc-if>
+                </div>
               </sc-if>
             </div>
-            <sc-if value="{{ hasSerialNumberEditError }}" hint-placeholder-val="{{ false }}">
-              <div style="font:600 11.5px 'Public Sans',sans-serif;color:#C0392B;">{{ serialNumberEditError }}</div>
-            </sc-if>
-          </sc-if>
-          <sc-if value="{{ noSerialNumber }}" hint-placeholder-val="{{ true }}">
-            <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No serial number captured yet.</div>
-            <div class="no-print" style="background:#D97706;color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;width:fit-content;" onClick="{{ openSerialScan }}">&#128247; SCAN SERIAL NUMBER</div>
-          </sc-if>
+          </div>
+        </sc-for>
+        <sc-if value="{{ noSerialNumbers }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:14px 20px;font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No serial numbers captured yet.</div>
+        </sc-if>
+        <div class="no-print" style="padding:14px 20px;">
+          <div style="background:#D97706;color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;width:fit-content;" onClick="{{ openSerialScan }}">&#128247; SCAN SERIAL NUMBER</div>
         </div>
       </div>
     </div>
@@ -960,6 +978,20 @@
         <div style="font:800 15px 'Public Sans',sans-serif;color:#16283D;">{{ selectedJob.totalTimeLabel }}</div>
       </div>
 
+      <sc-if value="{{ selectedJob.hasCustomerSerialNumbers }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top:20px;border-top:2px solid #16283D;padding-top:14px;">
+        <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:10px;">EQUIPMENT IDENTIFICATION</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <sc-for list="{{ selectedJob.customerSerialNumbersDisplay }}" as="csn" hint-placeholder-count="0">
+            <div>
+              <div style="font:700 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.4px;">{{ csn.label }}</div>
+              <div style="font:600 14px 'Public Sans',sans-serif;color:#16283D;">Serial Number: {{ csn.serialNumber }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
       <sc-if value="{{ selectedJob.hasInvoicePhotos }}" hint-placeholder-val="{{ false }}">
       <div style="margin-top:24px;border-top:2px solid #16283D;padding-top:16px;">
         <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:12px;">CUSTOMER PHOTOS</div>
@@ -982,6 +1014,59 @@
           </sc-for>
         </div>
       </div>
+      </sc-if>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ SHOP CONFIGURATION (shop_owner) ============ -->
+  <sc-if value="{{ isShopConfig }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:640px;margin:0 auto;padding:20px 16px 60px;">
+    <div style="font:800 20px 'Archivo',sans-serif;color:#16283D;margin-bottom:4px;">Shop Configuration</div>
+    <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);margin-bottom:18px;">Settings for this shop. Changes here do not affect other shops.</div>
+
+    <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);">
+      <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);">
+        <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">SERIAL NUMBER LABELS</div>
+        <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);margin-top:2px;">Choices shown when staff scan a serial number. Disabling a label removes it from new scans but keeps existing records readable.</div>
+      </div>
+      <div>
+        <sc-for list="{{ serialLabelsConfigDisplay }}" as="lbl" hint-placeholder-count="9">
+          <div style="{{ lbl.rowStyle }}">
+            <div class="no-print" style="display:flex;flex-direction:column;gap:0;">
+              <div style="font:700 11px 'IBM Plex Mono',monospace;color:#16283D;cursor:pointer;line-height:1;" onClick="{{ lbl.moveUp }}">&#9650;</div>
+              <div style="font:700 11px 'IBM Plex Mono',monospace;color:#16283D;cursor:pointer;line-height:1;" onClick="{{ lbl.moveDown }}">&#9660;</div>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <sc-if value="{{ lbl.isEditing }}" hint-placeholder-val="{{ false }}">
+                <input style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.25);border-radius:4px;padding:9px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ lbl.draft }}" onChange="{{ lbl.setDraft }}"/>
+              </sc-if>
+              <sc-if value="{{ lbl.isViewing }}" hint-placeholder-val="{{ true }}">
+                <div style="font:600 14px 'Public Sans',sans-serif;color:#16283D;">{{ lbl.label }}</div>
+              </sc-if>
+            </div>
+            <div class="no-print" style="display:flex;gap:10px;flex:none;">
+              <sc-if value="{{ lbl.isEditing }}" hint-placeholder-val="{{ false }}">
+                <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;" onClick="{{ lbl.saveEdit }}">SAVE</div>
+                <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);cursor:pointer;" onClick="{{ lbl.cancelEdit }}">CANCEL</div>
+              </sc-if>
+              <sc-if value="{{ lbl.isViewing }}" hint-placeholder-val="{{ true }}">
+                <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;" onClick="{{ lbl.startEdit }}">RENAME</div>
+                <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#C0392B;cursor:pointer;" onClick="{{ lbl.toggleActive }}">{{ lbl.toggleLabel }}</div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ noSerialLabelsConfig }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:14px 20px;font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No labels configured.</div>
+        </sc-if>
+      </div>
+      <div style="padding:14px 20px;display:flex;gap:8px;border-top:1px solid rgba(22,40,61,.08);">
+        <input style="flex:1;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:10px 12px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" placeholder="New label name" value="{{ newLabelText }}" onChange="{{ setNewLabelText }}"/>
+        <div style="background:#D97706;color:#fff;font:700 12px 'IBM Plex Mono',monospace;padding:10px 16px;border-radius:4px;cursor:pointer;white-space:nowrap;" onClick="{{ addSerialLabel }}">+ ADD LABEL</div>
+      </div>
+      <sc-if value="{{ hasNewLabelError }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:0 20px 14px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ newLabelError }}</div>
       </sc-if>
     </div>
   </div>
@@ -1259,7 +1344,7 @@
       <div style="padding:20px;display:flex;flex-direction:column;gap:14px;">
 
         <sc-if value="{{ isSerialCaptureStep }}" hint-placeholder-val="{{ true }}">
-          <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);">Take or upload a photo of the serial number plate. The photo and the reading stay linked to this job.</div>
+          <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);">Take or upload a photo of the serial number plate.</div>
           <div style="display:flex;gap:10px;">
             <label style="flex:1;background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:16px 8px;border-radius:6px;cursor:pointer;">
               &#128247;<br/>CAMERA
@@ -1281,7 +1366,21 @@
         </sc-if>
 
         <sc-if value="{{ isSerialReviewStep }}" hint-placeholder-val="{{ false }}">
-          <img src="{{ serialScanPreviewUrl }}" style="width:100%;max-height:200px;object-fit:contain;border-radius:6px;background:#F6F1E4;"/>
+          <img src="{{ serialScanPreviewUrl }}" style="width:100%;max-height:180px;object-fit:contain;border-radius:6px;background:#F6F1E4;"/>
+
+          <div>
+            <div style="font:700 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;letter-spacing:.5px;">WHAT IS THIS SERIAL NUMBER FOR?</div>
+            <select style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.25);border-radius:4px;padding:11px 12px;font:600 13px 'Public Sans',sans-serif;color:#16283D;background:#fff;" value="{{ serialScanLabelChoice }}" onChange="{{ setSerialScanLabelChoice }}">
+              <sc-for list="{{ serialLabelChoices }}" as="opt" hint-placeholder-count="9">
+                <option value="{{ opt.value }}">{{ opt.text }}</option>
+              </sc-for>
+              <option value="__custom__">Custom label&hellip;</option>
+            </select>
+          </div>
+          <sc-if value="{{ isSerialScanCustomLabel }}" hint-placeholder-val="{{ false }}">
+            <input style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.25);border-radius:4px;padding:11px 12px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" placeholder="Custom label" value="{{ serialScanCustomLabel }}" onChange="{{ setSerialScanCustomLabel }}"/>
+          </sc-if>
+
           <div>
             <div style="font:700 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;letter-spacing:.5px;">DETECTED SERIAL NUMBER &middot; EDITABLE</div>
             <input style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.25);border-radius:4px;padding:12px 12px;font:700 16px 'IBM Plex Mono',monospace;letter-spacing:1px;color:#16283D;" value="{{ serialScanDraftValue }}" onChange="{{ setSerialScanDraft }}"/>
@@ -1292,6 +1391,12 @@
           <sc-if value="{{ hasSerialScanAlternates }}" hint-placeholder-val="{{ false }}">
             <div style="font:500 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);">Other possible readings: {{ serialScanAlternatesLabel }}</div>
           </sc-if>
+
+          <label style="display:flex;align-items:center;gap:8px;font:600 13px 'Public Sans',sans-serif;color:#16283D;">
+            <input type="checkbox" checked="{{ serialScanShowToCustomer }}" onChange="{{ toggleSerialScanShowToCustomer }}"/>
+            Show to customer
+          </label>
+
           <sc-if value="{{ hasSerialScanError }}" hint-placeholder-val="{{ false }}">
             <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ serialScanError }}</div>
           </sc-if>
@@ -1580,12 +1685,17 @@ class Component extends DCLogic {
     activityHistory: {},
     failedInvoicePhotoIds: [],
 
-    // ---------- serial number capture ----------
-    serialScan: null, // { step:'capture'|'processing'|'review', file, previewUrl, draftValue, confidence, alternates, needsReview, error, saving }
-    editingSerialNumber: false,
-    serialNumberDraft: '',
-    serialNumberEditSaving: false,
-    serialNumberEditError: '',
+    // ---------- serial number capture (multi-record) ----------
+    serialScan: null, // { step, file, previewUrl, draftValue, confidence, alternates, needsReview, error, saving, labelChoice, customLabel, showToCustomer, replaceRecordId }
+    serialNumbers: [], // records for the open job
+    serialEdits: {}, // recordId -> { label, value, showToCustomer, error }
+    shopSerialLabels: [], // shop-configured label options (dropdown source)
+
+    // ---------- shop configuration page ----------
+    newLabelText: '',
+    newLabelError: '',
+    editingLabelId: null,
+    editingLabelDraft: '',
   };
 
   async componentDidMount() {
@@ -1700,6 +1810,16 @@ class Component extends DCLogic {
   navGoRoster = () => { this.closeNavMenu(); this.goRoster(); };
   navGoArchive = () => { this.closeNavMenu(); this.goArchive(); };
   navGoAudit = () => { this.closeNavMenu(); this.goAudit(); };
+  navGoShopConfig = () => { this.closeNavMenu(); this.goShopConfig(); };
+
+  goShopConfig = async () => {
+    this.unsubscribeComments();
+    this.setState({ screen: 'shopConfig', newLabelText: '', newLabelError: '', editingLabelId: null, editingLabelDraft: '' });
+    try {
+      const shopSerialLabels = await this._dataMod.fetchSerialLabelOptions();
+      this.setState({ shopSerialLabels });
+    } catch (e) { console.error('Failed to load shop serial labels', e); }
+  };
 
   loadForSession = async () => {
     const mod = this._dataMod;
@@ -1709,8 +1829,8 @@ class Component extends DCLogic {
         this.setState({ authChecking: false, loaded: false, profile: null, loadError: profile ? 'Your account has been disabled. Contact your shop owner.' : '' });
         return;
       }
-      const [mechanics, jobs] = await Promise.all([mod.fetchMechanics(), mod.fetchJobs()]);
-      this.setState({ profile, mechanics, jobs, loaded: true, authChecking: false, loadError: '' }, () => {
+      const [mechanics, jobs, shopSerialLabels] = await Promise.all([mod.fetchMechanics(), mod.fetchJobs(), mod.fetchSerialLabelOptions()]);
+      this.setState({ profile, mechanics, jobs, shopSerialLabels, loaded: true, authChecking: false, loadError: '' }, () => {
         this.resolvePendingJob();
       });
     } catch (e) {
@@ -1980,13 +2100,13 @@ class Component extends DCLogic {
     }
   };
   openJob = (id, opts) => {
-    const job = this.state.jobs.find(j => j.id === id);
-    this.setState({ screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', quickUpdateOpen: false, showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '', serialNumberDraft: (job && job.serialNumber) || '', serialNumberEditError: '' });
+    this.setState({ screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', quickUpdateOpen: false, showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '' });
     if (!(opts && opts.skipHistory) && typeof window !== 'undefined' && window.history) {
       window.history.pushState({ jobId: id }, '', '/job/' + encodeURIComponent(id));
     }
     this.loadActivities(id);
     this.loadJobPhotos(id);
+    this.loadSerialNumbers(id);
     this.subscribeActivities(id);
   };
   backToJob = () => this.setState({ screen: 'jobDetail' });
@@ -2238,6 +2358,13 @@ class Component extends DCLogic {
   };
   setPhotoCategoryFilter = (cat) => this.setState({ photoCategoryFilter: cat });
 
+  loadSerialNumbers = async (jobId) => {
+    try {
+      const serialNumbers = await this._dataMod.fetchSerialNumbers(jobId);
+      this.setState({ serialNumbers });
+    } catch (e) { console.error('Failed to load serial numbers', e); }
+  };
+
   // Draws the source image to canvas with rotation + a CSS-filter-equivalent
   // brightness/contrast/saturation baked in, producing a full-res JPEG and a
   // small thumbnail JPEG. Nothing here ever touches the DB — pure pixels in,
@@ -2417,16 +2544,15 @@ class Component extends DCLogic {
   };
   markInvoicePhotoFailed = (id) => this.setState(s => s.failedInvoicePhotoIds.includes(id) ? s : { failedInvoicePhotoIds: [...s.failedInvoicePhotoIds, id] });
 
-  // ---------- serial number capture ----------
-  // A dedicated flow (not the generic gallery upload): the photo and the
-  // extracted text must never drift apart, so this always goes through
-  // supabase-client's uploadSerialNumberPhoto, which writes the photo row
-  // (photo_type='serial_number') and work_orders.serial_number together.
-  findPrimarySerialPhoto = () => this.state.jobPhotos.find(p => p.photoType === 'serial_number' && p.isPrimarySerialPhoto)
-    || this.state.jobPhotos.filter(p => p.photoType === 'serial_number').slice(-1)[0] || null;
+  // ---------- serial number capture (multi-record) ----------
+  // A dedicated flow (not the generic gallery upload): each record's photo
+  // and its extracted text must never drift apart, so this always goes
+  // through supabase-client's per-record functions.
+  activeSerialLabels = () => (this.state.shopSerialLabels || []).filter(l => l.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
 
   openSerialScan = () => {
-    this.setState({ serialScan: { step: 'capture', file: null, previewUrl: '', draftValue: '', confidence: null, alternates: [], needsReview: false, error: '', saving: false } });
+    const first = this.activeSerialLabels()[0];
+    this.setState({ serialScan: { step: 'capture', file: null, previewUrl: '', draftValue: '', confidence: null, alternates: [], needsReview: false, error: '', saving: false, labelChoice: first ? first.label : '__custom__', customLabel: '', showToCustomer: false } });
   };
   closeSerialScan = () => {
     const sc = this.state.serialScan;
@@ -2436,9 +2562,13 @@ class Component extends DCLogic {
   retrySerialScan = () => {
     const sc = this.state.serialScan;
     if (sc && sc.previewUrl) { try { URL.revokeObjectURL(sc.previewUrl); } catch (e) {} }
-    this.setState({ serialScan: { step: 'capture', file: null, previewUrl: '', draftValue: '', confidence: null, alternates: [], needsReview: false, error: '', saving: false } });
+    const first = this.activeSerialLabels()[0];
+    this.setState({ serialScan: { step: 'capture', file: null, previewUrl: '', draftValue: '', confidence: null, alternates: [], needsReview: false, error: '', saving: false, labelChoice: first ? first.label : '__custom__', customLabel: '', showToCustomer: false } });
   };
   setSerialScanDraft = (e) => this.setState({ serialScan: { ...this.state.serialScan, draftValue: e.target.value } });
+  setSerialScanLabelChoice = (e) => this.setState({ serialScan: { ...this.state.serialScan, labelChoice: e.target.value } });
+  setSerialScanCustomLabel = (e) => this.setState({ serialScan: { ...this.state.serialScan, customLabel: e.target.value } });
+  toggleSerialScanShowToCustomer = (e) => this.setState({ serialScan: { ...this.state.serialScan, showToCustomer: e.target.checked } });
 
   fileToDataUrl(file) {
     return new Promise((resolve, reject) => {
@@ -2522,32 +2652,49 @@ class Component extends DCLogic {
   }
 
   // Only saves after the user reviews the result — never auto-accepts OCR
-  // output. On failure the review screen (photo + edited value) is kept
-  // intact so the user can retry rather than losing their correction.
+  // output. Requires a nonblank label (custom or chosen) before saving. On
+  // failure the review screen (photo + edits) is kept intact so the user
+  // can retry rather than losing their correction.
   saveSerialScan = async () => {
     const sc = this.state.serialScan;
     if (!sc || sc.saving || !sc.file) return;
     if (!this._dataMod || !this.state.selectedJobId) { this.setState({ serialScan: { ...sc, error: 'Not connected to the database — cannot save.' } }); return; }
+    const isCustom = sc.labelChoice === '__custom__';
+    const label = (isCustom ? sc.customLabel : sc.labelChoice || '').trim();
+    if (!label) { this.setState({ serialScan: { ...sc, error: 'Please choose or enter a label for this serial number.' } }); return; }
     this.setState({ serialScan: { ...sc, saving: true, error: '' } });
     try {
       const processed = await this.processPhotoFile(sc.file, { rotation: 0, brightness: 100, contrast: 100, saturation: 100 });
       const reviewed = (sc.draftValue || '').trim();
-      const { photo, job } = await this._dataMod.uploadSerialNumberPhoto(
-        this.state.selectedJobId,
-        { ...processed, caption: 'Serial number plate', customerVisible: false },
-        reviewed, sc.confidence, this.state.profile && this.state.profile.id, null,
-      );
+      let record, photo;
+      if (sc.replaceRecordId) {
+        ({ record, photo } = await this._dataMod.replaceSerialNumberPhoto(
+          sc.replaceRecordId, this.state.selectedJobId,
+          { ...processed, caption: `${label} serial number plate`, customerVisible: !!sc.showToCustomer },
+          reviewed, sc.confidence, this.state.profile && this.state.profile.id,
+        ));
+        if (record.label !== label || record.showToCustomer !== !!sc.showToCustomer) {
+          record = await this._dataMod.updateSerialNumberRecord(record.id, { label, showToCustomer: sc.showToCustomer });
+        }
+      } else {
+        ({ record, photo } = await this._dataMod.createSerialNumberRecord(
+          this.state.selectedJobId,
+          { ...processed, caption: `${label} serial number plate`, customerVisible: !!sc.showToCustomer },
+          { label, serialNumber: reviewed, extractionConfidence: sc.confidence, showToCustomer: sc.showToCustomer },
+          this.state.profile && this.state.profile.id,
+        ));
+      }
       if (sc.previewUrl) { try { URL.revokeObjectURL(sc.previewUrl); } catch (e) {} }
       this.setState(s => ({
         jobPhotos: [...s.jobPhotos, photo],
-        jobs: s.jobs.map(j => j.id === job.id ? job : j),
+        serialNumbers: sc.replaceRecordId ? s.serialNumbers.map(r => r.id === record.id ? record : r) : [...s.serialNumbers, record],
         serialScan: null,
       }));
       try {
         const p = this.state.profile;
         const act = await this._dataMod.createActivity(this.state.selectedJobId, {
           activityType: 'serial_number_captured', visibility: 'private',
-          body: reviewed ? `Serial number captured: ${reviewed}` : 'Serial number photo captured (unreadable — entered manually).',
+          body: reviewed ? `${label} serial number captured: ${reviewed}` : `${label} serial number photo captured (unreadable — entered manually).`,
           attachments: [photo.id],
         }, p ? { id: p.id, name: p.name, role: p.role } : null);
         this.setState(s => ({
@@ -2561,35 +2708,94 @@ class Component extends DCLogic {
     }
   };
 
-  openSerialPhotoLightbox = () => {
-    const p = this.findPrimarySerialPhoto();
-    if (p) this.openLightbox(p.id);
+  // ---------- serial number record editing (per-row) ----------
+  startEditSerialRecord = (id) => this.setState(s => ({
+    serialEdits: { ...s.serialEdits, [id]: (() => {
+      const rec = s.serialNumbers.find(r => r.id === id);
+      return { label: rec.label, value: rec.serialNumber, showToCustomer: rec.showToCustomer, error: '' };
+    })() },
+  }));
+  cancelEditSerialRecord = (id) => this.setState(s => { const next = { ...s.serialEdits }; delete next[id]; return { serialEdits: next }; });
+  setSerialEditLabel = (id, e) => this.setState(s => ({ serialEdits: { ...s.serialEdits, [id]: { ...s.serialEdits[id], label: e.target.value } } }));
+  setSerialEditValue = (id, e) => this.setState(s => ({ serialEdits: { ...s.serialEdits, [id]: { ...s.serialEdits[id], value: e.target.value } } }));
+  toggleSerialEditVisible = (id, e) => this.setState(s => ({ serialEdits: { ...s.serialEdits, [id]: { ...s.serialEdits[id], showToCustomer: e.target.checked } } }));
+
+  saveSerialRecordEdit = async (id) => {
+    const draft = this.state.serialEdits[id];
+    if (!draft || !this._dataMod) return;
+    const label = (draft.label || '').trim();
+    if (!label) { this.setState(s => ({ serialEdits: { ...s.serialEdits, [id]: { ...draft, error: 'Label cannot be blank.' } } })); return; }
+    try {
+      const updated = await this._dataMod.updateSerialNumberRecord(id, { label, serialNumber: draft.value, showToCustomer: draft.showToCustomer });
+      this.setState(s => {
+        const next = { ...s.serialEdits }; delete next[id];
+        return {
+          serialNumbers: s.serialNumbers.map(r => r.id === id ? updated : r),
+          jobPhotos: updated.photoId ? s.jobPhotos.map(p => p.id === updated.photoId ? { ...p, extractedText: updated.serialNumber } : p) : s.jobPhotos,
+          serialEdits: next,
+        };
+      });
+    } catch (e) {
+      console.error('Failed to save serial number record', e);
+      this.setState(s => ({ serialEdits: { ...s.serialEdits, [id]: { ...draft, error: (e && e.message) || 'Could not save. Please try again.' } } }));
+    }
   };
 
-  // ---------- serial number manual edit ----------
-  // Keeps work_orders.serial_number and the tagged photo's extracted_text in
-  // sync (never overwrites the photo silently) and is recorded in audit_log
-  // automatically by the existing DB triggers on both tables.
-  startEditSerialNumber = (value) => this.setState({ editingSerialNumber: true, serialNumberDraft: value || '', serialNumberEditError: '' });
-  setSerialNumberDraft = (e) => this.setState({ serialNumberDraft: e.target.value });
-  saveSerialNumberEdit = async () => {
-    const sj = this.state.jobs.find(j => j.id === this.state.selectedJobId);
-    if (!sj || !this._dataMod) return;
-    const newValue = (this.state.serialNumberDraft || '').trim();
-    if (newValue === (sj.serialNumber || '')) return;
-    this.setState({ serialNumberEditSaving: true, serialNumberEditError: '' });
+  deleteSerialRecord = async (id) => {
+    if (!this._dataMod) return;
     try {
-      const primaryPhoto = this.findPrimarySerialPhoto();
-      const { job } = await this._dataMod.correctSerialNumber(sj.id, primaryPhoto ? primaryPhoto.id : null, newValue);
-      this.setState(s => ({
-        jobs: s.jobs.map(j => j.id === job.id ? job : j),
-        jobPhotos: primaryPhoto ? s.jobPhotos.map(p => p.id === primaryPhoto.id ? { ...p, extractedText: newValue } : p) : s.jobPhotos,
-        serialNumberEditSaving: false,
-      }));
+      await this._dataMod.deleteSerialNumberRecord(id);
+      this.setState(s => ({ serialNumbers: s.serialNumbers.filter(r => r.id !== id) }));
+    } catch (e) { console.error('Failed to delete serial number record', e); }
+  };
+
+  rescanSerialRecord = (id) => {
+    const first = this.activeSerialLabels()[0];
+    const rec = this.state.serialNumbers.find(r => r.id === id);
+    this.setState({ serialScan: { step: 'capture', file: null, previewUrl: '', draftValue: '', confidence: null, alternates: [], needsReview: false, error: '', saving: false, labelChoice: rec ? rec.label : (first ? first.label : '__custom__'), customLabel: '', showToCustomer: rec ? rec.showToCustomer : false, replaceRecordId: id } });
+  };
+
+  // ---------- Shop Configuration: serial-number labels ----------
+  setNewLabelText = (e) => this.setState({ newLabelText: e.target.value, newLabelError: '' });
+  addSerialLabel = async () => {
+    const text = (this.state.newLabelText || '').trim();
+    if (!text) { this.setState({ newLabelError: 'Enter a label name.' }); return; }
+    if (!this._dataMod) return;
+    try {
+      const sortOrder = this.state.shopSerialLabels.length;
+      const created = await this._dataMod.createSerialLabelOption(text, sortOrder);
+      this.setState(s => ({ shopSerialLabels: [...s.shopSerialLabels, created], newLabelText: '', newLabelError: '' }));
     } catch (e) {
-      console.error('Failed to correct serial number', e);
-      this.setState({ serialNumberEditSaving: false, serialNumberEditError: (e && e.message) || 'Could not save. Please try again.' });
+      console.error('Failed to add serial label', e);
+      this.setState({ newLabelError: (e && e.message && e.message.includes('duplicate')) ? 'That label already exists.' : ((e && e.message) || 'Could not add label.') });
     }
+  };
+  startEditLabel = (id, current) => this.setState({ editingLabelId: id, editingLabelDraft: current });
+  setEditingLabelDraft = (e) => this.setState({ editingLabelDraft: e.target.value });
+  saveEditLabel = async (id) => {
+    const text = (this.state.editingLabelDraft || '').trim();
+    if (!text || !this._dataMod) return;
+    try {
+      const updated = await this._dataMod.updateSerialLabelOption(id, { label: text });
+      this.setState(s => ({ shopSerialLabels: s.shopSerialLabels.map(l => l.id === id ? updated : l), editingLabelId: null, editingLabelDraft: '' }));
+    } catch (e) { console.error('Failed to rename serial label', e); }
+  };
+  cancelEditLabel = () => this.setState({ editingLabelId: null, editingLabelDraft: '' });
+  toggleLabelActive = async (id, isActive) => {
+    if (!this._dataMod) return;
+    try {
+      const updated = await this._dataMod.updateSerialLabelOption(id, { isActive });
+      this.setState(s => ({ shopSerialLabels: s.shopSerialLabels.map(l => l.id === id ? updated : l) }));
+    } catch (e) { console.error('Failed to toggle serial label', e); }
+  };
+  moveSerialLabel = async (id, dir) => {
+    const list = [...this.state.shopSerialLabels].sort((a, b) => a.sortOrder - b.sortOrder);
+    const idx = list.findIndex(l => l.id === id);
+    const swapIdx = idx + dir;
+    if (idx < 0 || swapIdx < 0 || swapIdx >= list.length) return;
+    [list[idx], list[swapIdx]] = [list[swapIdx], list[idx]];
+    this.setState({ shopSerialLabels: list.map((l, i) => ({ ...l, sortOrder: i })) });
+    try { await this._dataMod.reorderSerialLabelOptions(list.map(l => l.id)); } catch (e) { console.error('Failed to reorder serial labels', e); }
   };
 
   // ---------- lightbox photo-details editing ----------
@@ -3269,6 +3475,7 @@ class Component extends DCLogic {
       createdDateLabel: '', totalTimeLabel: '', qrUrl: BLANK_IMG, hasQr: false,
       hasIntakeNote: false, intakeNoteDisplay: '', workLogPrintDisplay: [], noWorkLogPrint: true,
       invoicePhotosDisplay: [], noInvoicePhotos: true, hasInvoicePhotos: false,
+      customerSerialNumbersDisplay: [], hasCustomerSerialNumbers: false,
     };
     const uploaderName = (id) => {
       if (!id) return 'Unknown';
@@ -3291,7 +3498,6 @@ class Component extends DCLogic {
         phone: sj.phone,
         boatMakeModel: sj.boatMakeModel,
         issue: sj.issue,
-        serialNumber: sj.serialNumber || '',
         size: sj.size,
         priorityLabel: sj.priority === 'high' ? 'HIGH PRIORITY' : 'NORMAL PRIORITY',
         priorityChipStyle: priorityChipStyle(sj.priority),
@@ -3329,6 +3535,8 @@ class Component extends DCLogic {
         }),
         noInvoicePhotos: invoicePhotos.length === 0,
         hasInvoicePhotos: invoicePhotos.length > 0,
+        customerSerialNumbersDisplay: s.serialNumbers.filter(sn => sn.showToCustomer).map(sn => ({ label: sn.label, serialNumber: sn.serialNumber || '(not recorded)' })),
+        hasCustomerSerialNumbers: s.serialNumbers.some(sn => sn.showToCustomer),
       };
     }
 
@@ -3646,9 +3854,40 @@ class Component extends DCLogic {
 
     // ---------- serial number capture render data ----------
     const scScan = s.serialScan;
-    const primarySerialPhoto = this.findPrimarySerialPhoto();
-    const savedSerialNumber = (sj && sj.serialNumber) || '';
-    const serialNumberDraftVal = s.serialNumberDraft || '';
+    const canEditThisJobSerials = this.isShopOwner() || isServiceAdvisor;
+    const activeLabelChoices = this.activeSerialLabels().map(l => ({ value: l.label, text: l.label }));
+    const serialNumbersDisplay = (s.serialNumbers || []).map(sn => {
+      const photo = s.jobPhotos.find(p => p.id === sn.photoId);
+      const edit = s.serialEdits[sn.id];
+      const canDelete = canEditThisJobSerials || sn.createdBy === (s.profile && s.profile.id);
+      return {
+        id: sn.id,
+        hasPhoto: !!photo,
+        thumbUrl: photo ? photo.thumbUrl : '',
+        openPhoto: () => photo && this.openLightbox(photo.id),
+        label: sn.label,
+        serialNumber: sn.serialNumber || '(not read)',
+        visibilityLabel: sn.showToCustomer ? 'CUSTOMER VISIBLE' : 'SHOP ONLY',
+        visibilityBadgeStyle: `display:inline-block;font:700 9px 'IBM Plex Mono',monospace;padding:3px 7px;border-radius:3px;letter-spacing:.3px;width:fit-content;background:${sn.showToCustomer ? '#1F6F78' : '#EDE6D6'};color:${sn.showToCustomer ? '#fff' : '#16283D'};`,
+        isEditing: !!edit,
+        isViewing: !edit,
+        labelDraft: edit ? edit.label : sn.label,
+        valueDraft: edit ? edit.value : sn.serialNumber,
+        showToCustomerDraft: edit ? edit.showToCustomer : sn.showToCustomer,
+        setLabelDraft: (e) => this.setSerialEditLabel(sn.id, e),
+        setValueDraft: (e) => this.setSerialEditValue(sn.id, e),
+        toggleShowToCustomerDraft: (e) => this.toggleSerialEditVisible(sn.id, e),
+        hasEditError: !!(edit && edit.error),
+        editError: edit ? edit.error : '',
+        saveLabel: 'SAVE',
+        saveEdit: () => this.saveSerialRecordEdit(sn.id),
+        cancelEdit: () => this.cancelEditSerialRecord(sn.id),
+        startEdit: () => this.startEditSerialRecord(sn.id),
+        rescan: () => this.rescanSerialRecord(sn.id),
+        canDelete,
+        remove: () => this.deleteSerialRecord(sn.id),
+      };
+    });
     const logPhotoPickerDisplay = s.jobPhotos.map(p => {
       const selected = (s.logSelectedPhotoIds || []).includes(p.id);
       return {
@@ -3677,6 +3916,27 @@ class Component extends DCLogic {
     }));
     const intakeStagedPhotosDisplay = (s.intakeStagedPhotos || []).map((p, i) => ({ previewUrl: p.previewUrl, onRemove: () => this.removeStagedIntakePhoto(i) }));
 
+    const sortedShopLabels = [...s.shopSerialLabels].sort((a, b) => a.sortOrder - b.sortOrder);
+    const serialLabelsConfigDisplay = sortedShopLabels.map((l, i) => ({
+      id: l.id,
+      isEditing: s.editingLabelId === l.id,
+      isViewing: s.editingLabelId !== l.id,
+      draft: s.editingLabelId === l.id ? s.editingLabelDraft : l.label,
+      setDraft: this.setEditingLabelDraft,
+      startEdit: () => this.startEditLabel(l.id, l.label),
+      saveEdit: () => this.saveEditLabel(l.id),
+      cancelEdit: this.cancelEditLabel,
+      label: l.label,
+      isActive: l.isActive,
+      toggleLabel: l.isActive ? 'DISABLE' : 'ENABLE',
+      toggleActive: () => this.toggleLabelActive(l.id, !l.isActive),
+      rowStyle: `display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid rgba(22,40,61,.08);opacity:${l.isActive ? 1 : .5};`,
+      canMoveUp: i > 0,
+      canMoveDown: i < sortedShopLabels.length - 1,
+      moveUp: () => this.moveSerialLabel(l.id, -1),
+      moveDown: () => this.moveSerialLabel(l.id, 1),
+    }));
+
     return {
       navVisible: true,
       isAuthChecking: false, isAuthScreen: false,
@@ -3690,6 +3950,7 @@ class Component extends DCLogic {
       isInvoice: s.screen === 'invoice' && !!sj,
       isArchive: s.screen === 'archive',
       isAuditLog: s.screen === 'auditLog',
+      isShopConfig: s.screen === 'shopConfig',
       showScanModal: s.showScanModal,
       scanInput: s.scanInput,
       scanError: s.scanError,
@@ -3719,23 +3980,25 @@ class Component extends DCLogic {
       jobEditSaveLabel: s.jobEditSaving ? 'SAVING\u2026' : 'SAVE CHANGES',
 
       goDashboard: this.goDashboard, goIntake: this.goIntake, goRoster: this.goRoster,
-      goArchive: this.goArchive, goAudit: this.goAudit,
+      goArchive: this.goArchive, goAudit: this.goAudit, goShopConfig: this.goShopConfig,
       navDashboardStyle: navBtn(s.screen === 'dashboard'),
       navIntakeStyle: navBtn(s.screen === 'intake'),
       navRosterStyle: navBtn(s.screen === 'roster'),
       navArchiveStyle: navBtn(s.screen === 'archive'),
       navAuditStyle: navBtn(s.screen === 'auditLog'),
+      navConfigStyle: navBtn(s.screen === 'shopConfig'),
       isNarrowNav, isWideNav: !isNarrowNav,
       navMenuIcon: s.navMenuOpen ? '\u2715' : '\u2261',
       showNavMenu: isNarrowNav && s.navMenuOpen,
       navGoDashboard: this.navGoDashboard, navGoIntake: this.navGoIntake, navGoRoster: this.navGoRoster,
-      navGoArchive: this.navGoArchive, navGoAudit: this.navGoAudit,
+      navGoArchive: this.navGoArchive, navGoAudit: this.navGoAudit, navGoShopConfig: this.navGoShopConfig,
       toggleNavMenu: this.toggleNavMenu,
       navDashboardStyleFull: navBtnFull(s.screen === 'dashboard'),
       navIntakeStyleFull: navBtnFull(s.screen === 'intake'),
       navRosterStyleFull: navBtnFull(s.screen === 'roster'),
       navArchiveStyleFull: navBtnFull(s.screen === 'archive'),
       navAuditStyleFull: navBtnFull(s.screen === 'auditLog'),
+      navConfigStyleFull: navBtnFull(s.screen === 'shopConfig'),
       openScanModal: this.openScanModal, closeScanModal: this.closeScanModal,
       setScanInput: this.setScanInput, submitScan: this.submitScan,
       backToJob: this.backToJob, printPage: this.printPage, stopPropagation: this.stopPropagation,
@@ -3850,19 +4113,9 @@ class Component extends DCLogic {
       pickGalleryPhotoCamera: this.pickGalleryPhotoCamera,
       pickGalleryPhotoLibrary: this.pickGalleryPhotoLibrary,
 
-      hasSerialNumber: !!savedSerialNumber,
-      noSerialNumber: !savedSerialNumber,
-      serialNumberDraft: serialNumberDraftVal,
-      serialNumberDirty: serialNumberDraftVal.trim() !== savedSerialNumber && !s.serialNumberEditSaving,
-      serialNumberSaveLabel: s.serialNumberEditSaving ? 'SAVING\u2026' : 'SAVE',
-      setSerialNumberDraft: this.setSerialNumberDraft,
-      saveSerialNumberEdit: this.saveSerialNumberEdit,
-      hasSerialNumberEditError: !!s.serialNumberEditError,
-      serialNumberEditError: s.serialNumberEditError,
-      hasSerialPhoto: !!primarySerialPhoto,
-      serialPhotoThumbUrl: primarySerialPhoto ? primarySerialPhoto.thumbUrl : '',
+      serialNumbersDisplay,
+      noSerialNumbers: serialNumbersDisplay.length === 0,
       openSerialScan: this.openSerialScan,
-      openSerialPhotoLightbox: this.openSerialPhotoLightbox,
 
       showSerialScanModal: !!scScan,
       closeSerialScan: this.closeSerialScan,
@@ -3873,6 +4126,14 @@ class Component extends DCLogic {
       serialScanPreviewUrl: scScan ? scScan.previewUrl : '',
       serialScanDraftValue: scScan ? scScan.draftValue : '',
       setSerialScanDraft: this.setSerialScanDraft,
+      serialLabelChoices: activeLabelChoices,
+      serialScanLabelChoice: scScan ? scScan.labelChoice : '',
+      setSerialScanLabelChoice: this.setSerialScanLabelChoice,
+      isSerialScanCustomLabel: !!scScan && scScan.labelChoice === '__custom__',
+      serialScanCustomLabel: scScan ? scScan.customLabel : '',
+      setSerialScanCustomLabel: this.setSerialScanCustomLabel,
+      serialScanShowToCustomer: !!(scScan && scScan.showToCustomer),
+      toggleSerialScanShowToCustomer: this.toggleSerialScanShowToCustomer,
       serialScanNeedsReview: !!(scScan && scScan.needsReview),
       hasSerialScanAlternates: !!(scScan && scScan.alternates && scScan.alternates.length),
       serialScanAlternatesLabel: scScan && scScan.alternates ? scScan.alternates.join(', ') : '',
@@ -3882,6 +4143,14 @@ class Component extends DCLogic {
       saveSerialScanButtonLabel: scScan && scScan.saving ? 'SAVING\u2026' : 'SAVE SERIAL NUMBER',
       saveSerialScan: this.saveSerialScan,
       retrySerialScan: this.retrySerialScan,
+
+      serialLabelsConfigDisplay,
+      noSerialLabelsConfig: serialLabelsConfigDisplay.length === 0,
+      newLabelText: s.newLabelText,
+      setNewLabelText: this.setNewLabelText,
+      hasNewLabelError: !!s.newLabelError,
+      newLabelError: s.newLabelError,
+      addSerialLabel: this.addSerialLabel,
 
       showPhotoEditor: !!pe,
       photoEditorPreviewUrl: pe ? pe.previewObjectUrl : '',

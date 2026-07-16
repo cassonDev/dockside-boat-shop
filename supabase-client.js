@@ -117,7 +117,6 @@ function jobFromRow(row) {
       ? [row.boat_year, row.boat_make, row.boat_model].map(v => (v || '').trim()).filter(Boolean).join(' ')
       : (row.boat_make_model || ''),
     issue: row.issue,
-    serialNumber: row.serial_number || '',
     photos: row.photos || [],
     size: row.size,
     priority: row.priority,
@@ -270,7 +269,6 @@ export async function updateWorkOrder(id, patch) {
   if (patch.assignedMechanic !== undefined) row.assigned_mechanic = patch.assignedMechanic || null;
   if (patch.status !== undefined) row.status = patch.status;
   if (patch.intakeRawNotes !== undefined) row.intake_raw_notes = patch.intakeRawNotes;
-  if (patch.serialNumber !== undefined) row.serial_number = patch.serialNumber;
   row.updated_at = new Date().toISOString();
   const { data, error } = await supabase.from('work_orders').update(row).eq('id', id).select().single();
   if (error) throw error;
@@ -523,13 +521,6 @@ export async function fetchAuditLog(limit) {
 export const PHOTO_CATEGORIES = ['Intake', 'Before Repair', 'During Repair', 'After Repair', 'Damage', 'Parts', 'Warranty', 'Serial Number', 'Other'];
 const PHOTO_BUCKET = 'work-order-photos';
 
-// Convenience wrapper — serialNumber lives on work_orders directly (single-
-// equipment case). Kept separate from the generic updateWorkOrder patch so
-// call sites reading the serial-number flow stay self-documenting.
-export async function updateWorkOrderSerialNumber(workOrderId, serialNumber) {
-  return updateWorkOrder(workOrderId, { serialNumber });
-}
-
 function publicPhotoUrl(path) {
   if (!path) return '';
   const { data } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path);
@@ -553,8 +544,6 @@ function photoFromRow(row) {
     photoType: row.photo_type || 'general',
     extractedText: row.extracted_text || '',
     extractionConfidence: row.extraction_confidence != null ? Number(row.extraction_confidence) : null,
-    equipmentId: row.equipment_id || null,
-    isPrimarySerialPhoto: row.is_primary_serial_photo === true,
     createdAt: new Date(row.created_at).getTime(),
     createdBy: row.created_by,
   };
@@ -611,53 +600,6 @@ export async function uploadWorkOrderPhoto(workOrderId, photo, userId) {
   return photoFromRow(data);
 }
 
-// ---------- serial-number capture ----------
-// The serial-number photo and its extracted text must never drift apart —
-// this is the single write path both the initial scan-and-save and any
-// later manual correction go through, so the tagged photo and the
-// structured field always agree.
-//
-// Order matches the spec's "preferred order": upload photo -> insert photo
-// row (photo_type='serial_number') -> update work_orders.serial_number ->
-// (photo row's extracted_text is already the reviewed value at insert time).
-// If any step throws, the caller (index.html) leaves the review screen
-// intact and shows the specific error rather than clearing state.
-export async function uploadSerialNumberPhoto(workOrderId, photo, reviewedSerialNumber, confidence, userId, equipmentId) {
-  // Demote any existing primary serial photo for this work order/equipment
-  // first — old photos are kept (never deleted), just no longer primary.
-  let demoteQuery = supabase.from('work_order_photos').update({ is_primary_serial_photo: false })
-    .eq('work_order_id', workOrderId).eq('photo_type', 'serial_number').eq('is_primary_serial_photo', true);
-  demoteQuery = equipmentId ? demoteQuery.eq('equipment_id', equipmentId) : demoteQuery.is('equipment_id', null);
-  const { error: demoteError } = await demoteQuery;
-  if (demoteError) throw demoteError;
-
-  const saved = await uploadWorkOrderPhoto(workOrderId, {
-    ...photo,
-    categories: Array.from(new Set([...(photo.categories || []), 'Serial Number'])),
-    photoType: 'serial_number',
-    extractedText: reviewedSerialNumber || '',
-    extractionConfidence: confidence != null ? confidence : null,
-    equipmentId: equipmentId || null,
-    isPrimarySerialPhoto: true,
-  }, userId);
-
-  const job = await updateWorkOrderSerialNumber(workOrderId, reviewedSerialNumber || '');
-  return { photo: saved, job };
-}
-
-// Manual correction of an already-saved serial number: keeps
-// work_orders.serial_number and the tagged photo's extracted_text in sync,
-// per the spec ("If the serial number is manually corrected, also update
-// extracted_text on the associated photo record").
-export async function correctSerialNumber(workOrderId, primaryPhotoId, newValue) {
-  const job = await updateWorkOrderSerialNumber(workOrderId, newValue);
-  let photo = null;
-  if (primaryPhotoId) {
-    photo = await updateWorkOrderPhoto(primaryPhotoId, { extractedText: newValue });
-  }
-  return { job, photo };
-}
-
 // Patches apply immediately to Supabase — callers never hold a selection
 // (e.g. "include on invoice") only in local state; this always returns the
 // saved row so the caller can sync it back into state precisely.
@@ -671,7 +613,6 @@ export async function updateWorkOrderPhoto(photoId, patch) {
   if (patch.displayOrder !== undefined) row.display_order = patch.displayOrder;
   if (patch.extractedText !== undefined) row.extracted_text = patch.extractedText;
   if (patch.extractionConfidence !== undefined) row.extraction_confidence = patch.extractionConfidence;
-  if (patch.isPrimarySerialPhoto !== undefined) row.is_primary_serial_photo = patch.isPrimarySerialPhoto;
   const { data, error } = await supabase.from('work_order_photos').update(row).eq('id', photoId).select().single();
   if (error) throw error;
   return photoFromRow(data);
@@ -687,6 +628,139 @@ export async function deleteWorkOrderPhoto(photoId, userId) {
   const { error } = await supabase.from('work_order_photos').update({
     active: false, archived_at: new Date().toISOString(), archived_by: userId || null,
   }).eq('id', photoId);
+  if (error) throw error;
+}
+
+// ---------- shop-configured serial-number labels ----------
+function serialLabelFromRow(row) {
+  return {
+    id: row.id,
+    shopId: row.shop_id || null,
+    label: row.label,
+    sortOrder: row.sort_order || 0,
+    isActive: row.is_active !== false,
+    createdAt: new Date(row.created_at).getTime(),
+  };
+}
+
+// Every active user reads this (needed for the scan-review dropdown);
+// callers filter to isActive themselves when building that dropdown so a
+// disabled label still resolves for records that already reference it.
+export async function fetchSerialLabelOptions() {
+  const { data, error } = await supabase.from('shop_serial_label_options').select('*').order('sort_order');
+  if (error) throw error;
+  return (data || []).map(serialLabelFromRow);
+}
+
+export async function createSerialLabelOption(label, sortOrder) {
+  const { data, error } = await supabase.from('shop_serial_label_options')
+    .insert({ label: label.trim(), sort_order: sortOrder != null ? sortOrder : 0 }).select().single();
+  if (error) throw error;
+  return serialLabelFromRow(data);
+}
+
+export async function updateSerialLabelOption(id, patch) {
+  const row = { updated_at: new Date().toISOString() };
+  if (patch.label !== undefined) row.label = patch.label.trim();
+  if (patch.sortOrder !== undefined) row.sort_order = patch.sortOrder;
+  if (patch.isActive !== undefined) row.is_active = patch.isActive;
+  const { data, error } = await supabase.from('shop_serial_label_options').update(row).eq('id', id).select().single();
+  if (error) throw error;
+  return serialLabelFromRow(data);
+}
+
+// Persists a full reordering in one round trip — callers pass the list in
+// its new display order; sort_order is just each item's index.
+export async function reorderSerialLabelOptions(orderedIds) {
+  await Promise.all(orderedIds.map((id, i) => updateSerialLabelOption(id, { sortOrder: i })));
+}
+
+// ---------- serial-number records (multiple per work order) ----------
+function serialNumberRowToRecord(row) {
+  return {
+    id: row.id,
+    workOrderId: row.work_order_id,
+    label: row.label,
+    serialNumber: row.serial_number || '',
+    photoId: row.photo_id || null,
+    extractionConfidence: row.extraction_confidence != null ? Number(row.extraction_confidence) : null,
+    showToCustomer: row.show_to_customer === true,
+    createdBy: row.created_by,
+    createdAt: new Date(row.created_at).getTime(),
+  };
+}
+
+export async function fetchSerialNumbers(workOrderId) {
+  const { data, error } = await supabase.from('work_order_serial_numbers')
+    .select('*').eq('work_order_id', workOrderId).eq('active', true).order('created_at');
+  if (error) throw error;
+  return (data || []).map(serialNumberRowToRecord);
+}
+
+// Single write path for a new serial-number record: upload the photo
+// (tagged photo_type='serial_number' so it never lands as an unclassified
+// gallery photo), then insert the record pointing at it. If the record
+// insert fails after the photo succeeds, the photo is still a valid gallery
+// photo (just not yet linked to a record) rather than being silently lost.
+export async function createSerialNumberRecord(workOrderId, photoFile, fields, userId) {
+  const photo = await uploadWorkOrderPhoto(workOrderId, {
+    ...photoFile,
+    categories: Array.from(new Set([...(photoFile.categories || []), 'Serial Number'])),
+    photoType: 'serial_number',
+    extractedText: fields.serialNumber || '',
+    extractionConfidence: fields.extractionConfidence != null ? fields.extractionConfidence : null,
+  }, userId);
+
+  const { data, error } = await supabase.from('work_order_serial_numbers').insert({
+    work_order_id: workOrderId,
+    label: fields.label.trim(),
+    serial_number: (fields.serialNumber || '').trim(),
+    photo_id: photo.id,
+    extraction_confidence: fields.extractionConfidence != null ? fields.extractionConfidence : null,
+    show_to_customer: !!fields.showToCustomer,
+    created_by: userId || null,
+  }).select().single();
+  if (error) throw error;
+  return { record: serialNumberRowToRecord(data), photo };
+}
+
+// Manual edits (label, value, visibility). Correcting serial_number here
+// also updates the linked photo's extracted_text so the two never drift
+// apart, same guarantee as before, now per-record instead of per-job.
+export async function updateSerialNumberRecord(id, patch) {
+  const row = { updated_at: new Date().toISOString() };
+  if (patch.label !== undefined) row.label = patch.label.trim();
+  if (patch.serialNumber !== undefined) row.serial_number = patch.serialNumber.trim();
+  if (patch.showToCustomer !== undefined) row.show_to_customer = !!patch.showToCustomer;
+  const { data, error } = await supabase.from('work_order_serial_numbers').update(row).eq('id', id).select().single();
+  if (error) throw error;
+  const record = serialNumberRowToRecord(data);
+  if (patch.serialNumber !== undefined && record.photoId) {
+    await updateWorkOrderPhoto(record.photoId, { extractedText: record.serialNumber });
+  }
+  return record;
+}
+
+// Replacing/rescanning a record's photo: uploads the new photo, points the
+// record at it, and keeps the old photo (never deleted) as gallery history.
+export async function replaceSerialNumberPhoto(id, workOrderId, photoFile, reviewedValue, confidence, userId) {
+  const photo = await uploadWorkOrderPhoto(workOrderId, {
+    ...photoFile,
+    categories: Array.from(new Set([...(photoFile.categories || []), 'Serial Number'])),
+    photoType: 'serial_number',
+    extractedText: reviewedValue || '',
+    extractionConfidence: confidence != null ? confidence : null,
+  }, userId);
+  const { data, error } = await supabase.from('work_order_serial_numbers').update({
+    photo_id: photo.id, serial_number: (reviewedValue || '').trim(),
+    extraction_confidence: confidence != null ? confidence : null, updated_at: new Date().toISOString(),
+  }).eq('id', id).select().single();
+  if (error) throw error;
+  return { record: serialNumberRowToRecord(data), photo };
+}
+
+export async function deleteSerialNumberRecord(id) {
+  const { error } = await supabase.from('work_order_serial_numbers').update({ active: false, updated_at: new Date().toISOString() }).eq('id', id);
   if (error) throw error;
 }
 

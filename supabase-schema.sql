@@ -687,12 +687,15 @@ create policy "work_orders: service_advisor full access" on public.work_orders
   with check (public.is_active_user() and public.is_service_advisor());
 
 alter table public.activities drop constraint if exists activities_activity_type_check;
+-- NOT VALID: skips checking existing rows (a live shop's activities table may
+-- already contain a type string from before this constraint existed, or from
+-- an app version between deploys) — only new/updated rows are enforced.
 alter table public.activities add constraint activities_activity_type_check check (activity_type in (
   'work_log', 'inspection', 'ai_summary', 'mechanic_note', 'customer_note',
   'status_change', 'photo_added', 'quote_sent', 'approval_received',
   'invoice_generated', 'payment_received', 'part_ordered', 'part_received',
   'job_edited'
-));
+)) not valid;
 
 -- ---------------------------------------------------------------------------
 -- 17. AI-first Job Timeline (2026-07): "What happened?" is now the single
@@ -769,49 +772,135 @@ create policy "profiles: service_advisor update availability" on public.profiles
 
 -- ---------------------------------------------------------------------------
 -- 18. Serial Number Capture (2026-07)
---    Structured serial-number field on the work order (single-equipment
---    case) plus photo classification so a serial-number photo is never
---    treated as a normal unclassified gallery photo. `equipment_id` is a
---    reserved column for a future equipment table (separate hull/engine/
---    trailer/battery serials) — not created yet since no shop has asked for
---    multi-equipment tracking; the column exists now so that migration
---    won't need to touch work_order_photos again later.
+--    Photo classification so a serial-number photo is tagged instead of
+--    landing in the normal unclassified gallery. The originally-shipped
+--    single serial_number field/primary-photo design is superseded by the
+--    multi-record model in section 19 below (a work order needs one serial
+--    number per piece of equipment, not one total) — those columns are
+--    added and dropped again there so both sections stay independently
+--    readable as a history of the feature.
 -- ---------------------------------------------------------------------------
-alter table public.work_orders add column if not exists serial_number text not null default '';
-
 alter table public.work_order_photos add column if not exists photo_type text not null default 'general'
   check (photo_type in ('general','serial_number'));
 alter table public.work_order_photos add column if not exists extracted_text text not null default '';
 alter table public.work_order_photos add column if not exists extraction_confidence numeric;
-alter table public.work_order_photos add column if not exists equipment_id uuid; -- reserved for future multi-equipment support
-alter table public.work_order_photos add column if not exists is_primary_serial_photo boolean not null default false;
 
 create index if not exists work_order_photos_serial_idx
   on public.work_order_photos (work_order_id, photo_type) where photo_type = 'serial_number';
 
--- Only one primary serial-number photo per work order (per equipment_id,
--- once that column is actually populated) at a time — re-scanning marks the
--- newest approved photo primary and demotes the previous one, but never
--- deletes it (see uploadSerialNumberPhoto in supabase-client.js).
-create unique index if not exists work_order_photos_one_primary_serial
-  on public.work_order_photos (work_order_id, coalesce(equipment_id, '00000000-0000-0000-0000-000000000000'::uuid))
-  where photo_type = 'serial_number' and is_primary_serial_photo = true and active = true;
+-- No new RLS policies needed: work_order_photos already has full shop_owner
+-- access, "uploader update own", and "advisor curate any" policies that
+-- cover these new columns. The table already carries an audit-log trigger,
+-- so every serial-number photo upload is recorded automatically.
+
+-- ---------------------------------------------------------------------------
+-- 19. Serial Number Capture v2 (2026-07): multiple records per work order,
+--    shop-configured labels. Supersedes the single-field approach above
+--    (section 18) — a work order previously had one serial_number/one
+--    primary photo; shops need several (hull, each engine, trailer, etc),
+--    each independently labeled and independently visible to the customer.
+--    work_orders.serial_number and work_order_photos.is_primary_serial_photo
+--    /equipment_id are dropped here; photo_type/extracted_text/
+--    extraction_confidence stay (still used to tag/annotate photos).
+-- ---------------------------------------------------------------------------
+drop index if exists public.work_order_photos_one_primary_serial;
+alter table public.work_order_photos drop column if exists is_primary_serial_photo;
+alter table public.work_order_photos drop column if exists equipment_id;
+alter table public.work_orders drop column if exists serial_number;
+
+-- Shop-configured label choices for the serial-number dropdown. shop_id is
+-- nullable and unused (always the single shop) until the real tenant table
+-- exists — every query/policy already treats a null shop_id as "the shop",
+-- so wiring in a real shop_id later is a column backfill, not a rewrite.
+create table if not exists public.shop_serial_label_options (
+  id uuid primary key default gen_random_uuid(),
+  shop_id uuid,
+  label text not null check (char_length(trim(label)) > 0),
+  sort_order integer not null default 0,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists shop_serial_label_options_shop_idx
+  on public.shop_serial_label_options (shop_id, is_active, sort_order);
+create unique index if not exists shop_serial_label_options_unique_label
+  on public.shop_serial_label_options (coalesce(shop_id, '00000000-0000-0000-0000-000000000000'::uuid), lower(label));
+
+-- Starter defaults, inserted once (only if the table is empty) so a fresh
+-- deployment isn't blank, and never re-run on later deploys — a shop's
+-- edits (renames, disables, reordering, additions) are never overwritten.
+insert into public.shop_serial_label_options (label, sort_order, is_active)
+select label, sort_order, true from (values
+  ('Hull', 1), ('Main Engine', 2), ('Port Engine', 3), ('Starboard Engine', 4),
+  ('Trailer', 5), ('Generator', 6), ('Battery', 7), ('Electronics', 8), ('Other', 9)
+) as defaults(label, sort_order)
+where not exists (select 1 from public.shop_serial_label_options);
+
+alter table public.shop_serial_label_options enable row level security;
+drop policy if exists "serial_labels: shop_owner full access" on public.shop_serial_label_options;
+create policy "serial_labels: shop_owner full access" on public.shop_serial_label_options
+  for all using (public.is_shop_owner()) with check (public.is_shop_owner());
+-- Every active user can read active AND disabled labels: disabled labels
+-- must still resolve for historical records (see work_order_serial_numbers
+-- below) even though they no longer appear as a selectable dropdown choice
+-- (the frontend filters is_active for the dropdown itself).
+drop policy if exists "serial_labels: read all" on public.shop_serial_label_options;
+create policy "serial_labels: read all" on public.shop_serial_label_options
+  for select using (public.is_active_user());
+
+-- One or more serial-number records per work order. label is stored as
+-- plain text (a snapshot of the option chosen, or a custom value) so a
+-- record stays readable forever even if its source label option is later
+-- renamed, disabled, or deleted.
+create table if not exists public.work_order_serial_numbers (
+  id uuid primary key default gen_random_uuid(),
+  work_order_id text not null references public.work_orders(id) on delete cascade,
+  label text not null check (char_length(trim(label)) > 0),
+  serial_number text not null default '',
+  photo_id uuid references public.work_order_photos(id) on delete set null,
+  extraction_confidence numeric,
+  show_to_customer boolean not null default false,
+  active boolean not null default true,
+  created_by uuid references public.profiles(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists work_order_serial_numbers_wo_idx
+  on public.work_order_serial_numbers (work_order_id) where active = true;
+
+drop trigger if exists audit_work_order_serial_numbers on public.work_order_serial_numbers;
+create trigger audit_work_order_serial_numbers
+  after insert or update on public.work_order_serial_numbers
+  for each row execute function public.write_audit_log();
+
+alter table public.work_order_serial_numbers enable row level security;
+drop policy if exists "serial_numbers: shop_owner full access" on public.work_order_serial_numbers;
+create policy "serial_numbers: shop_owner full access" on public.work_order_serial_numbers
+  for all using (public.is_shop_owner()) with check (public.is_shop_owner());
+drop policy if exists "serial_numbers: read active" on public.work_order_serial_numbers;
+create policy "serial_numbers: read active" on public.work_order_serial_numbers
+  for select using (public.is_active_user() and active = true);
+-- Same as work_order_photos: any active user may add a serial-number record
+-- (mechanics capture these on the job same as any other photo); editing an
+-- existing record (label/value/visibility/delete) is limited to its own
+-- creator or a service_advisor, mirroring the photo curation policies.
+drop policy if exists "serial_numbers: insert own" on public.work_order_serial_numbers;
+create policy "serial_numbers: insert own" on public.work_order_serial_numbers
+  for insert with check (public.is_active_user() and created_by = auth.uid());
+drop policy if exists "serial_numbers: creator or advisor update" on public.work_order_serial_numbers;
+create policy "serial_numbers: creator or advisor update" on public.work_order_serial_numbers
+  for update using (public.is_active_user() and (created_by = auth.uid() or public.is_service_advisor()))
+  with check (public.is_active_user() and (created_by = auth.uid() or public.is_service_advisor()));
 
 alter table public.activities drop constraint if exists activities_activity_type_check;
+-- NOT VALID here too, for the same reason as section 15's version of this
+-- constraint above — do not fail the migration over pre-existing rows.
 alter table public.activities add constraint activities_activity_type_check check (activity_type in (
   'work_log', 'inspection', 'ai_summary', 'mechanic_note', 'customer_note',
   'status_change', 'photo_added', 'quote_sent', 'approval_received',
   'invoice_generated', 'payment_received', 'part_ordered', 'part_received',
   'job_edited', 'serial_number_captured'
-));
-
--- No new RLS policies needed: work_order_photos already has full shop_owner
--- access, "uploader update own", and "advisor curate any" policies that
--- cover these new columns; work_orders.serial_number is covered by the
--- existing work_orders update policies — mechanics may set it same as
--- status/photos (enforce_work_order_edits, section 12/15, does not block
--- this column). Both tables already carry audit-log triggers, so every
--- serial-number capture and correction is recorded automatically.
+)) not valid;
 
 -- ---------------------------------------------------------------------------
 -- 11. Seed data note
