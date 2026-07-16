@@ -358,6 +358,40 @@
 
     <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);margin-top:14px;">
       <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">SERIAL NUMBER</div>
+        <sc-if value="{{ hasSerialNumber }}" hint-placeholder-val="{{ false }}">
+          <div class="no-print" style="background:#EDE6D6;color:#16283D;font:700 11px 'IBM Plex Mono',monospace;padding:9px 12px;border-radius:4px;cursor:pointer;" onClick="{{ openSerialScan }}">RE-SCAN / CHANGE</div>
+        </sc-if>
+      </div>
+      <div style="padding:14px 20px 18px;display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
+        <sc-if value="{{ hasSerialPhoto }}" hint-placeholder-val="{{ false }}">
+          <div style="position:relative;flex:none;cursor:pointer;" onClick="{{ openSerialPhotoLightbox }}">
+            <img src="{{ serialPhotoThumbUrl }}" style="width:76px;height:76px;object-fit:cover;border-radius:6px;border:1px solid rgba(22,40,61,.15);display:block;"/>
+            <div style="position:absolute;top:-6px;left:-6px;background:#1F6F78;color:#fff;font:700 7.5px 'IBM Plex Mono',monospace;padding:2px 5px;border-radius:2px;">S/N</div>
+          </div>
+        </sc-if>
+        <div style="flex:1;min-width:180px;display:flex;flex-direction:column;gap:8px;">
+          <sc-if value="{{ hasSerialNumber }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input style="flex:1;min-width:0;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:11px 12px;font:700 15px 'IBM Plex Mono',monospace;letter-spacing:1px;color:#16283D;" value="{{ serialNumberDraft }}" onChange="{{ setSerialNumberDraft }}"/>
+              <sc-if value="{{ serialNumberDirty }}" hint-placeholder-val="{{ false }}">
+                <div class="no-print" style="background:#1F6F78;color:#fff;font:700 11px 'Public Sans',sans-serif;padding:11px 14px;border-radius:4px;cursor:pointer;white-space:nowrap;" onClick="{{ saveSerialNumberEdit }}">{{ serialNumberSaveLabel }}</div>
+              </sc-if>
+            </div>
+            <sc-if value="{{ hasSerialNumberEditError }}" hint-placeholder-val="{{ false }}">
+              <div style="font:600 11.5px 'Public Sans',sans-serif;color:#C0392B;">{{ serialNumberEditError }}</div>
+            </sc-if>
+          </sc-if>
+          <sc-if value="{{ noSerialNumber }}" hint-placeholder-val="{{ true }}">
+            <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No serial number captured yet.</div>
+            <div class="no-print" style="background:#D97706;color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;width:fit-content;" onClick="{{ openSerialScan }}">&#128247; SCAN SERIAL NUMBER</div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);margin-top:14px;">
+      <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
         <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">PHOTOS <span style="font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);">({{ jobPhotoCountLabel }})</span></div>
         <div class="no-print" style="display:flex;gap:8px;">
           <label style="background:#EDE6D6;color:#16283D;font:700 11px 'IBM Plex Mono',monospace;padding:9px 12px;border-radius:4px;cursor:pointer;">
@@ -386,6 +420,9 @@
               </sc-if>
               <sc-if value="{{ photo.onInvoice }}" hint-placeholder-val="{{ false }}">
                 <div style="position:absolute;top:4px;left:4px;background:#1F6F78;color:#fff;font:700 8px 'IBM Plex Mono',monospace;padding:2px 5px;border-radius:2px;">&#128196; INVOICE</div>
+              </sc-if>
+              <sc-if value="{{ photo.isSerialNumber }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;bottom:4px;left:4px;right:4px;background:#D97706;color:#fff;font:700 7.5px 'IBM Plex Mono',monospace;padding:2px 4px;border-radius:2px;text-align:center;">SERIAL NUMBER</div>
               </sc-if>
             </div>
           </sc-for>
@@ -1211,6 +1248,64 @@
   </div>
   </sc-if>
 
+  <!-- ============ SERIAL NUMBER SCAN MODAL ============ -->
+  <sc-if value="{{ showSerialScanModal }}" hint-placeholder-val="{{ false }}">
+  <div class="no-print" style="position:fixed;inset:0;background:rgba(22,40,61,.7);display:flex;align-items:center;justify-content:center;z-index:300;padding:16px;overflow:auto;">
+    <div style="background:#fff;border-radius:10px;width:100%;max-width:420px;overflow:hidden;">
+      <div style="background:#16283D;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font:800 14px 'Archivo',sans-serif;color:#fff;">SERIAL NUMBER</div>
+        <div style="color:#8FBFAE;font:700 18px 'Public Sans',sans-serif;cursor:pointer;" onClick="{{ closeSerialScan }}">&times;</div>
+      </div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+
+        <sc-if value="{{ isSerialCaptureStep }}" hint-placeholder-val="{{ true }}">
+          <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);">Take or upload a photo of the serial number plate. The photo and the reading stay linked to this job.</div>
+          <div style="display:flex;gap:10px;">
+            <label style="flex:1;background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:16px 8px;border-radius:6px;cursor:pointer;">
+              &#128247;<br/>CAMERA
+              <input type="file" accept="image/*" capture="environment" style="display:none;" onChange="{{ pickSerialScanPhoto }}"/>
+            </label>
+            <label style="flex:1;background:#D97706;color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:16px 8px;border-radius:6px;cursor:pointer;">
+              +<br/>LIBRARY
+              <input type="file" accept="image/*" style="display:none;" onChange="{{ pickSerialScanPhoto }}"/>
+            </label>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isSerialProcessingStep }}" hint-placeholder-val="{{ false }}">
+          <img src="{{ serialScanPreviewUrl }}" style="width:100%;max-height:220px;object-fit:contain;border-radius:6px;background:#F6F1E4;"/>
+          <div style="display:flex;align-items:center;gap:10px;justify-content:center;padding:8px 0;">
+            <div style="width:16px;height:16px;border:2px solid rgba(22,40,61,.2);border-top-color:#1F6F78;border-radius:50%;animation:dk-spin .8s linear infinite;"></div>
+            <div style="font:700 12px 'IBM Plex Mono',monospace;color:#1F6F78;letter-spacing:.4px;">READING SERIAL NUMBER&hellip;</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isSerialReviewStep }}" hint-placeholder-val="{{ false }}">
+          <img src="{{ serialScanPreviewUrl }}" style="width:100%;max-height:200px;object-fit:contain;border-radius:6px;background:#F6F1E4;"/>
+          <div>
+            <div style="font:700 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;letter-spacing:.5px;">DETECTED SERIAL NUMBER &middot; EDITABLE</div>
+            <input style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.25);border-radius:4px;padding:12px 12px;font:700 16px 'IBM Plex Mono',monospace;letter-spacing:1px;color:#16283D;" value="{{ serialScanDraftValue }}" onChange="{{ setSerialScanDraft }}"/>
+          </div>
+          <sc-if value="{{ serialScanNeedsReview }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#FBF6E8;border:1px solid #B08A2E;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#8A6A1E;">&#9888; Please verify the serial number. Some characters may not have been read clearly.</div>
+          </sc-if>
+          <sc-if value="{{ hasSerialScanAlternates }}" hint-placeholder-val="{{ false }}">
+            <div style="font:500 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);">Other possible readings: {{ serialScanAlternatesLabel }}</div>
+          </sc-if>
+          <sc-if value="{{ hasSerialScanError }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ serialScanError }}</div>
+          </sc-if>
+          <div style="display:flex;gap:8px;">
+            <div style="{{ saveSerialScanButtonStyle }}" onClick="{{ saveSerialScan }}">{{ saveSerialScanButtonLabel }}</div>
+            <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ retrySerialScan }}">RETAKE</div>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
   <!-- ============ PHOTO ENHANCEMENT EDITOR ============ -->
   <sc-if value="{{ showPhotoEditor }}" hint-placeholder-val="{{ false }}">
   <div class="no-print" style="position:fixed;inset:0;background:rgba(22,40,61,.7);display:flex;align-items:center;justify-content:center;z-index:300;padding:16px;overflow:auto;">
@@ -1484,6 +1579,13 @@ class Component extends DCLogic {
     historyOpenActivityId: null,
     activityHistory: {},
     failedInvoicePhotoIds: [],
+
+    // ---------- serial number capture ----------
+    serialScan: null, // { step:'capture'|'processing'|'review', file, previewUrl, draftValue, confidence, alternates, needsReview, error, saving }
+    editingSerialNumber: false,
+    serialNumberDraft: '',
+    serialNumberEditSaving: false,
+    serialNumberEditError: '',
   };
 
   async componentDidMount() {
@@ -1878,7 +1980,8 @@ class Component extends DCLogic {
     }
   };
   openJob = (id, opts) => {
-    this.setState({ screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', quickUpdateOpen: false, showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '' });
+    const job = this.state.jobs.find(j => j.id === id);
+    this.setState({ screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', quickUpdateOpen: false, showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '', serialNumberDraft: (job && job.serialNumber) || '', serialNumberEditError: '' });
     if (!(opts && opts.skipHistory) && typeof window !== 'undefined' && window.history) {
       window.history.pushState({ jobId: id }, '', '/job/' + encodeURIComponent(id));
     }
@@ -2313,6 +2416,181 @@ class Component extends DCLogic {
     }
   };
   markInvoicePhotoFailed = (id) => this.setState(s => s.failedInvoicePhotoIds.includes(id) ? s : { failedInvoicePhotoIds: [...s.failedInvoicePhotoIds, id] });
+
+  // ---------- serial number capture ----------
+  // A dedicated flow (not the generic gallery upload): the photo and the
+  // extracted text must never drift apart, so this always goes through
+  // supabase-client's uploadSerialNumberPhoto, which writes the photo row
+  // (photo_type='serial_number') and work_orders.serial_number together.
+  findPrimarySerialPhoto = () => this.state.jobPhotos.find(p => p.photoType === 'serial_number' && p.isPrimarySerialPhoto)
+    || this.state.jobPhotos.filter(p => p.photoType === 'serial_number').slice(-1)[0] || null;
+
+  openSerialScan = () => {
+    this.setState({ serialScan: { step: 'capture', file: null, previewUrl: '', draftValue: '', confidence: null, alternates: [], needsReview: false, error: '', saving: false } });
+  };
+  closeSerialScan = () => {
+    const sc = this.state.serialScan;
+    if (sc && sc.previewUrl) { try { URL.revokeObjectURL(sc.previewUrl); } catch (e) {} }
+    this.setState({ serialScan: null });
+  };
+  retrySerialScan = () => {
+    const sc = this.state.serialScan;
+    if (sc && sc.previewUrl) { try { URL.revokeObjectURL(sc.previewUrl); } catch (e) {} }
+    this.setState({ serialScan: { step: 'capture', file: null, previewUrl: '', draftValue: '', confidence: null, alternates: [], needsReview: false, error: '', saving: false } });
+  };
+  setSerialScanDraft = (e) => this.setState({ serialScan: { ...this.state.serialScan, draftValue: e.target.value } });
+
+  fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  pickSerialScanPhoto = (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const previewUrl = URL.createObjectURL(file);
+    this.setState({ serialScan: { ...this.state.serialScan, step: 'processing', file, previewUrl, error: '' } });
+    this.runSerialScanExtraction(file);
+  };
+
+  // Real OCR runs through the deployed Netlify Function (extract-serial-
+  // number.js), which calls a vision-capable model server-side. Falls back
+  // to window.claude.complete purely so this demos inside the design tool's
+  // own preview — that fallback does nothing once deployed for real users.
+  async runSerialScanExtraction(file) {
+    let dataUrl = '';
+    try { dataUrl = await this.fileToDataUrl(file); } catch (e) {
+      this.setState({ serialScan: { ...this.state.serialScan, step: 'review', error: 'Could not read that photo file. Please try again.' } });
+      return;
+    }
+
+    let result = null;
+    try {
+      const res = await fetch('/.netlify/functions/extract-serial-number', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageDataUrl: dataUrl }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.ok) result = json;
+      }
+    } catch (e) { /* function not reachable (e.g. in-editor preview) — fall back below */ }
+
+    if (!result) {
+      try {
+        const base64 = dataUrl.split(',')[1];
+        const mediaType = (dataUrl.match(/^data:([^;]+);/) || [])[1] || 'image/jpeg';
+        const system = 'You read equipment serial-number plates from photos. Read ONLY the serial number visible in the image, preserving letters, numbers, dashes, slashes, spaces and capitalization. Distinguish it from model number, part number, horsepower, manufacture date, or certification numbers. Never invent unreadable characters — return an empty string if unsure. Return ONLY JSON: {"serialNumber": string, "confidenceScore": number 0-1, "alternateCandidates": string[], "needsReview": boolean}.';
+        const out = await window.claude.complete({
+          messages: [{ role: 'user', content: [
+            { type: 'text', text: 'Read the serial number from this equipment plate photo.' },
+            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+          ] }],
+          system,
+        });
+        const match = out.match(/\{[\s\S]*\}/);
+        const parsed = match ? JSON.parse(match[0]) : {};
+        result = {
+          ok: true,
+          serialNumber: parsed.serialNumber || '',
+          confidenceScore: typeof parsed.confidenceScore === 'number' ? parsed.confidenceScore : 0,
+          alternateCandidates: parsed.alternateCandidates || [],
+          needsReview: parsed.needsReview !== false,
+        };
+      } catch (e) { result = null; }
+    }
+
+    if (!result) {
+      this.setState({ serialScan: { ...this.state.serialScan, step: 'review', draftValue: '', confidence: null, needsReview: true, error: 'Could not read the serial number automatically. Please enter it manually.' } });
+      return;
+    }
+    this.setState({
+      serialScan: {
+        ...this.state.serialScan, step: 'review',
+        draftValue: result.serialNumber || '',
+        confidence: result.confidenceScore,
+        alternates: result.alternateCandidates || [],
+        needsReview: !!result.needsReview,
+        error: '',
+      },
+    });
+  }
+
+  // Only saves after the user reviews the result — never auto-accepts OCR
+  // output. On failure the review screen (photo + edited value) is kept
+  // intact so the user can retry rather than losing their correction.
+  saveSerialScan = async () => {
+    const sc = this.state.serialScan;
+    if (!sc || sc.saving || !sc.file) return;
+    if (!this._dataMod || !this.state.selectedJobId) { this.setState({ serialScan: { ...sc, error: 'Not connected to the database — cannot save.' } }); return; }
+    this.setState({ serialScan: { ...sc, saving: true, error: '' } });
+    try {
+      const processed = await this.processPhotoFile(sc.file, { rotation: 0, brightness: 100, contrast: 100, saturation: 100 });
+      const reviewed = (sc.draftValue || '').trim();
+      const { photo, job } = await this._dataMod.uploadSerialNumberPhoto(
+        this.state.selectedJobId,
+        { ...processed, caption: 'Serial number plate', customerVisible: false },
+        reviewed, sc.confidence, this.state.profile && this.state.profile.id, null,
+      );
+      if (sc.previewUrl) { try { URL.revokeObjectURL(sc.previewUrl); } catch (e) {} }
+      this.setState(s => ({
+        jobPhotos: [...s.jobPhotos, photo],
+        jobs: s.jobs.map(j => j.id === job.id ? job : j),
+        serialScan: null,
+      }));
+      try {
+        const p = this.state.profile;
+        const act = await this._dataMod.createActivity(this.state.selectedJobId, {
+          activityType: 'serial_number_captured', visibility: 'private',
+          body: reviewed ? `Serial number captured: ${reviewed}` : 'Serial number photo captured (unreadable — entered manually).',
+          attachments: [photo.id],
+        }, p ? { id: p.id, name: p.name, role: p.role } : null);
+        this.setState(s => ({
+          jobActivities: [...s.jobActivities, act],
+          expandedDayKeys: Array.from(new Set([...s.expandedDayKeys, this.dayKeyFor(act.createdAt)])),
+        }));
+      } catch (e2) { console.error('Failed to create serial_number_captured activity', e2); }
+    } catch (e) {
+      console.error('Failed to save serial number', e);
+      this.setState({ serialScan: { ...this.state.serialScan, saving: false, error: (e && e.message) || 'Could not save. Please try again.' } });
+    }
+  };
+
+  openSerialPhotoLightbox = () => {
+    const p = this.findPrimarySerialPhoto();
+    if (p) this.openLightbox(p.id);
+  };
+
+  // ---------- serial number manual edit ----------
+  // Keeps work_orders.serial_number and the tagged photo's extracted_text in
+  // sync (never overwrites the photo silently) and is recorded in audit_log
+  // automatically by the existing DB triggers on both tables.
+  startEditSerialNumber = (value) => this.setState({ editingSerialNumber: true, serialNumberDraft: value || '', serialNumberEditError: '' });
+  setSerialNumberDraft = (e) => this.setState({ serialNumberDraft: e.target.value });
+  saveSerialNumberEdit = async () => {
+    const sj = this.state.jobs.find(j => j.id === this.state.selectedJobId);
+    if (!sj || !this._dataMod) return;
+    const newValue = (this.state.serialNumberDraft || '').trim();
+    if (newValue === (sj.serialNumber || '')) return;
+    this.setState({ serialNumberEditSaving: true, serialNumberEditError: '' });
+    try {
+      const primaryPhoto = this.findPrimarySerialPhoto();
+      const { job } = await this._dataMod.correctSerialNumber(sj.id, primaryPhoto ? primaryPhoto.id : null, newValue);
+      this.setState(s => ({
+        jobs: s.jobs.map(j => j.id === job.id ? job : j),
+        jobPhotos: primaryPhoto ? s.jobPhotos.map(p => p.id === primaryPhoto.id ? { ...p, extractedText: newValue } : p) : s.jobPhotos,
+        serialNumberEditSaving: false,
+      }));
+    } catch (e) {
+      console.error('Failed to correct serial number', e);
+      this.setState({ serialNumberEditSaving: false, serialNumberEditError: (e && e.message) || 'Could not save. Please try again.' });
+    }
+  };
 
   // ---------- lightbox photo-details editing ----------
   startLightboxEdit = () => {
@@ -3013,6 +3291,7 @@ class Component extends DCLogic {
         phone: sj.phone,
         boatMakeModel: sj.boatMakeModel,
         issue: sj.issue,
+        serialNumber: sj.serialNumber || '',
         size: sj.size,
         priorityLabel: sj.priority === 'high' ? 'HIGH PRIORITY' : 'NORMAL PRIORITY',
         priorityChipStyle: priorityChipStyle(sj.priority),
@@ -3361,8 +3640,15 @@ class Component extends DCLogic {
       thumbUrl: p.thumbUrl,
       hiddenFromCustomer: !p.customerVisible,
       onInvoice: !!p.includeOnInvoice,
+      isSerialNumber: p.photoType === 'serial_number',
       onOpen: () => this.openLightbox(p.id),
     }));
+
+    // ---------- serial number capture render data ----------
+    const scScan = s.serialScan;
+    const primarySerialPhoto = this.findPrimarySerialPhoto();
+    const savedSerialNumber = (sj && sj.serialNumber) || '';
+    const serialNumberDraftVal = s.serialNumberDraft || '';
     const logPhotoPickerDisplay = s.jobPhotos.map(p => {
       const selected = (s.logSelectedPhotoIds || []).includes(p.id);
       return {
@@ -3563,6 +3849,39 @@ class Component extends DCLogic {
       noJobPhotos: jobPhotosDisplay.length === 0,
       pickGalleryPhotoCamera: this.pickGalleryPhotoCamera,
       pickGalleryPhotoLibrary: this.pickGalleryPhotoLibrary,
+
+      hasSerialNumber: !!savedSerialNumber,
+      noSerialNumber: !savedSerialNumber,
+      serialNumberDraft: serialNumberDraftVal,
+      serialNumberDirty: serialNumberDraftVal.trim() !== savedSerialNumber && !s.serialNumberEditSaving,
+      serialNumberSaveLabel: s.serialNumberEditSaving ? 'SAVING\u2026' : 'SAVE',
+      setSerialNumberDraft: this.setSerialNumberDraft,
+      saveSerialNumberEdit: this.saveSerialNumberEdit,
+      hasSerialNumberEditError: !!s.serialNumberEditError,
+      serialNumberEditError: s.serialNumberEditError,
+      hasSerialPhoto: !!primarySerialPhoto,
+      serialPhotoThumbUrl: primarySerialPhoto ? primarySerialPhoto.thumbUrl : '',
+      openSerialScan: this.openSerialScan,
+      openSerialPhotoLightbox: this.openSerialPhotoLightbox,
+
+      showSerialScanModal: !!scScan,
+      closeSerialScan: this.closeSerialScan,
+      isSerialCaptureStep: !scScan || scScan.step === 'capture',
+      isSerialProcessingStep: !!scScan && scScan.step === 'processing',
+      isSerialReviewStep: !!scScan && scScan.step === 'review',
+      pickSerialScanPhoto: this.pickSerialScanPhoto,
+      serialScanPreviewUrl: scScan ? scScan.previewUrl : '',
+      serialScanDraftValue: scScan ? scScan.draftValue : '',
+      setSerialScanDraft: this.setSerialScanDraft,
+      serialScanNeedsReview: !!(scScan && scScan.needsReview),
+      hasSerialScanAlternates: !!(scScan && scScan.alternates && scScan.alternates.length),
+      serialScanAlternatesLabel: scScan && scScan.alternates ? scScan.alternates.join(', ') : '',
+      hasSerialScanError: !!(scScan && scScan.error),
+      serialScanError: scScan ? scScan.error : '',
+      saveSerialScanButtonStyle: `flex:1;background:${scScan && scScan.saving ? 'rgba(31,111,120,.5)' : '#1F6F78'};color:#fff;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:${scScan && scScan.saving ? 'default' : 'pointer'};`,
+      saveSerialScanButtonLabel: scScan && scScan.saving ? 'SAVING\u2026' : 'SAVE SERIAL NUMBER',
+      saveSerialScan: this.saveSerialScan,
+      retrySerialScan: this.retrySerialScan,
 
       showPhotoEditor: !!pe,
       photoEditorPreviewUrl: pe ? pe.previewObjectUrl : '',

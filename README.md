@@ -158,7 +158,48 @@ separate intake/log-work blobs:
 No additional Netlify environment variables are needed for this — it uses
 the same `SUPABASE_URL` / `SUPABASE_ANON_KEY` already configured in section 3.
 
-## 9. Testing checklist
+## 9. Serial Number Capture
+A dedicated workflow — separate from the general photo gallery — for reading
+and recording an equipment/hull serial number from a photo:
+1. On a job's page, the **SERIAL NUMBER** card shows a **SCAN SERIAL NUMBER**
+   button (or **RE-SCAN / CHANGE** once one exists).
+2. Camera or photo-library picker opens; after picking a photo the app shows
+   "Reading serial number…" while `netlify/functions/extract-serial-number.js`
+   (a vision-capable OpenAI call, server-side — no AI key reaches the browser)
+   reads the plate.
+3. A review screen shows the photo, the detected value in an editable field,
+   and a confidence warning when the reading is uncertain. **Nothing saves
+   until the user reviews and confirms** — the AI never silently overwrites
+   or invents characters; an unreadable plate returns a blank field instead.
+4. Saving writes, in order: the photo (tagged `photo_type = 'serial_number'`
+   in `work_order_photos`, not a normal gallery photo) → `work_order_photos`
+   row with the reviewed `extracted_text` → `work_orders.serial_number`. If
+   any step fails, the review screen and typed value are preserved so the
+   user can retry — the app never ends up with a serial number and no photo,
+   or vice versa (`uploadSerialNumberPhoto` in `supabase-client.js`).
+5. The tagged photo shows a **SERIAL NUMBER** badge in the gallery and is
+   filterable via the existing category chips ("Serial Number" is one of the
+   photo categories). Manually correcting the serial-number field also
+   updates the linked photo's `extracted_text` (`correctSerialNumber`), so
+   the two never drift apart. A `serial_number_captured` activity is posted
+   to the job's timeline, and every capture/correction is recorded in
+   `audit_log` automatically via the existing triggers on `work_orders` and
+   `work_order_photos`.
+6. Re-scanning never deletes the previous photo — it's kept for history and
+   demoted from `is_primary_serial_photo`, while the newest reviewed photo
+   becomes primary (enforced by a unique partial index, one primary per
+   work order/equipment).
+7. Schema (section 18 of `supabase-schema.sql`): `work_orders.serial_number`,
+   plus `work_order_photos.photo_type` / `extracted_text` /
+   `extraction_confidence` / `equipment_id` (reserved for a future
+   multi-equipment table — hull/engine/trailer/battery each with their own
+   serial — not built yet since no shop has asked for it) / `is_primary_serial_photo`.
+   No new RLS policies are needed — the existing `work_order_photos` and
+   `work_orders` policies already cover these columns.
+8. Optional env var: `OPENAI_VISION_MODEL` (defaults to `gpt-4o-mini`) —
+   same `OPENAI_API_KEY` as section 7 is reused.
+
+## 10. Testing checklist
 1. Sign up a new email → confirm the confirmation email flow → sign in.
    Confirm a `profiles` row was created with `role = mechanic`.
 2. Promote that user to `shop_owner` via SQL, sign in — confirm you now see

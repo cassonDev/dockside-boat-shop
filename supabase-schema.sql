@@ -768,6 +768,52 @@ create policy "profiles: service_advisor update availability" on public.profiles
   with check (public.is_active_user() and public.is_service_advisor());
 
 -- ---------------------------------------------------------------------------
+-- 18. Serial Number Capture (2026-07)
+--    Structured serial-number field on the work order (single-equipment
+--    case) plus photo classification so a serial-number photo is never
+--    treated as a normal unclassified gallery photo. `equipment_id` is a
+--    reserved column for a future equipment table (separate hull/engine/
+--    trailer/battery serials) — not created yet since no shop has asked for
+--    multi-equipment tracking; the column exists now so that migration
+--    won't need to touch work_order_photos again later.
+-- ---------------------------------------------------------------------------
+alter table public.work_orders add column if not exists serial_number text not null default '';
+
+alter table public.work_order_photos add column if not exists photo_type text not null default 'general'
+  check (photo_type in ('general','serial_number'));
+alter table public.work_order_photos add column if not exists extracted_text text not null default '';
+alter table public.work_order_photos add column if not exists extraction_confidence numeric;
+alter table public.work_order_photos add column if not exists equipment_id uuid; -- reserved for future multi-equipment support
+alter table public.work_order_photos add column if not exists is_primary_serial_photo boolean not null default false;
+
+create index if not exists work_order_photos_serial_idx
+  on public.work_order_photos (work_order_id, photo_type) where photo_type = 'serial_number';
+
+-- Only one primary serial-number photo per work order (per equipment_id,
+-- once that column is actually populated) at a time — re-scanning marks the
+-- newest approved photo primary and demotes the previous one, but never
+-- deletes it (see uploadSerialNumberPhoto in supabase-client.js).
+create unique index if not exists work_order_photos_one_primary_serial
+  on public.work_order_photos (work_order_id, coalesce(equipment_id, '00000000-0000-0000-0000-000000000000'::uuid))
+  where photo_type = 'serial_number' and is_primary_serial_photo = true and active = true;
+
+alter table public.activities drop constraint if exists activities_activity_type_check;
+alter table public.activities add constraint activities_activity_type_check check (activity_type in (
+  'work_log', 'inspection', 'ai_summary', 'mechanic_note', 'customer_note',
+  'status_change', 'photo_added', 'quote_sent', 'approval_received',
+  'invoice_generated', 'payment_received', 'part_ordered', 'part_received',
+  'job_edited', 'serial_number_captured'
+));
+
+-- No new RLS policies needed: work_order_photos already has full shop_owner
+-- access, "uploader update own", and "advisor curate any" policies that
+-- cover these new columns; work_orders.serial_number is covered by the
+-- existing work_orders update policies — mechanics may set it same as
+-- status/photos (enforce_work_order_edits, section 12/15, does not block
+-- this column). Both tables already carry audit-log triggers, so every
+-- serial-number capture and correction is recorded automatically.
+
+-- ---------------------------------------------------------------------------
 -- 11. Seed data note
 -- ---------------------------------------------------------------------------
 -- No anonymous seed rows are inserted here on purpose — every work_order and
