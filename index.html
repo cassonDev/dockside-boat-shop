@@ -61,8 +61,8 @@
             <div style="{{ navDashboardStyle }}" onClick="{{ goDashboard }}">DASHBOARD</div>
             <div style="{{ navIntakeStyle }}" onClick="{{ goIntake }}">+ NEW JOB</div>
             <div style="{{ navRosterStyle }}" onClick="{{ goRoster }}">MECHANICS</div>
-            <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
             <div style="{{ navArchiveStyle }}" onClick="{{ goArchive }}">ARCHIVE</div>
+            <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
             <div style="{{ navAuditStyle }}" onClick="{{ goAudit }}">AUDIT LOG</div>
             <div style="{{ navConfigStyle }}" onClick="{{ goShopConfig }}">SHOP CONFIG</div>
             </sc-if>
@@ -81,8 +81,8 @@
         <div style="{{ navDashboardStyleFull }}" onClick="{{ navGoDashboard }}">DASHBOARD</div>
         <div style="{{ navIntakeStyleFull }}" onClick="{{ navGoIntake }}">+ NEW JOB</div>
         <div style="{{ navRosterStyleFull }}" onClick="{{ navGoRoster }}">MECHANICS</div>
-        <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
         <div style="{{ navArchiveStyleFull }}" onClick="{{ navGoArchive }}">ARCHIVE</div>
+        <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
         <div style="{{ navAuditStyleFull }}" onClick="{{ navGoAudit }}">AUDIT LOG</div>
         <div style="{{ navConfigStyleFull }}" onClick="{{ navGoShopConfig }}">SHOP CONFIG</div>
         </sc-if>
@@ -397,9 +397,7 @@
         </div>
         <div class="no-print" style="display:flex;gap:8px;margin-top:6px;">
           <div style="flex:1;background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ goToTag }}">PRINT TAG</div>
-          <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
-            <div style="flex:1;background:#FBEAEA;color:#C0392B;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ archiveSelectedJob }}">ARCHIVE</div>
-          </sc-if>
+          <div style="flex:1;background:#FBEAEA;color:#C0392B;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ archiveSelectedJob }}">ARCHIVE</div>
         </div>
       </div>
     </div>
@@ -1023,6 +1021,9 @@
           <div style="{{ opt.style }}" onClick="{{ opt.onSelect }}">{{ opt.label }}</div>
         </sc-for>
       </div>
+      <sc-if value="{{ hasManageRoleDraftDescription }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.12);border-radius:4px;padding:9px 11px;font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.75);margin-bottom:12px;">{{ manageRoleDraftDescription }}</div>
+      </sc-if>
       <sc-if value="{{ hasManageRoleError }}" hint-placeholder-val="{{ false }}">
         <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;margin-bottom:10px;">{{ manageRoleErrorMessage }}</div>
       </sc-if>
@@ -2203,7 +2204,7 @@ class Component extends DCLogic {
     this.loadRoleChangeRequestsForRoster(id);
   };
   findStaffById = (id) => (this.state.staffRoster || []).find(m => m.id === id) || this.state.mechanics.find(m => m.id === id);
-  roleLabel = (r) => r === 'shop_owner' ? 'Shop Owner' : r === 'service_advisor' ? 'Service Advisor' : 'Mechanic';
+  roleLabel = (r) => r === 'shop_owner' ? 'Shop Owner' : 'Mechanic';
   selectManageRole = (role) => this.setState({ manageRoleDraft: role, manageRoleError: '', manageRoleSuccess: '' });
   requestRoleUpdate = () => {
     const target = this.findStaffById(this.state.profileMechanicId);
@@ -3518,7 +3519,10 @@ class Component extends DCLogic {
   };
 
   isShopOwner() { return !!(this.state.profile && this.state.profile.role === 'shop_owner'); }
-  isServiceAdvisor() { return !!(this.state.profile && this.state.profile.role === 'service_advisor'); }
+  // Two-role model: every non-owner is a mechanic. Mechanics are full shop
+  // staff — they work with ALL jobs in the shop; only account administration
+  // (staff, roles, Shop Config, Audit Log) is shop_owner-only.
+  isActiveStaff() { return !!this.state.profile; }
 
   static normalizePhone(v) {
     const digits = (v || '').replace(/\D/g, '');
@@ -3917,7 +3921,7 @@ class Component extends DCLogic {
         onCancelEdit: this.cancelEditActivity,
         hasEditError: !!s.editError,
         editError: s.editError,
-        canEdit: (a.activityType === 'customer_note' || a.activityType === 'work_log') && !isEditing && (this.isShopOwner() || (s.profile && s.profile.role === 'service_advisor') || (s.profile && s.profile.id === a.authorId)),
+        canEdit: (a.activityType === 'customer_note' || a.activityType === 'work_log') && !isEditing && (this.isShopOwner() || (s.profile && s.profile.id === a.authorId)),
         onStartEdit: () => this.startEditActivity(a),
         isEdited,
         version: a.version,
@@ -4029,23 +4033,21 @@ class Component extends DCLogic {
       }));
 
     const isShopOwner = this.isShopOwner();
-    const isServiceAdvisor = this.isServiceAdvisor();
-    const canEditJobDetails = isShopOwner || isServiceAdvisor;
+    const canEditJobDetails = this.isActiveStaff(); // all staff may edit any job's details
 
     // ---------- mechanic profile page ----------
     const profileMech = (s.staffRoster || []).find(m => m.id === s.profileMechanicId) || s.mechanics.find(m => m.id === s.profileMechanicId);
     const isOwnProfile = !!(profileMech && s.profile && profileMech.id === s.profile.id);
-    const canEditAvailability = isShopOwner || isServiceAdvisor || isOwnProfile;
+    const canEditAvailability = isShopOwner || isOwnProfile;
     const ROLE_DESCRIPTIONS = {
-      mechanic: 'Can view assigned jobs, add work activity, upload photos, and update job progress.',
-      service_advisor: 'Can manage customer/job details, photos, and assignments across all jobs.',
-      shop_owner: 'Full access: staff, roles, billing, and every work order in the shop.',
+      mechanic: 'Can access and work with all jobs in this shop, including customer details, activity, photos, assignments, statuses, and Customer Preview. Cannot manage staff, roles, shop configuration, or account administration.',
+      shop_owner: 'Has full shop access, including all job functions, staff management, role changes, Shop Config, and Audit Log access.',
     };
     const roleUpdateDisabled = !s.manageRoleDraft || !profileMech || s.manageRoleDraft === profileMech.role || s.manageRoleSaving;
     const activeOwnerCount = (s.staffRoster || []).filter(m => m.role === 'shop_owner' && m.active).length;
     const isTargetLastActiveOwner = !!(profileMech && profileMech.role === 'shop_owner' && activeOwnerCount <= 1);
     const manageRoleOptionStyle = (selected, disabled) => `font:700 11.5px 'IBM Plex Mono',monospace;letter-spacing:.3px;padding:10px 14px;border-radius:4px;cursor:${disabled ? 'default' : 'pointer'};background:${selected ? '#16283D' : '#F6F1E4'};color:${selected ? '#fff' : disabled ? 'rgba(22,40,61,.35)' : '#16283D'};opacity:${disabled ? '.6' : '1'};`;
-    const manageRoleOptions = ['mechanic', 'service_advisor', 'shop_owner'].map(r => {
+    const manageRoleOptions = ['mechanic', 'shop_owner'].map(r => {
       const disabled = !!(profileMech && profileMech.role === 'shop_owner' && r !== 'shop_owner' && isTargetLastActiveOwner);
       return {
         value: r,
@@ -4111,11 +4113,11 @@ class Component extends DCLogic {
       style: `font:700 10.5px 'IBM Plex Mono',monospace;padding:8px 10px;border-radius:12px;cursor:pointer;background:${ad && ad.status === st ? '#1F6F78' : '#EDE6D6'};color:${ad && ad.status === st ? '#fff' : '#16283D'};`,
       onSelect: () => this.setAvailabilityStatus(st),
     }));
-    const roleRequestOptions = ['mechanic', 'service_advisor', 'shop_owner']
+    const roleRequestOptions = ['mechanic', 'shop_owner']
       .filter(r => !profileMech || r !== profileMech.role)
       .map(r => ({
         value: r,
-        label: r === 'shop_owner' ? 'SHOP OWNER' : r === 'service_advisor' ? 'SERVICE ADVISOR' : 'MECHANIC',
+        label: r === 'shop_owner' ? 'SHOP OWNER' : 'MECHANIC',
         style: `font:700 11px 'Public Sans',sans-serif;padding:9px 12px;border-radius:4px;cursor:pointer;background:${s.roleRequestRole === r ? '#1F6F78' : '#EDE6D6'};color:${s.roleRequestRole === r ? '#fff' : '#16283D'};`,
         onSelect: () => this.setRoleRequestRole(r),
       }));
@@ -4178,7 +4180,7 @@ class Component extends DCLogic {
 
     // ---------- serial number capture render data ----------
     const scScan = s.serialScan;
-    const canEditThisJobSerials = this.isShopOwner() || isServiceAdvisor;
+    const canEditThisJobSerials = this.isActiveStaff(); // all staff manage serials on any job
     const activeLabelChoices = this.activeSerialLabels().map(l => ({ value: l.label, text: l.label }));
     const serialNumbersDisplay = (s.serialNumbers || []).map(sn => {
       const photo = s.jobPhotos.find(p => p.id === sn.photoId);
@@ -4223,7 +4225,7 @@ class Component extends DCLogic {
     });
     const lbPhoto = s.jobPhotos.find(p => p.id === s.lightboxPhotoId);
     const isShopOwnerForPhotos = this.isShopOwner();
-    const canEditLightboxPhoto = !!lbPhoto && (isShopOwnerForPhotos || isServiceAdvisor || (lbPhoto.createdBy === (s.profile && s.profile.id)));
+    const canEditLightboxPhoto = !!lbPhoto && this.isActiveStaff(); // all staff manage photos on any job
     const lbDraft = s.lightboxDraft;
     const lightboxDraftCategoryOptions = CATS.map(cat => ({
       label: cat,
@@ -4291,7 +4293,7 @@ class Component extends DCLogic {
       isShopOwner,
       canEditJobDetails,
       currentUserName: s.profile ? s.profile.name : '',
-      currentUserRoleLabel: s.profile ? (s.profile.role === 'shop_owner' ? 'SHOP OWNER' : s.profile.role === 'service_advisor' ? 'SERVICE ADVISOR' : 'MECHANIC') : '',
+      currentUserRoleLabel: s.profile ? (s.profile.role === 'shop_owner' ? 'SHOP OWNER' : 'MECHANIC') : '',
       handleSignOut: this.handleSignOut,
 
       isJobEditOpen: s.jobEditOpen,
@@ -4559,7 +4561,7 @@ class Component extends DCLogic {
 
       profileMech: profileMech || {},
       profileMechInitials: profileMech ? profileMech.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase() : '',
-      profileMechRoleLabel: profileMech ? (profileMech.role === 'shop_owner' ? 'SHOP OWNER' : profileMech.role === 'service_advisor' ? 'SERVICE ADVISOR' : 'MECHANIC') : '',
+      profileMechRoleLabel: profileMech ? (profileMech.role === 'shop_owner' ? 'SHOP OWNER' : 'MECHANIC') : '',
       profileMechActiveLabel: profileMech && profileMech.active ? 'Active' : 'Disabled',
       profileMechActiveDotStyle: `width:9px;height:9px;border-radius:50%;background:${profileMech && profileMech.active ? '#1F6F78' : '#C0392B'};`,
       profileRoleDescription: profileMech ? (ROLE_DESCRIPTIONS[profileMech.role] || '') : '',
@@ -4585,6 +4587,8 @@ class Component extends DCLogic {
       hasAvailabilityError: !!s.availabilityError, availabilityErrorMessage: s.availabilityError,
 
       canManageRole: isShopOwner && !!profileMech,
+      hasManageRoleDraftDescription: !!(s.manageRoleDraft && ROLE_DESCRIPTIONS[s.manageRoleDraft]),
+      manageRoleDraftDescription: ROLE_DESCRIPTIONS[s.manageRoleDraft] || '',
       profileMechDisabled: !!(profileMech && !profileMech.active),
       manageRoleOptions,
       manageRoleCurrentLabel: profileMech ? this.roleLabel(profileMech.role) : '',

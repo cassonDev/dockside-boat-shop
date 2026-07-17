@@ -1,6 +1,6 @@
 // Secure server-side role-change approval.
 //
-// Granting a role is privileged (mechanic -> service_advisor -> shop_owner),
+// Granting a role is privileged (mechanic -> shop_owner),
 // so this NEVER happens via the browser's own Supabase client update — a
 // user could just edit the request in devtools otherwise. This function
 // re-derives the caller's identity from their access token, re-checks their
@@ -55,7 +55,7 @@ exports.handler = async (event) => {
     return { statusCode: 403, headers: cors, body: JSON.stringify({ error: 'Your account is not active.' }) };
   }
   // Only an active shop_owner may approve/deny ANY role-change request
-  // (including requests to become service_advisor). This is deliberately
+  // (mechanic or shop_owner). This is deliberately
   // stricter than "manager" self-service — the spec requires shop_owner
   // sign-off specifically for owner-level grants, and this app's role model
   // has no separate "manager" role, so shop_owner is the sole approver tier.

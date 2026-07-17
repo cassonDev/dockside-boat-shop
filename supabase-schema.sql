@@ -916,3 +916,128 @@ alter table public.activities add constraint activities_activity_type_check chec
 -- action in the app (Mechanics screen), which calls the secure
 -- manage-users Netlify Function — never by inserting into auth.users
 -- directly from the frontend.
+
+-- ---------------------------------------------------------------------------
+-- 19. Two-role model (2026-07): mechanic + shop_owner only
+--     service_advisor is removed. Existing service_advisor accounts become
+--     mechanics; pending advisor role requests become mechanic requests.
+--     Mechanics are full shop staff: they read AND edit EVERY job in their
+--     shop — never limited by assigned_mechanic = auth.uid(). This
+--     deployment serves a single shop, so is_active_user() is the shop
+--     boundary; when multi-tenant shop_memberships lands, every policy below
+--     additionally scopes by shop_id = current_user_shop_id() to preserve
+--     tenant isolation.
+--     Account administration (staff accounts, roles, Shop Config, the full
+--     Audit Log) stays shop_owner-only — those policies are unchanged.
+--     platform_admin is NOT a shop role: it never appears in profiles.role
+--     and must be stored/authorized separately, grantable only through a
+--     secure server-side platform process.
+-- ---------------------------------------------------------------------------
+
+-- 19a. Migrate data, then tighten the role domain to two values.
+update public.profiles set role = 'mechanic' where role = 'service_advisor';
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles add constraint profiles_role_check
+  check (role in ('shop_owner', 'mechanic'));
+
+update public.role_change_requests set requested_role = 'mechanic'
+  where requested_role = 'service_advisor';
+alter table public.role_change_requests
+  drop constraint if exists role_change_requests_requested_role_check;
+alter table public.role_change_requests add constraint role_change_requests_requested_role_check
+  check (requested_role in ('shop_owner', 'mechanic'));
+
+-- 19b. Work orders: mechanics edit any job in their shop (status, priority,
+--      assignment, customer/boat/issue fields, archive). The column guardrail
+--      trigger no longer restricts mechanics — it only stamps updated_at and
+--      rejects inactive accounts (defense in depth on top of RLS).
+create or replace function public.enforce_work_order_edits()
+returns trigger
+language plpgsql security definer
+set search_path = public
+as $$
+begin
+  if not public.is_active_user() then
+    raise exception 'Not permitted: account is not active';
+  end if;
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+drop policy if exists "work_orders: mechanic update own" on public.work_orders;
+drop policy if exists "work_orders: service_advisor full access" on public.work_orders;
+drop policy if exists "work_orders: staff update shop" on public.work_orders;
+create policy "work_orders: staff update shop" on public.work_orders
+  for update using (public.is_active_user())
+  with check (public.is_active_user());
+
+-- 19c. Photos: any active staff member may add photos to ANY job (not just
+--      assigned jobs) and curate photo details on any photo.
+drop policy if exists "photos: advisor insert any job" on public.work_order_photos;
+drop policy if exists "photos: mechanic insert own job" on public.work_order_photos;
+drop policy if exists "photos: advisor curate any" on public.work_order_photos;
+drop policy if exists "photos: staff insert any job" on public.work_order_photos;
+create policy "photos: staff insert any job" on public.work_order_photos
+  for insert with check (public.is_active_user() and created_by = auth.uid());
+drop policy if exists "photos: staff curate any" on public.work_order_photos;
+create policy "photos: staff curate any" on public.work_order_photos
+  for update using (public.is_active_user())
+  with check (public.is_active_user());
+
+drop policy if exists "work-order-photos: mechanic insert own job" on storage.objects;
+drop policy if exists "work-order-photos: staff insert any job" on storage.objects;
+create policy "work-order-photos: staff insert any job" on storage.objects
+  for insert with check (bucket_id = 'work-order-photos' and public.is_active_user());
+
+-- 19d. Activity edits: author or shop_owner (advisor tier removed). Same
+--      audit rules otherwise — only customer_note/work_log bodies are ever
+--      editable, with full activity_history versioning.
+create or replace function public.enforce_activity_edits()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if public.is_shop_owner() then
+    return new; -- owners may edit/restore/deactivate anything
+  end if;
+
+  if old.activity_type not in ('customer_note', 'work_log') and (
+    new.body is distinct from old.body or new.meta is distinct from old.meta or new.active is distinct from old.active
+  ) then
+    raise exception 'Not permitted: only customer-facing notes and work-log customer updates can be edited after creation';
+  end if;
+
+  if old.activity_type in ('customer_note', 'work_log') and (new.body is distinct from old.body or new.meta is distinct from old.meta) then
+    if old.author_id is distinct from auth.uid() then
+      raise exception 'Not permitted: only the author or a shop owner may edit this update';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop policy if exists "activities: author, advisor, or shop_owner update" on public.activities;
+drop policy if exists "activities: author or shop_owner update" on public.activities;
+create policy "activities: author or shop_owner update" on public.activities
+  for update using (
+    public.is_active_user() and (author_id = auth.uid() or public.is_shop_owner())
+  )
+  with check (public.is_active_user());
+
+-- 19e. Serial numbers: any active staff member may edit records on any job.
+drop policy if exists "serial_numbers: creator or advisor update" on public.work_order_serial_numbers;
+drop policy if exists "serial_numbers: staff update any" on public.work_order_serial_numbers;
+create policy "serial_numbers: staff update any" on public.work_order_serial_numbers
+  for update using (public.is_active_user())
+  with check (public.is_active_user());
+
+-- 19f. Availability: self-service stays ("profiles: self update limited");
+--      updating OTHER staff's availability is shop_owner-only again.
+drop policy if exists "profiles: service_advisor update availability" on public.profiles;
+
+-- 19g. Retire the advisor helper last — nothing references it anymore.
+drop function if exists public.is_service_advisor();

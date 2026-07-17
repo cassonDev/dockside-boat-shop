@@ -14,10 +14,11 @@ const { createClient } = require('@supabase/supabase-js');
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// The app's profiles.role check constraint only allows these three today —
-// do not accept arbitrary strings from the client. If a fourth tier
-// ("manager") is ever added to the schema, add it here too.
-const ALLOWED_ROLES = ['mechanic', 'service_advisor', 'shop_owner'];
+// Two-role model: the app's profiles.role check constraint only allows these
+// two values. platform_admin is NOT a shop role — it is never assignable
+// here and must live in a separate platform-level store, granted only via a
+// secure server-side process by an existing platform admin.
+const ALLOWED_ROLES = ['mechanic', 'shop_owner'];
 
 exports.handler = async (event) => {
   const cors = {

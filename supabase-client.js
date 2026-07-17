@@ -169,8 +169,8 @@ export async function fetchMechanics() {
 
 // Every staff profile regardless of role — used for the Mechanic Profile
 // page's Manage Role feature, so a shop_owner can look up (and, via the
-// secure update-staff-role Function, change the role of) a service_advisor
-// or fellow shop_owner, not just accounts already role='mechanic'. RLS
+// secure update-staff-role Function, change the role of) a fellow
+// shop_owner, not just accounts already role='mechanic'. RLS
 // still governs what actually comes back: a non-owner viewer only ever
 // gets their own row via the "profiles: self read" policy.
 export async function fetchStaffRoster() {
@@ -269,9 +269,9 @@ export async function updateJobStatus(id, status) {
 // Full work-order/customer-details edit (Edit Job Details modal). Never
 // touches id, created_at, or created_by — the QR/job code and provenance
 // stay stable across edits. RLS + the guard_work_order_edits trigger decide
-// who is actually permitted to change which columns (shop_owner and
-// service_advisor: everything; mechanic: none of these fields, only status
-// via updateJobStatus above).
+// who is actually permitted to change which columns. Two-role model: any
+// active staff member (mechanic or shop_owner) may edit these fields on any
+// job in the shop — tenant isolation, not assignment, is the boundary.
 export async function updateWorkOrder(id, patch) {
   const row = {};
   if (patch.customerName !== undefined) row.customer_name = patch.customerName;
@@ -333,7 +333,7 @@ export async function addComment(workOrderId, body, author) {
 // private mechanic notes, public customer notes, status changes, photos,
 // and the financial/parts trail (quote/approval/invoice/payment/parts).
 // Every row is append-only EXCEPT customer_note, which may be edited by its
-// author, a service advisor, or a manager — each edit writes the prior
+// author or a shop owner — each edit writes the prior
 // version to activity_history before overwriting, so nothing is ever lost.
 export const ACTIVITY_TYPES = [
   'work_log', 'inspection', 'ai_summary', 'mechanic_note', 'customer_note',
@@ -474,7 +474,7 @@ export async function setMechanicOOO(id, outOfOffice) {
   if (error) throw error;
 }
 
-// Availability: a mechanic may update only their own row; shop_owner/service_advisor
+// Availability: a mechanic may update only their own row; a shop_owner
 // may update anyone's (both enforced by RLS on profiles, not just by hiding the UI).
 // Setting anything other than 'available' also flips the legacy out_of_office
 // boolean so existing at-risk / OOO-badge logic elsewhere keeps working unchanged.
