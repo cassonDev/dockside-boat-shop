@@ -167,6 +167,18 @@ export async function fetchMechanics() {
   return (data || []).map(profileFromRow);
 }
 
+// Every staff profile regardless of role — used for the Mechanic Profile
+// page's Manage Role feature, so a shop_owner can look up (and, via the
+// secure update-staff-role Function, change the role of) a service_advisor
+// or fellow shop_owner, not just accounts already role='mechanic'. RLS
+// still governs what actually comes back: a non-owner viewer only ever
+// gets their own row via the "profiles: self read" policy.
+export async function fetchStaffRoster() {
+  const { data, error } = await supabase.from('profiles').select('*').order('full_name');
+  if (error) throw error;
+  return (data || []).map(profileFromRow);
+}
+
 export async function fetchJobs() {
   const { data, error } = await supabase.from('work_orders').select('*').eq('active', true).order('created_at', { ascending: false });
   if (error) throw error;
@@ -839,4 +851,24 @@ async function callReviewRoleChange(payload) {
 }
 export async function deleteUserAccount(userId) {
   return callManageUsers('delete_user', { userId });
+}
+
+// Promote/demote a staff member's role from the Mechanic Profile page's
+// Manage Role section. Deliberately routed through its own Netlify Function
+// (not manage-users' set_role, which skips the last-owner/active-account
+// safety checks) — see netlify/functions/update-staff-role.js.
+async function callUpdateStaffRole(payload) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Not signed in.');
+  const res = await fetch('/.netlify/functions/update-staff-role', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
+  return json;
+}
+export async function updateStaffRole(targetUserId, newRole) {
+  return callUpdateStaffRole({ targetUserId, newRole });
 }

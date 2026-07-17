@@ -888,10 +888,23 @@
         </div>
       </sc-for>
     </div>
+
+    <sc-if value="{{ hasOtherStaff }}" hint-placeholder-val="{{ false }}">
+      <div style="font:700 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin:20px 0 8px;">OTHER STAFF</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <sc-for list="{{ otherStaffDisplay }}" as="st" hint-placeholder-count="2">
+          <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;" onClick="{{ st.onOpenProfile }}">
+            <div>
+              <div style="font:700 14px 'Public Sans',sans-serif;color:#16283D;">{{ st.name }} <span style="{{ st.activeLabelStyle }}">{{ st.activeLabel }}</span></div>
+              <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-top:2px;">{{ st.roleLabel }}</div>
+            </div>
+            <div style="color:rgba(22,40,61,.35);font-size:16px;">&rsaquo;</div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
   </div>
   </sc-if>
-
-  <!-- ============ MECHANIC PROFILE ============ -->
   <sc-if value="{{ isMechanicProfile }}" hint-placeholder-val="{{ false }}">
   <div style="max-width:520px;margin:0 auto;padding:20px 16px 60px;">
     <div class="no-print" style="display:inline-flex;align-items:center;gap:6px;font:700 12px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;margin-bottom:14px;" onClick="{{ backToRoster }}">&#8592; MECHANICS</div>
@@ -991,6 +1004,31 @@
         <div style="background:#F6F1E4;color:#16283D;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ startAvailabilityEdit }}">UPDATE AVAILABILITY</div>
       </sc-if>
     </div>
+
+    <sc-if value="{{ canManageRole }}" hint-placeholder-val="{{ false }}">
+    <div class="no-print" style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;margin-bottom:14px;">
+      <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:10px;">MANAGE ROLE</div>
+      <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);margin-bottom:12px;">Current role: <span style="font:700 13px 'Public Sans',sans-serif;color:#16283D;">{{ manageRoleCurrentLabel }}</span></div>
+      <sc-if value="{{ profileMechDisabled }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">This account is disabled. Reactivate it before changing its role.</div>
+      </sc-if>
+      <sc-if value="{{ hasManageRoleSuccess }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#EFF6F5;border:1px solid #1F6F78;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#1F6F78;margin-bottom:10px;">{{ manageRoleSuccessMessage }}</div>
+      </sc-if>
+      <sc-if value="{{ isLastActiveOwner }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#FFF8E8;border:1px solid #D97706;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#D97706;margin-bottom:10px;">This account is the shop&rsquo;s only active owner. Promote another owner before changing this role.</div>
+      </sc-if>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+        <sc-for list="{{ manageRoleOptions }}" as="opt" hint-placeholder-count="3">
+          <div style="{{ opt.style }}" onClick="{{ opt.onSelect }}">{{ opt.label }}</div>
+        </sc-for>
+      </div>
+      <sc-if value="{{ hasManageRoleError }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;margin-bottom:10px;">{{ manageRoleErrorMessage }}</div>
+      </sc-if>
+      <div style="{{ updateRoleButtonStyle }}" onClick="{{ requestRoleUpdate }}">{{ updateRoleButtonLabel }}</div>
+    </div>
+    </sc-if>
 
     <sc-if value="{{ canRequestRoleChange }}" hint-placeholder-val="{{ false }}">
     <div class="no-print" style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;">
@@ -1458,6 +1496,20 @@
   </div>
   </sc-if>
 
+  <!-- ============ ROLE CHANGE CONFIRM MODAL ============ -->
+  <sc-if value="{{ showRoleConfirm }}" hint-placeholder-val="{{ false }}">
+  <div class="no-print" style="position:fixed;inset:0;background:rgba(22,40,61,.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px;" onClick="{{ cancelRoleUpdate }}">
+    <div style="background:#fff;border-radius:10px;padding:24px;width:100%;max-width:400px;" onClick="{{ stopPropagation }}">
+      <div style="font:800 17px 'Archivo',sans-serif;color:#16283D;margin-bottom:10px;">{{ roleConfirmTitle }}</div>
+      <div style="font:500 13.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.75);line-height:1.5;margin-bottom:18px;">{{ roleConfirmBody }}</div>
+      <div style="display:flex;gap:8px;">
+        <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 12.5px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ cancelRoleUpdate }}">CANCEL</div>
+        <div style="{{ roleConfirmButtonStyle }}" onClick="{{ confirmRoleUpdate }}">{{ roleConfirmButtonLabel }}</div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
   <!-- ============ SCAN MODAL ============ -->
   <sc-if value="{{ showScanModal }}" hint-placeholder-val="{{ false }}">
   <div class="no-print" style="position:fixed;inset:0;background:rgba(22,40,61,.55);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px;" onClick="{{ closeScanModal }}">
@@ -1742,6 +1794,12 @@ class Component extends DCLogic {
     jobEditSuccess: '',
 
     profileMechanicId: null,
+    staffRoster: [],
+    manageRoleDraft: '',
+    manageRoleSaving: false,
+    manageRoleError: '',
+    manageRoleSuccess: '',
+    showRoleConfirm: false,
     availabilityDraft: null,
     availabilitySaving: false,
     availabilityError: '',
@@ -1966,8 +2024,8 @@ class Component extends DCLogic {
         this.setState({ authChecking: false, loaded: false, profile: null, loadError: profile ? 'Your account has been disabled. Contact your shop owner.' : '' });
         return;
       }
-      const [mechanics, jobs, shopSerialLabels] = await Promise.all([mod.fetchMechanics(), mod.fetchJobs(), mod.fetchSerialLabelOptions()]);
-      this.setState({ profile, mechanics, jobs, shopSerialLabels, loaded: true, authChecking: false, loadError: '' }, () => {
+      const [mechanics, jobs, shopSerialLabels, staffRoster] = await Promise.all([mod.fetchMechanics(), mod.fetchJobs(), mod.fetchSerialLabelOptions(), mod.fetchStaffRoster()]);
+      this.setState({ profile, mechanics, jobs, shopSerialLabels, staffRoster, loaded: true, authChecking: false, loadError: '' }, () => {
         this.resolvePendingJob();
       });
     } catch (e) {
@@ -2141,8 +2199,41 @@ class Component extends DCLogic {
   }); };
   goRoster = () => { this.unsubscribeComments(); this.setState({ screen: 'roster', showScanModal: false }); this.loadRoleChangeRequestsForRoster(); };
   goMechanicProfile = (id) => {
-    this.setState({ screen: 'mechanicProfile', profileMechanicId: id, availabilityDraft: null, availabilityError: '', roleRequestOpen: false, roleRequestError: '', roleRequestSuccess: '' });
+    this.setState({ screen: 'mechanicProfile', profileMechanicId: id, availabilityDraft: null, availabilityError: '', roleRequestOpen: false, roleRequestError: '', roleRequestSuccess: '', manageRoleDraft: '', manageRoleError: '', manageRoleSuccess: '', showRoleConfirm: false });
     this.loadRoleChangeRequestsForRoster(id);
+  };
+  findStaffById = (id) => (this.state.staffRoster || []).find(m => m.id === id) || this.state.mechanics.find(m => m.id === id);
+  roleLabel = (r) => r === 'shop_owner' ? 'Shop Owner' : r === 'service_advisor' ? 'Service Advisor' : 'Mechanic';
+  selectManageRole = (role) => this.setState({ manageRoleDraft: role, manageRoleError: '', manageRoleSuccess: '' });
+  requestRoleUpdate = () => {
+    const target = this.findStaffById(this.state.profileMechanicId);
+    if (!target || !this.state.manageRoleDraft || this.state.manageRoleDraft === target.role || this.state.manageRoleSaving) return;
+    this.setState({ showRoleConfirm: true, manageRoleError: '' });
+  };
+  cancelRoleUpdate = () => this.setState({ showRoleConfirm: false });
+  confirmRoleUpdate = async () => {
+    const s = this.state;
+    const target = this.findStaffById(s.profileMechanicId);
+    if (!target || !this._dataMod || s.manageRoleSaving) return;
+    this.setState({ manageRoleSaving: true, manageRoleError: '' });
+    try {
+      const res = await this._dataMod.updateStaffRole(target.id, s.manageRoleDraft);
+      const newRole = (res && res.profile && res.profile.role) || s.manageRoleDraft;
+      const applyRole = (list) => (list || []).map(m => m.id === target.id ? { ...m, role: newRole } : m);
+      const message = newRole === 'shop_owner'
+        ? `${target.name} is now a Shop Owner.`
+        : `${target.name}'s role has been changed to ${this.roleLabel(newRole)}.`;
+      this.setState(st => ({
+        staffRoster: applyRole(st.staffRoster),
+        mechanics: newRole === 'mechanic' ? applyRole(st.mechanics) : st.mechanics.filter(m => m.id !== target.id),
+        manageRoleSaving: false,
+        manageRoleDraft: '',
+        showRoleConfirm: false,
+        manageRoleSuccess: message,
+      }));
+    } catch (e) {
+      this.setState({ manageRoleSaving: false, manageRoleError: (e && e.message) || 'Could not update role.', showRoleConfirm: false });
+    }
   };
   backToRoster = () => this.setState({ screen: 'roster', profileMechanicId: null });
 
@@ -3925,13 +4016,24 @@ class Component extends DCLogic {
       onToggleActive: (e) => { e && e.stopPropagation && e.stopPropagation(); this.toggleMechanicActive(m); },
       onOpenProfile: () => this.goMechanicProfile(m.id),
     }));
+    const otherStaffDisplay = (s.staffRoster || [])
+      .filter(m => m.role !== 'mechanic')
+      .map(m => ({
+        id: m.id,
+        name: m.name,
+        active: m.active,
+        activeLabel: m.active ? '' : '(DISABLED)',
+        activeLabelStyle: `font:700 10px 'IBM Plex Mono',monospace;color:#C0392B;`,
+        roleLabel: this.roleLabel(m.role),
+        onOpenProfile: () => this.goMechanicProfile(m.id),
+      }));
 
     const isShopOwner = this.isShopOwner();
     const isServiceAdvisor = this.isServiceAdvisor();
     const canEditJobDetails = isShopOwner || isServiceAdvisor;
 
     // ---------- mechanic profile page ----------
-    const profileMech = s.mechanics.find(m => m.id === s.profileMechanicId);
+    const profileMech = (s.staffRoster || []).find(m => m.id === s.profileMechanicId) || s.mechanics.find(m => m.id === s.profileMechanicId);
     const isOwnProfile = !!(profileMech && s.profile && profileMech.id === s.profile.id);
     const canEditAvailability = isShopOwner || isServiceAdvisor || isOwnProfile;
     const ROLE_DESCRIPTIONS = {
@@ -3939,6 +4041,45 @@ class Component extends DCLogic {
       service_advisor: 'Can manage customer/job details, photos, and assignments across all jobs.',
       shop_owner: 'Full access: staff, roles, billing, and every work order in the shop.',
     };
+    const roleUpdateDisabled = !s.manageRoleDraft || !profileMech || s.manageRoleDraft === profileMech.role || s.manageRoleSaving;
+    const activeOwnerCount = (s.staffRoster || []).filter(m => m.role === 'shop_owner' && m.active).length;
+    const isTargetLastActiveOwner = !!(profileMech && profileMech.role === 'shop_owner' && activeOwnerCount <= 1);
+    const manageRoleOptionStyle = (selected, disabled) => `font:700 11.5px 'IBM Plex Mono',monospace;letter-spacing:.3px;padding:10px 14px;border-radius:4px;cursor:${disabled ? 'default' : 'pointer'};background:${selected ? '#16283D' : '#F6F1E4'};color:${selected ? '#fff' : disabled ? 'rgba(22,40,61,.35)' : '#16283D'};opacity:${disabled ? '.6' : '1'};`;
+    const manageRoleOptions = ['mechanic', 'service_advisor', 'shop_owner'].map(r => {
+      const disabled = !!(profileMech && profileMech.role === 'shop_owner' && r !== 'shop_owner' && isTargetLastActiveOwner);
+      return {
+        value: r,
+        label: this.roleLabel(r).toUpperCase(),
+        style: manageRoleOptionStyle(s.manageRoleDraft === r, disabled),
+        onSelect: disabled ? () => {} : () => this.selectManageRole(r),
+      };
+    });
+    const roleConfirmCopy = (() => {
+      if (!profileMech || !s.manageRoleDraft) return { title: '', body: '', buttonLabel: '', buttonColor: '#1F6F78' };
+      const name = profileMech.name;
+      if (s.manageRoleDraft === 'shop_owner') {
+        return {
+          title: `Promote ${name} to Shop Owner?`,
+          body: `${name} will receive full administrative access to this shop, including staff management, shop configuration, audit logs, and other owner-only functions.`,
+          buttonLabel: 'PROMOTE TO SHOP OWNER',
+          buttonColor: '#1F6F78',
+        };
+      }
+      if (profileMech.role === 'shop_owner') {
+        return {
+          title: `Change ${name}'s role to ${this.roleLabel(s.manageRoleDraft)}?`,
+          body: `${name} will immediately lose shop-owner permissions and will only have access allowed to a ${this.roleLabel(s.manageRoleDraft).toLowerCase()}.`,
+          buttonLabel: `CHANGE TO ${s.manageRoleDraft.toUpperCase().replace('_', ' ')}`,
+          buttonColor: '#C0392B',
+        };
+      }
+      return {
+        title: `Change ${name}'s role to ${this.roleLabel(s.manageRoleDraft)}?`,
+        body: `${name}'s permissions will change immediately to match the ${this.roleLabel(s.manageRoleDraft).toLowerCase()} role.`,
+        buttonLabel: `CHANGE TO ${s.manageRoleDraft.toUpperCase().replace('_', ' ')}`,
+        buttonColor: '#1F6F78',
+      };
+    })();
     const profileJobsAll = jobs.filter(j => j.assignedMechanic === (profileMech && profileMech.id));
     const profileJobsActive = profileJobsAll.filter(j => j.status !== 'done');
     const daysOpen = (job) => Math.max(0, Math.floor((Date.now() - new Date(job.createdAt).getTime()) / 86400000));
@@ -4409,6 +4550,8 @@ class Component extends DCLogic {
       hasLightboxError: !!s.lightboxError, lightboxErrorMessage: s.lightboxError,
 
       mechanicsDisplay,
+      otherStaffDisplay,
+      hasOtherStaff: isShopOwner && otherStaffDisplay.length > 0,
       pendingRoleRequestsDisplay,
       hasPendingRoleRequests: pendingRoleRequestsDisplay.length > 0,
       pendingRoleRequestsCount: pendingRoleRequestsDisplay.length,
@@ -4440,6 +4583,24 @@ class Component extends DCLogic {
       saveAvailability: this.saveAvailability,
       availabilitySaveLabel: s.availabilitySaving ? 'SAVING\u2026' : 'MARK OUT OF OFFICE',
       hasAvailabilityError: !!s.availabilityError, availabilityErrorMessage: s.availabilityError,
+
+      canManageRole: isShopOwner && !!profileMech,
+      profileMechDisabled: !!(profileMech && !profileMech.active),
+      manageRoleOptions,
+      manageRoleCurrentLabel: profileMech ? this.roleLabel(profileMech.role) : '',
+      isLastActiveOwner: isTargetLastActiveOwner,
+      updateRoleButtonStyle: `text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px;border-radius:4px;color:${roleUpdateDisabled ? 'rgba(22,40,61,.4)' : '#16283D'};background:${roleUpdateDisabled ? '#EDE6D6' : '#F6F1E4'};cursor:${roleUpdateDisabled ? 'default' : 'pointer'};`,
+      updateRoleButtonLabel: s.manageRoleSaving ? 'UPDATING\u2026' : 'UPDATE ROLE',
+      requestRoleUpdate: this.requestRoleUpdate,
+      hasManageRoleError: !!s.manageRoleError, manageRoleErrorMessage: s.manageRoleError,
+      hasManageRoleSuccess: !!s.manageRoleSuccess, manageRoleSuccessMessage: s.manageRoleSuccess,
+      showRoleConfirm: !!s.showRoleConfirm,
+      cancelRoleUpdate: this.cancelRoleUpdate,
+      confirmRoleUpdate: this.confirmRoleUpdate,
+      roleConfirmTitle: roleConfirmCopy.title,
+      roleConfirmBody: roleConfirmCopy.body,
+      roleConfirmButtonLabel: s.manageRoleSaving ? 'UPDATING\u2026' : roleConfirmCopy.buttonLabel,
+      roleConfirmButtonStyle: `flex:1;text-align:center;font:700 12.5px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:${s.manageRoleSaving ? 'default' : 'pointer'};color:#fff;background:${roleConfirmCopy.buttonColor};`,
 
       canRequestRoleChange: isOwnProfile,
       isRoleRequestOpen: s.roleRequestOpen,
