@@ -185,17 +185,19 @@ and recording an equipment/hull serial number from a photo:
    to the job's timeline, and every capture/correction is recorded in
    `audit_log` automatically via the existing triggers on `work_orders` and
    `work_order_photos`.
-6. Re-scanning never deletes the previous photo — it's kept for history and
-   demoted from `is_primary_serial_photo`, while the newest reviewed photo
-   becomes primary (enforced by a unique partial index, one primary per
-   work order/equipment).
-7. Schema (section 18 of `supabase-schema.sql`): `work_orders.serial_number`,
-   plus `work_order_photos.photo_type` / `extracted_text` /
-   `extraction_confidence` / `equipment_id` (reserved for a future
-   multi-equipment table — hull/engine/trailer/battery each with their own
-   serial — not built yet since no shop has asked for it) / `is_primary_serial_photo`.
-   No new RLS policies are needed — the existing `work_order_photos` and
-   `work_orders` policies already cover these columns.
+6. Re-scanning never deletes the previous photo — it's kept for history in
+   the gallery, while the record's `photo_id` points at the newest reviewed
+   photo.
+7. Schema (sections 18–19 of `supabase-schema.sql`): multi-record model —
+   `work_order_serial_numbers` (one row per hull/engine/trailer/etc, with
+   `label`, `serial_number`, `photo_id`, `show_to_customer`) plus
+   `shop_serial_label_options` (owner-configurable dropdown labels).
+   `work_order_photos` keeps `photo_type` / `extracted_text` /
+   `extraction_confidence`; the earlier single-field columns
+   (`work_orders.serial_number`, `equipment_id`, `is_primary_serial_photo`)
+   are DROPPED by section 19 — a frontend older than this package will fail
+   with "Could not find the 'equipment_id' column of 'work_order_photos' in
+   the schema cache" until redeployed.
 8. Optional env var: `OPENAI_VISION_MODEL` (defaults to `gpt-4o-mini`) —
    same `OPENAI_API_KEY` as section 7 is reused.
 

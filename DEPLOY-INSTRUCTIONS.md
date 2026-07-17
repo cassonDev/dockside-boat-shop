@@ -18,14 +18,26 @@ This zip contains the updated app with the simplified role model:
    - tightens the `profiles.role` and `role_change_requests.requested_role`
      check constraints to two values
    - replaces assignment-scoped mechanic policies with shop-wide ones
-2. **Then deploy the site.** Push these files to the repo (or drag-deploy to
+2. **Reload the API schema cache.** Still in the SQL Editor, run:
+   `notify pgrst, 'reload schema';`
+   Dropping columns (section 19 removes `work_order_photos.equipment_id`,
+   `is_primary_serial_photo`, and `work_orders.serial_number`) can leave
+   PostgREST's cache stale, which surfaces in the app as
+   *"Could not find the '…' column of '…' in the schema cache"*.
+3. **Then deploy the site.** Push these files to the repo (or drag-deploy to
    Netlify). The Netlify functions redeploy automatically with the site.
-3. **Verify.**
+   ⚠ The live build at boatshop.netlify.app that predates this package still
+   sends `equipment_id` when saving a serial number — that's exactly the
+   schema-cache error above. Deploying this package fixes it; no data is lost.
+4. **Verify.**
    - Sign in as a mechanic: can open/edit ANY job, upload photos, edit
      serials, archive; no Shop Config or Audit Log in the nav.
    - Sign in as a shop owner: Manage Role card shows only MECHANIC and
      SHOP OWNER; selecting one shows its description.
    - Attempt to demote the last active owner: blocked with an error.
+   - Scan a serial number on any job → choose a label → SAVE SERIAL NUMBER:
+     saves cleanly (no schema-cache error), appears under SERIAL NUMBERS and
+     as a tagged photo in the gallery.
 
 ## Order matters
 Run the SQL **before** deploying the frontend. If the old constraint still
