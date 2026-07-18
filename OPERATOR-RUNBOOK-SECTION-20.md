@@ -152,6 +152,55 @@ was changed. Save the full message and get it reviewed. Do not re-run blindly.
 
 > Use this file **only** — not `supabase-schema.sql` (that one has a known bug).
 
+### Known failure conditions in Phase 6
+
+**A) `ERROR: P0001: Cannot set active shop to one you are not an active member of`**
+(from `enforce_active_shop_id()`, during the profiles `active_shop_id` backfill).
+- **What it means:** you are running an **old** copy of the SQL. The corrected
+  file (dated 2026-07-18) only sets `active_shop_id` for profiles that have an
+  **active** membership, so this error no longer occurs. The failed run has
+  **already rolled itself back** — nothing was applied.
+- **Do:** (1) run the **rollback-verification block** below and confirm every
+  count is `0` / `pre-tenant-ok`; (2) make sure you are using the file from the
+  latest `release-section-20.zip`; (3) then re-do Phase 6.
+- **Do NOT:** disable or edit the `enforce_active_shop_id()` guard to force it
+  through.
+
+**Rollback-verification block (read-only — proves the failed run left prod
+unchanged). PASS = every `live` is `0` and the last row is `pre-tenant-ok`:**
+
+```sql
+select 'tenant_tables' as check,
+  (select count(*) from information_schema.tables where table_schema='public'
+     and table_name in ('shops','shop_locations','shop_memberships','platform_admins'))::text as live,
+  '0' as expected_if_rolled_back
+union all select 'profiles.active_shop_id col',
+  (select count(*) from information_schema.columns
+     where table_schema='public' and table_name='profiles' and column_name='active_shop_id')::text, '0'
+union all select 'work_orders.shop_id col',
+  (select count(*) from information_schema.columns
+     where table_schema='public' and table_name='work_orders' and column_name='shop_id')::text, '0'
+union all select 'tenant helper fns',
+  (select count(*) from pg_proc where proname in
+     ('current_user_shop_id','is_active_shop_member','row_in_current_shop',
+      'set_active_shop','set_tenant_shop_id','set_tenant_shop_id_lenient','enforce_active_shop_id'))::text, '0'
+union all select 'stamp/guard triggers',
+  (select count(*) from pg_trigger where tgname in ('stamp_shop_id','guard_active_shop_id')
+     and not tgisinternal)::text, '0'
+union all select 'new isolation policies',
+  (select count(*) from pg_policies where schemaname='public' and policyname in
+     ('wo: shop isolation','wop: shop isolation','woc: shop isolation','act: shop isolation',
+      'sn: shop isolation','ah: shop isolation','audit: shop read','rcr: shop isolation',
+      'serial_labels: shop isolation','shops: member read','memberships: self read'))::text, '0'
+union all select 'is_active_user still pre-tenant',
+  case when exists (select 1 from pg_proc where proname='is_active_user'
+     and pg_get_functiondef(oid) like '%current_user_shop_id%')
+     then 'CHANGED-STOP' else 'pre-tenant-ok' end, 'pre-tenant-ok';
+```
+
+If any count is non-zero or you see `CHANGED-STOP`, the transaction did **not**
+fully roll back — STOP and get it reviewed before re-running.
+
 ---
 
 ## PHASE 7 — Run V1–V8 verification (changes nothing)

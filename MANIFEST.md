@@ -16,7 +16,7 @@ architecture was added to build this package.
 
 | File | New / Modified | Purpose | Runs against prod? |
 |---|---|---|---|
-| `section-20-tenant-foundation.sql` | Existing (repo) | The migration: tenant tables, helpers, backfill, shop-scoped RLS, V1–V8. | **Yes — manually, Phase 6.** |
+| `section-20-tenant-foundation.sql` | **Revised 2026-07-18** | The migration: tenant tables, helpers, backfill, shop-scoped RLS, V1–V8. | **Yes — manually, Phase 6.** |
 | `OPERATOR-RUNBOOK-SECTION-20.md` | **New (this pass)** | The 10-phase step-by-step runbook for a non-technical operator. | No |
 | `MANIFEST.md` | **New (this pass)** | This file. | No |
 | `RUN-SECTION-20.md` | Existing (repo) | Short technical run notes (companion to the runbook). | No |
@@ -24,6 +24,15 @@ architecture was added to build this package.
 | `PHASE0-AND-FINDINGS.md` | Existing (repo) | Read-only findings, RLS-conflict rationale, work-order-ID investigation. | No |
 | `LIVE-VERIFICATION-READONLY.md` | **New (this pass)** | The read-only live-verification query package (§0–§6). | Read-only only |
 | `RECONCILED-LIVE-STATE.md` | **New (this pass)** | The verified live-vs-repo reconciliation (evidence the plan is based on). | No |
+
+## Changelog
+- **2026-07-18 — `section-20-tenant-foundation.sql` fix (block 20D step 4):** the
+  `active_shop_id` backfill previously updated ALL profiles, which raised
+  `P0001` from `enforce_active_shop_id()` on the first inactive profile (inactive
+  membership). Now it sets `active_shop_id` only for profiles with an **active**
+  membership in the seed shop; inactive profiles keep `active_shop_id = NULL`.
+  The guard was **not** disabled or weakened. Runbook Phase 6 documents this
+  exact failure + a read-only rollback-verification block.
 
 ## Known documentation caveat (no code change made)
 `SECTION-20-PLAN.md` §4 step 2 / §10 item 2 state the migration "never drops or

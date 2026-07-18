@@ -390,8 +390,23 @@ begin
   from public.profiles p
   on conflict (profile_id, shop_id) do nothing;
 
-  -- 4) Point every profile's active_shop_id at the seed shop (only if unset).
-  update public.profiles set active_shop_id = v_shop where active_shop_id is null;
+  -- 4) Point active_shop_id at the seed shop — ONLY for profiles that now have
+  --    an ACTIVE membership in it (created in step 3 above). This runs after the
+  --    memberships exist AND satisfies enforce_active_shop_id(), which requires
+  --    an active membership. Deactivated / inactive profiles received an INACTIVE
+  --    membership in step 3 and are intentionally left with active_shop_id = NULL
+  --    (they have no current shop until reactivated). The guard is NOT disabled,
+  --    bypassed, or weakened — this update simply never asks it to approve a shop
+  --    the profile is not an active member of.
+  --    FIX (2026-07-18): the prior version updated ALL profiles unconditionally,
+  --    which raised P0001 from enforce_active_shop_id() on the first inactive
+  --    profile (inactive membership). The EXISTS predicate below is the fix.
+  update public.profiles p set active_shop_id = v_shop
+  where p.active_shop_id is null
+    and exists (
+      select 1 from public.shop_memberships m
+      where m.profile_id = p.id and m.shop_id = v_shop and m.is_active
+    );
 
   -- 5) Backfill work_orders (shop_id + location_id).
   update public.work_orders set shop_id = v_shop where shop_id is null;
