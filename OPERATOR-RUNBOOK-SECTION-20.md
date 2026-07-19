@@ -1,5 +1,23 @@
 # OPERATOR RUNBOOK — Section 20 (Tenant Foundation)
 
+> ## ⚠ STATUS 2026-07-19 — ALREADY APPLIED. DO NOT RUN PHASES 1–6.
+> Section 20 is **fully applied and verified in production** as of 2026-07-19.
+> One of the Phase 6 runs previously believed to have rolled back actually
+> **committed** — the earlier "both attempts rolled back completely" conclusion
+> was **incorrect**. **Do NOT re-run the migration** (`section-20-tenant-
+> foundation.sql`) against production; re-running would collide with the live
+> objects. Phases 1–7 are effectively complete.
+>
+> **Verified live 2026-07-19:** 4 tenant tables · 7 helper functions · 9
+> stamp/guard triggers · 11 shop-isolation policies · strict `shop_id` columns
+> `NOT NULL` · backfill complete (zero unstamped strict rows) · old permissive
+> policies gone · new shop-scoped isolation policies active · all backfill-
+> disabled triggers re-enabled (zero left disabled).
+>
+> **Remaining work only:** Phase 8 (two-shop isolation test, incl. the
+> id-enumeration test) · Phase 9 (live smoke test) · Phase 10 (hard stop /
+> Section 21 go/no-go). Start at Phase 8.
+
 **Who this is for:** a careful operator who is NOT a database expert.
 **What it does:** adds multi-tenant isolation to the live database and moves all
 existing data into the one shop, **Lessard Marine Works**. It does **not** touch

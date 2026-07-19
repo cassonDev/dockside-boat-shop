@@ -1,5 +1,17 @@
 # MANIFEST — Section 20 release package
 
+> **STATUS (2026-07-19): SECTION 20 IS FULLY APPLIED AND VERIFIED IN PRODUCTION.**
+> The migration `section-20-tenant-foundation.sql` committed (one of the Phase 6
+> runs previously believed to have rolled back actually committed). Do **NOT**
+> re-run Phase 6 / the migration against production — it is already applied.
+> Verified live 2026-07-19: 4 tenant tables, 7 helper functions, 9 stamp/guard
+> triggers, 11 shop-isolation policies; strict `shop_id` columns `NOT NULL`;
+> backfill complete (zero unstamped strict rows); old permissive policies gone;
+> new shop-scoped isolation policies active; all backfill-disabled triggers
+> re-enabled. The earlier belief that both failed attempts rolled back completely
+> was **incorrect**. Remaining work: Phase 8 isolation test, Phase 9 smoke test,
+> Phase 10 hard stop / Section 21 go/no-go.
+
 **Scope of this package:** apply the multi-tenant foundation (Section 20) only.
 **Explicitly excluded:** Section 21 storage, the storage bucket flip, any
 signed-URL frontend deploy, the purge worker, and any app-code change. No new
@@ -16,7 +28,7 @@ architecture was added to build this package.
 
 | File | New / Modified | Purpose | Runs against prod? |
 |---|---|---|---|
-| `section-20-tenant-foundation.sql` | **Revised 2026-07-18** | The migration: tenant tables, helpers, backfill, shop-scoped RLS, V1–V8. | **Yes — manually, Phase 6.** |
+| `section-20-tenant-foundation.sql` | **Revised 2026-07-18b — APPLIED 2026-07-19** | The migration: tenant tables, helpers, backfill, shop-scoped RLS, V1–V8. | **Already applied — do NOT re-run.** |
 | `OPERATOR-RUNBOOK-SECTION-20.md` | **New (this pass)** | The 10-phase step-by-step runbook for a non-technical operator. | No |
 | `MANIFEST.md` | **New (this pass)** | This file. | No |
 | `RUN-SECTION-20.md` | Existing (repo) | Short technical run notes (companion to the runbook). | No |
@@ -50,12 +62,21 @@ replaces" existing policies. That summary is **out of date**: the actual SQL
 replace it with shop-scoped policies — which is the correct, verified behavior
 (this is why V7b must return 0). The SQL is authoritative. Flagged, not changed.
 
-## Verification status baked into this package
-Live production was confirmed read-only before packaging:
-- Section 20 is **not** applied live (tenant tables + helpers absent).
-- Bucket `work-order-photos` is **public**; storage policies are pre-tenant.
-- Every affected table's live RLS is pre-tenant (no `row_in_current_shop`).
-Full evidence: `RECONCILED-LIVE-STATE.md`.
+## Verification status (UPDATED 2026-07-19)
+**Current live state — Section 20 applied and verified:**
+- Section 20 **is applied** live: 4 tenant tables, 7 helper functions, 9
+  stamp/guard triggers, 11 shop-isolation policies present.
+- Strict `shop_id` columns are `NOT NULL`; backfill complete (zero unstamped
+  strict rows); old permissive policies gone; new shop-scoped policies active;
+  all backfill-disabled triggers re-enabled.
+- Bucket `work-order-photos` is still **public**; storage (Section 21) is
+  unchanged and remains blocked pending the Phase 10 go/no-go.
+
+**Historical (2026-07-18 pre-migration baseline, retained for record):**
+- At packaging time Section 20 was **not** applied live (tenant tables + helpers
+  absent); every affected table's RLS was pre-tenant (no `row_in_current_shop`).
+  That baseline is superseded — the migration has since committed.
+Full evidence + correction note: `RECONCILED-LIVE-STATE.md` section A.
 
 ## Not included (deliberately)
 `section-21-storage.sql`, `STORAGE-PRIVACY.md`, `VERIFICATION.md`,

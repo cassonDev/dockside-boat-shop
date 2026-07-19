@@ -1,21 +1,50 @@
 # Reconciled Live State — Storage Security Workstream
 
-**Date:** 2026-07-18 · **Source of truth: LIVE production Supabase** (verified
+**Date:** 2026-07-19 · **Source of truth: LIVE production Supabase** (verified
 read-only via `LIVE-VERIFICATION-READONLY.md`). The repo is only a hypothesis;
 where they disagree, live wins.
 
 ---
 
-## A. Headline finding
+## A. Headline finding (UPDATED 2026-07-19 — Section 20 IS applied)
 
-**Section 20 (multi-tenant foundation) is NOT applied in production.** Live is
-running the original **pre-tenant (§10/§19) generation** under enabled RLS.
-There is **no tenant isolation of any kind** live. The repo's assumption that
-"Section 20 should be there" is wrong again — proven, not assumed.
+**Section 20 (multi-tenant foundation) is FULLY APPLIED and VERIFIED in
+production as of 2026-07-19.** One of the Phase 6 runs previously believed to
+have rolled back actually **committed**. Live-state verification on 2026-07-19
+confirmed the tenant foundation is present, complete, and consistent:
 
-Therefore the storage workstream (§21) is **blocked upstream**. §21 policies call
-tenant helpers and tables that do not exist. Section 20 is the real first
-migration.
+- **4 tenant tables** live (`shops`, `shop_locations`, `shop_memberships`,
+  `platform_admins`).
+- **7 tenant helper functions** present (`current_user_shop_id`,
+  `is_active_shop_member`, `row_in_current_shop`, `set_active_shop`,
+  `set_tenant_shop_id`, `set_tenant_shop_id_lenient`, `enforce_active_shop_id`;
+  plus the redefined shop-scoped `is_active_user`/`is_shop_owner`).
+- **9 stamp/guard triggers** installed.
+- **11 shop-isolation policies** active (verified count = 11).
+- **Strict `shop_id` columns are `NOT NULL`** on all six strict tenant tables
+  (`work_orders`, `work_order_photos`, `work_order_comments`, `activities`,
+  `work_order_serial_numbers`, `role_change_requests`) — proving block 20E ran,
+  i.e. the transaction reached the end and committed.
+- **Backfill complete:** zero unstamped rows on strict tables (guaranteed by the
+  `NOT NULL` locks).
+- **Old permissive pre-tenant policies are gone**; replaced by the new
+  shop-scoped isolation policies.
+- **All backfill-disabled user triggers were successfully re-enabled** (20D-4);
+  zero triggers left in the disabled state.
+
+**Correction:** the earlier conclusion in this workstream that *both* failed
+Phase 6 attempts rolled back completely was **incorrect** — one run committed.
+Production is in the good, fully-applied state, not a partial one.
+
+**What remains:** Phases 1–7 are effectively done. Remaining work is the Phase 8
+two-shop isolation test (staging, incl. the id-enumeration test), the Phase 9
+live smoke test, and the Phase 10 hard stop / Section 21 go/no-go. §21 is still
+blocked pending that review.
+
+> The pre-tenant findings in sections B–D below are RETAINED AS HISTORICAL
+> RECORD of the 2026-07-18 read-only baseline (the state before the migration
+> committed). They describe the DB as it WAS, not as it is now. Section A above
+> is the current authoritative state.
 
 ---
 
