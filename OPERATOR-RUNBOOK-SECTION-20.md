@@ -144,8 +144,10 @@ nothing transaction: if anything is wrong, it undoes itself completely.
    verification block at the bottom.
 3. Paste that into the SQL Editor and Run.
 
-**PASS:** it completes and you see these NOTICE messages in the output:
-`PREFLIGHT OK`, `RLS GUARD OK`, `SEED OK`, `BACKFILL VALIDATED`.
+**PASS:** it completes and you see these NOTICE messages in the output (in order):
+`PREFLIGHT OK`, `RLS GUARD OK`, `SEED OK`, `BACKFILL GUARD: user triggers
+temporarily disabled…`, `BACKFILL OK`, `BACKFILL GUARD: user triggers
+re-enabled…`, `BACKFILL VALIDATED`.
 **STOP:** any red error, or any message containing `PREFLIGHT:`, `RLS GUARD:`, or
 `BACKFILL INCOMPLETE`. The transaction has already rolled itself back — nothing
 was changed. Save the full message and get it reviewed. Do not re-run blindly.
@@ -165,6 +167,50 @@ was changed. Save the full message and get it reviewed. Do not re-run blindly.
   latest `release-section-20.zip`; (3) then re-do Phase 6.
 - **Do NOT:** disable or edit the `enforce_active_shop_id()` guard to force it
   through.
+
+**B) `ERROR: P0001: Not permitted: account is not active`**
+(from `enforce_work_order_edits()` — a `guard_*` BEFORE UPDATE trigger — during
+the work-table `shop_id` backfill).
+- **What it means:** a pre-existing app-authorization trigger is firing on the
+  migration's administrative backfill. In the SQL Editor there is no logged-in
+  user (`auth.uid()` is NULL), so `is_active_user()` is false and the guard
+  raises. You are running an **old** copy of the SQL. The corrected file
+  (2026-07-18b) temporarily disables **only** the user triggers on the backfill
+  tables, does the backfill, and re-enables them **before commit** — RLS is never
+  touched and no trigger is dropped. The failed run has already rolled back.
+- **Do:** (1) run the **trigger-discovery query** below and save the list — it
+  shows every trigger on the tables the migration updates, so you can see which
+  ones the corrected SQL briefly disables and confirm they are all back on
+  afterward; (2) run the rollback-verification block; (3) use the latest ZIP;
+  (4) re-do Phase 6.
+- **Do NOT:** drop the trigger, disable RLS, or disable triggers globally.
+
+**Trigger-discovery query (read-only — review BEFORE re-running). This is the
+"review every trigger, not one at a time" check; run it against the LIVE DB:**
+
+```sql
+select c.relname as table_name, t.tgname as trigger_name,
+  case when (t.tgtype & 2) = 2 then 'BEFORE' else 'AFTER' end as timing,
+  case when (t.tgtype & 4) = 4 then 'INSERT ' else '' end ||
+  case when (t.tgtype & 16) = 16 then 'UPDATE ' else '' end ||
+  case when (t.tgtype & 8) = 8 then 'DELETE' else '' end as events,
+  p.proname as function,
+  case t.tgenabled when 'O' then 'enabled' when 'D' then 'DISABLED' else t.tgenabled::text end as state,
+  (pg_get_functiondef(p.oid) ~* 'is_active_user|auth\.uid|raise exception') as may_block_migration
+from pg_trigger t
+join pg_class c on c.oid = t.tgrelid
+join pg_namespace n on n.oid = c.relnamespace
+join pg_proc p on p.oid = t.tgfoid
+where n.nspname = 'public' and not t.tgisinternal
+  and c.relname in ('profiles','work_orders','work_order_photos','work_order_comments',
+    'activities','work_order_serial_numbers','activity_history','audit_log',
+    'role_change_requests','shop_serial_label_options')
+order by c.relname, timing desc, t.tgname;
+```
+
+Every BEFORE UPDATE row with `may_block_migration = true` is a tripwire; the
+corrected SQL handles all of them via the temporary table-scoped disable. After
+any run (success or rollback), re-run this and confirm every `state = enabled`.
 
 **Rollback-verification block (read-only — proves the failed run left prod
 unchanged). PASS = every `live` is `0` and the last row is `pre-tenant-ok`:**
@@ -195,7 +241,10 @@ union all select 'new isolation policies',
 union all select 'is_active_user still pre-tenant',
   case when exists (select 1 from pg_proc where proname='is_active_user'
      and pg_get_functiondef(oid) like '%current_user_shop_id%')
-     then 'CHANGED-STOP' else 'pre-tenant-ok' end, 'pre-tenant-ok';
+     then 'CHANGED-STOP' else 'pre-tenant-ok' end, 'pre-tenant-ok'
+union all select 'guard_work_order_edits still enabled',
+  coalesce((select case tgenabled when 'O' then 'enabled' else 'DISABLED-STOP' end
+            from pg_trigger where tgname='guard_work_order_edits'),'(absent-STOP)'), 'enabled';
 ```
 
 If any count is non-zero or you see `CHANGED-STOP`, the transaction did **not**

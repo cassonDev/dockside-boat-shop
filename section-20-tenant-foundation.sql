@@ -408,11 +408,48 @@ begin
       where m.profile_id = p.id and m.shop_id = v_shop and m.is_active
     );
 
-  -- 5) Backfill work_orders (shop_id + location_id).
+  raise notice 'SEED OK: tenant % (location %) seeded; members enrolled; active_shop_id set.', v_shop, v_loc;
+end $$;
+
+-- 20D-2. Temporarily disable USER triggers on ONLY the tables about to be
+--   backfilled. WHY: pre-existing BEFORE UPDATE guards (e.g.
+--   guard_work_order_edits -> enforce_work_order_edits) call is_active_user()/
+--   auth.uid(); in a SQL-editor migration auth.uid() is NULL, so they RAISE
+--   'Not permitted: account is not active' on an administrative shop_id stamp.
+--   This toggle is TABLE-scoped AND TRANSACTION-scoped: it disables only user
+--   triggers on these specific tables, re-enables them in 20D-4 BEFORE commit,
+--   touches NO RLS, drops NOTHING, and leaves referential-integrity (system)
+--   triggers active. If the whole tx rolls back, this disable rolls back too
+--   (DDL is transactional) -- triggers are never left disabled after this runs.
+--   >>> RUN THE TRIGGER-DISCOVERY QUERY (runbook Phase 6, failure B) FIRST to see
+--       exactly which triggers this temporarily disables, and to confirm the
+--       live trigger set on these tables (live is the source of truth). <<<
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'work_orders','work_order_photos','work_order_comments','activities',
+    'work_order_serial_numbers','activity_history','audit_log',
+    'role_change_requests','shop_serial_label_options'
+  ] loop
+    execute format('alter table public.%I disable trigger user', t);
+  end loop;
+  raise notice 'BACKFILL GUARD: user triggers temporarily disabled on backfill tables.';
+end $$;
+
+-- 20D-3. Backfill every work table's shop_id (children from their parent WO).
+--   Runs with the app-authorization guards temporarily off (20D-2); they are
+--   restored in 20D-4 before commit. Re-resolves v_shop/v_loc (new scope).
+do $$
+declare v_shop uuid; v_loc uuid;
+begin
+  select id into v_shop from public.shops where name = 'Lessard Marine Works' limit 1;
+  select id into v_loc from public.shop_locations where shop_id = v_shop order by created_at asc limit 1;
+
+  -- work_orders (shop_id + location_id)
   update public.work_orders set shop_id = v_shop where shop_id is null;
   update public.work_orders set location_id = v_loc where location_id is null;
-
-  -- 6) Backfill child tables from their parent work order (authoritative link).
+  -- child tables from their parent work order (authoritative link)
   update public.work_order_photos ph set shop_id = wo.shop_id
     from public.work_orders wo where ph.work_order_id = wo.id and ph.shop_id is null;
   update public.work_order_comments c set shop_id = wo.shop_id
@@ -421,19 +458,32 @@ begin
     from public.work_orders wo where a.work_order_id = wo.id and a.shop_id is null;
   update public.work_order_serial_numbers s set shop_id = wo.shop_id
     from public.work_orders wo where s.work_order_id = wo.id and s.shop_id is null;
-
-  -- 6b. activity_history from its parent activity.
+  -- activity_history from its parent activity
   update public.activity_history ah set shop_id = a.shop_id
     from public.activities a where ah.activity_id = a.id and ah.shop_id is null;
-  -- 6c. audit_log and role_change_requests: single-tenant backfill to the seed
-  --     shop (no per-row parent link that is reliably tenant-bearing today).
+  -- audit_log + role_change_requests: single-tenant backfill to the seed shop
   update public.audit_log set shop_id = v_shop where shop_id is null;
   update public.role_change_requests set shop_id = v_shop where shop_id is null;
-
-  -- 7) Backfill shop_serial_label_options (shop_id already existed, nullable).
+  -- shop_serial_label_options (shop_id already existed, nullable)
   update public.shop_serial_label_options set shop_id = v_shop where shop_id is null;
 
-  raise notice 'SEED OK: tenant % (location %) seeded and backfilled.', v_shop, v_loc;
+  raise notice 'BACKFILL OK: shop_id stamped on all existing tenant rows.';
+end $$;
+
+-- 20D-4. Re-enable the USER triggers disabled in 20D-2 (BEFORE commit). If any
+--   later statement (20E/20F) fails, the whole tx rolls back and the original
+--   enabled state is restored automatically.
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'work_orders','work_order_photos','work_order_comments','activities',
+    'work_order_serial_numbers','activity_history','audit_log',
+    'role_change_requests','shop_serial_label_options'
+  ] loop
+    execute format('alter table public.%I enable trigger user', t);
+  end loop;
+  raise notice 'BACKFILL GUARD: user triggers re-enabled on backfill tables.';
 end $$;
 
 -- ---------------------------------------------------------------------------

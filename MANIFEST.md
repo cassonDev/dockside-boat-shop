@@ -26,6 +26,15 @@ architecture was added to build this package.
 | `RECONCILED-LIVE-STATE.md` | **New (this pass)** | The verified live-vs-repo reconciliation (evidence the plan is based on). | No |
 
 ## Changelog
+- **2026-07-18b — `section-20-tenant-foundation.sql` fix (block 20D, backfill):**
+  the work-table `shop_id` backfill tripped the pre-existing BEFORE UPDATE guard
+  `guard_work_order_edits` (`enforce_work_order_edits()` raises `account is not
+  active` because the SQL-editor migration has no `auth.uid()`). Backfill is now
+  split into 20D-2/3/4: temporarily disable USER triggers on ONLY the 9 backfill
+  tables (table- and transaction-scoped), backfill, then re-enable before commit.
+  No RLS touched, no trigger dropped, app authorization unchanged. Runbook Phase 6
+  failure B documents this + a read-only trigger-discovery query covering every
+  trigger on the updated tables (not one at a time).
 - **2026-07-18 — `section-20-tenant-foundation.sql` fix (block 20D step 4):** the
   `active_shop_id` backfill previously updated ALL profiles, which raised
   `P0001` from `enforce_active_shop_id()` on the first inactive profile (inactive
