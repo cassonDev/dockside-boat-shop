@@ -24,10 +24,34 @@ existing data into the one shop, **Lessard Marine Works**. It does **not** touch
 photos, the storage bucket, or Section 21.
 
 ## The three rules
-1. **Do exactly these phases, in order.** Do not skip.
-2. **Every phase has a PASS line and a STOP line.** If you see the STOP
-   condition, do not continue — save what's on screen and get help.
+1. **Phases 1–7 are already COMPLETE (see the 2026-07-19 status banner above).**
+   Do **not** re-run them. Your current starting point is **Phase 8**. Phases 1–7
+   below are preserved as a HISTORICAL RECORD of what was done, not as a to-do
+   list.
+2. **Every phase has a PASS line and a STOP line.** For the historical Phases 1–7
+   these record the outcome that was reached; for the live Phases 8–10 they are
+   the real gates — if you see a STOP condition there, do not continue, save
+   what's on screen and get help.
 3. **This runbook never runs Section 21.** Phase 10 is a hard stop.
+
+---
+
+# ═══ HISTORICAL RECORD — PHASES 1–7 (COMPLETED, DO NOT RE-RUN) ═══
+
+> Everything from here down to "CURRENT STARTING POINT" describes work that has
+> **already been carried out and verified** against production. It is kept for
+> the audit trail — the failed attempts, the fixes, and the final verification
+> that established Section 20 committed successfully. **Do not execute any SQL in
+> this historical block against production.** All SQL below is reference/diagnostic
+> only; it is not a current next step.
+>
+> **What actually happened:** Section 20 was applied via Phase 6. Two earlier
+> Phase 6 attempts failed on pre-existing BEFORE UPDATE triggers and were
+> believed to have rolled back. A later run committed. Live-state verification on
+> 2026-07-19 (NOT NULL locks on all strict `shop_id` columns, 11 isolation
+> policies, old policies gone, no stranded disabled triggers) proved the apply is
+> complete and consistent. The "both attempts rolled back" belief was incorrect —
+> one run committed.
 
 You will use two places:
 - **Supabase Dashboard** → its **SQL Editor** (for database steps).
@@ -39,7 +63,9 @@ returns nothing. Copy the results panel to a note after each phase.
 
 ---
 
-## PHASE 1 — Backup
+## PHASE 1 — Backup ✅ COMPLETED (HISTORICAL — do not re-run)
+
+*Historical record of the pre-migration backup step.*
 
 1. Supabase Dashboard → left sidebar **Database** → **Backups**.
 2. Click **Create backup** (on-demand). Wait until it shows as complete.
@@ -51,7 +77,7 @@ below depends on being able to restore this.
 
 ---
 
-## PHASE 2 — Phase 0 read-only checks (changes nothing)
+## PHASE 2 — Phase 0 read-only checks ✅ COMPLETED (HISTORICAL — reference only)
 
 Open `section-20-tenant-foundation.sql`. At the very top is a block labelled
 **PHASE 0 — RECONCILIATION REPORT**. It has two queries (0.1 and 0.2).
@@ -72,7 +98,7 @@ Open `section-20-tenant-foundation.sql`. At the very top is a block labelled
 
 ---
 
-## PHASE 3 — Confirm the policy diff returns 0 rows
+## PHASE 3 — Confirm the policy diff returns 0 rows ✅ COMPLETED (HISTORICAL — reference only)
 
 This proves there are no surprise policies that would make the migration unsafe.
 Paste this **exactly** and Run:
@@ -113,7 +139,7 @@ get it reviewed.
 
 ---
 
-## PHASE 4 — Update GitHub `main` with the approved files
+## PHASE 4 — Update GitHub `main` with the approved files ✅ COMPLETED (HISTORICAL)
 
 Use the ZIP you were given (`release-section-20.zip`). It contains only the
 approved files — nothing else. **No app code changes ship in this pass.**
@@ -134,7 +160,7 @@ don't recognize were added. Undo and redo cleanly.
 
 ---
 
-## PHASE 5 — Confirm the Netlify deploy is healthy
+## PHASE 5 — Confirm the Netlify deploy is healthy ✅ COMPLETED (HISTORICAL)
 
 1. Netlify Dashboard → your site → **Deploys**.
 2. Look at the top **Published** deploy.
@@ -151,9 +177,15 @@ the intended commit.
 
 ---
 
-## PHASE 6 — Run `section-20-tenant-foundation.sql`
+## PHASE 6 — Run `section-20-tenant-foundation.sql` ✅ COMPLETED (HISTORICAL — already applied, DO NOT RE-RUN)
 
-This is the one step that changes the database. It runs as a single all-or-
+> **This step has already been performed and committed. Do NOT run the migration
+> again — re-running would collide with the live tenant objects.** The text below
+> is the historical procedure and the diagnostics that were used while
+> investigating the two failed attempts. All SQL in this phase is
+> reference/diagnostic ONLY.
+
+This was the one step that changed the database. It ran as a single all-or-
 nothing transaction: if anything is wrong, it undoes itself completely.
 
 1. Open `section-20-tenant-foundation.sql`.
@@ -172,7 +204,11 @@ was changed. Save the full message and get it reviewed. Do not re-run blindly.
 
 > Use this file **only** — not `supabase-schema.sql` (that one has a known bug).
 
-### Known failure conditions in Phase 6
+### Known failure conditions in Phase 6 (HISTORICAL — what happened during the two failed attempts)
+
+> These two failures were **observed and resolved** during the applied run. They
+> are recorded for the audit trail. They are not a checklist to work through now
+> — Section 20 is already applied.
 
 **A) `ERROR: P0001: Cannot set active shop to one you are not an active member of`**
 (from `enforce_active_shop_id()`, during the profiles `active_shop_id` backfill).
@@ -203,8 +239,9 @@ the work-table `shop_id` backfill).
   (4) re-do Phase 6.
 - **Do NOT:** drop the trigger, disable RLS, or disable triggers globally.
 
-**Trigger-discovery query (read-only — review BEFORE re-running). This is the
-"review every trigger, not one at a time" check; run it against the LIVE DB:**
+**Trigger-discovery query (HISTORICAL / diagnostic reference — read-only). Was used
+to enumerate every trigger on the backfill tables before the successful run; keep
+for reference, not a current step:**
 
 ```sql
 select c.relname as table_name, t.tgname as trigger_name,
@@ -230,8 +267,13 @@ Every BEFORE UPDATE row with `may_block_migration = true` is a tripwire; the
 corrected SQL handles all of them via the temporary table-scoped disable. After
 any run (success or rollback), re-run this and confirm every `state = enabled`.
 
-**Rollback-verification block (read-only — proves the failed run left prod
-unchanged). PASS = every `live` is `0` and the last row is `pre-tenant-ok`:**
+**Rollback-verification block (HISTORICAL / diagnostic reference — read-only). Was
+used to test whether a FAILED attempt had left prod unchanged. NOTE: this block
+checks for the PRE-tenant state and is now OBSOLETE as a pass/fail gate — against
+current production every `live` count is deliberately NON-zero and
+`is_active_user` is intentionally `CHANGED`, because Section 20 is applied. Keep
+for the audit trail only; do NOT treat its old "PASS = all zero" wording as a
+current expectation:**
 
 ```sql
 select 'tenant_tables' as check,
@@ -270,7 +312,12 @@ fully roll back — STOP and get it reviewed before re-running.
 
 ---
 
-## PHASE 7 — Run V1–V8 verification (changes nothing)
+## PHASE 7 — V1–V8 verification ✅ COMPLETED (HISTORICAL — reference only)
+
+> The V1–V8 checks were run and matched their expected results (this is part of
+> what established that the apply is complete). The block below is retained as the
+> reference definition of those checks; re-running them read-only is harmless but
+> is not a required next step.
 
 At the **bottom** of `section-20-tenant-foundation.sql` is a block labelled
 **POST-MIGRATION VERIFICATION** with checks **V1 through V8**. Run each and
@@ -299,7 +346,14 @@ consider restoring the Phase 1 backup.
 
 ---
 
-## PHASE 8 — Two-shop isolation test (in staging, not production)
+---
+
+# ═══ ▶ CURRENT STARTING POINT — BEGIN HERE ═══
+
+> Phases 1–7 above are DONE. **Phase 8 is your current, live next step.** From
+> here on the PASS/STOP gates are real and apply to production/staging.
+
+## PHASE 8 — Two-shop isolation test (in staging, not production) — ▶ CURRENT NEXT STEP
 
 Follow `SECTION-20-PLAN.md` section **§7** step by step. In a **staging copy**
 (never production), create a temporary **Test Shop B** and **Test User B**, seed
