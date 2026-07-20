@@ -52,8 +52,13 @@ No manual SQL needed. The app has a self-disabling bootstrap flow:
    `SHOP_OWNER_BOOTSTRAP_CODE` env var afterwards as extra hygiene.
 
 Every account after that must be a mechanic invited from the Mechanics
-screen (shop_owner only) or a new shop_owner promoted via `set_role` by an
-existing shop_owner — never created by hand or by public signup.
+screen (shop_owner only), an existing account added to the shop by an owner
+through the same invite (with explicit confirmation), or a new shop_owner
+promoted via the secure `update-staff-role` Function by an existing
+shop_owner. **There is no public self-signup** — the sign-in screen offers
+only Sign in and Forgot password. Onboarding is invitation-only, and creating
+a brand-new shop/tenant is a separate concept (bootstrap today; a future
+"Create your shop" flow later), never mixed with staff invitations.
 
 ## 3. Netlify deployment
 1. Deploy the `netlify-deploy/` folder as your site root (it includes
@@ -103,11 +108,14 @@ falls back to the tool's built-in AI helper if the Netlify function isn't
 reachable yet — this fallback does nothing once deployed for real users.)
 
 ## 4. How auth + roles work
-- Login/signup screens use `supabase.auth.signInWithPassword` /
-  `signUp` (Supabase Auth v2 JS client). Sessions persist via
+- The sign-in screen uses `supabase.auth.signInWithPassword` and offers a
+  native **Forgot password** flow (`resetPasswordForEmail` → recovery session
+  → `updateUser({password})`). There is **no** `signUp` / public self-signup
+  path in the app, and project-level email signup must be disabled in the
+  Supabase dashboard. Sessions persist via
   `persistSession: true` (localStorage), so users stay signed in across visits.
 - Email/password fields use `autocomplete="username"` /
-  `autocomplete="current-password"` (or `new-password` on sign-up) inside a
+  `autocomplete="current-password"` (or `new-password` in recovery) inside a
   real `<form>`, which is what iOS needs to offer Face ID–unlocked
   Password AutoFill — no custom biometric code involved.
 - A DB trigger (`handle_new_auth_user`) creates a `profiles` row for every

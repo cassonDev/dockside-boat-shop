@@ -86,7 +86,19 @@
         <div style="{{ navAuditStyleFull }}" onClick="{{ navGoAudit }}">AUDIT LOG</div>
         <div style="{{ navConfigStyleFull }}" onClick="{{ navGoShopConfig }}">SHOP CONFIG</div>
         </sc-if>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;margin-top:4px;border-top:1px solid rgba(255,255,255,.12);">
+        <sc-if value="{{ showShopSwitcher }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:4px;padding-top:8px;border-top:1px solid rgba(255,255,255,.12);">
+          <div style="font:700 9px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.6px;padding:2px 14px 6px;">SWITCH SHOP</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <sc-for list="{{ shopSwitchList }}" as="shop" hint-placeholder-count="2">
+              <div style="{{ shop.rowStyle }}" onClick="{{ shop.onSwitch }}">
+                <span>{{ shop.name }}</span>
+                <span style="font:700 8px 'IBM Plex Mono',monospace;letter-spacing:.5px;opacity:.8;">{{ shop.roleLabel }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
           <div>
             <div style="font:700 12px 'Public Sans',sans-serif;color:#F6F1E4;">{{ currentUserName }}</div>
             <div style="font:600 9px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.5px;">{{ currentUserRoleLabel }}</div>
@@ -853,14 +865,24 @@
 
     <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
     <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:14px 16px;margin-bottom:14px;">
-      <div style="font:700 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;margin-bottom:8px;">INVITE MECHANIC</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div style="font:700 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;margin-bottom:8px;">INVITE STAFF</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <input placeholder="Full name *" style="flex:1;min-width:140px;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ inviteFullName }}" onChange="{{ setInviteFullName }}"/>
         <input type="email" placeholder="Email" style="flex:1;min-width:160px;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ inviteEmail }}" onChange="{{ setInviteEmail }}"/>
-        <div style="background:#1F6F78;color:#fff;font:700 12px 'Public Sans',sans-serif;padding:13px 16px;border-radius:4px;cursor:pointer;flex:1;min-width:120px;text-align:center;" onClick="{{ sendInvite }}">SEND INVITE</div>
+        <select style="flex:none;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;background:#fff;" value="{{ inviteRole }}" onChange="{{ setInviteRole }}">
+          <option value="mechanic">Mechanic</option>
+          <option value="shop_owner">Shop Owner</option>
+        </select>
+        <div style="background:#1F6F78;color:#fff;font:700 12px 'Public Sans',sans-serif;padding:13px 16px;border-radius:4px;cursor:pointer;flex:1;min-width:120px;text-align:center;" onClick="{{ sendInvite }}">{{ inviteBtnLabel }}</div>
       </div>
       <sc-if value="{{ hasInviteMessage }}" hint-placeholder-val="{{ false }}">
         <div style="margin-top:8px;font:600 12px 'Public Sans',sans-serif;color:{{ inviteMessageColor }};">{{ inviteMessage }}</div>
+      </sc-if>
+      <sc-if value="{{ showInviteConfirm }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="background:#D97706;color:#fff;font:700 12px 'Public Sans',sans-serif;padding:11px 16px;border-radius:4px;cursor:pointer;text-align:center;" onClick="{{ confirmAddExistingUser }}">CONFIRM &amp; ADD TO SHOP</div>
+          <div style="background:#fff;border:1px solid rgba(22,40,61,.2);color:#16283D;font:700 12px 'Public Sans',sans-serif;padding:11px 16px;border-radius:4px;cursor:pointer;text-align:center;" onClick="{{ cancelAddExistingUser }}">CANCEL</div>
+        </div>
       </sc-if>
     </div>
     </sc-if>
@@ -1296,21 +1318,18 @@
       <div style="padding:22px 24px;display:flex;flex-direction:column;gap:12px;">
         <div style="font:800 17px 'Archivo',sans-serif;color:#16283D;">{{ authTitle }}</div>
 
-        <sc-if value="{{ isSignUpMode }}" hint-placeholder-val="{{ false }}">
-        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
-          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">FULL NAME *</div>
-          <input name="name" required="{{ isSignUpMode }}" autocomplete="name" style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ authFullName }}" onChange="{{ setAuthFullName }}"/>
-        </div>
-        </sc-if>
-
+        <sc-if value="{{ showAuthEmail }}" hint-placeholder-val="{{ true }}">
         <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
           <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">EMAIL</div>
           <input type="email" name="username" autocomplete="username" inputmode="email" style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ authEmail }}" onChange="{{ setAuthEmail }}"/>
         </div>
+        </sc-if>
+        <sc-if value="{{ showAuthPassword }}" hint-placeholder-val="{{ true }}">
         <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
-          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">PASSWORD</div>
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">{{ passwordFieldLabel }}</div>
           <input type="password" name="password" autocomplete="{{ authPasswordAutocomplete }}" style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ authPassword }}" onChange="{{ setAuthPassword }}"/>
         </div>
+        </sc-if>
 
         <sc-if value="{{ hasAuthError }}" hint-placeholder-val="{{ false }}">
           <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ authErrorMessage }}</div>
@@ -1320,13 +1339,30 @@
         </sc-if>
 
         <button type="submit" style="{{ authSubmitStyle }}">{{ authSubmitLabel }}</button>
-        <div style="text-align:center;font:600 12.5px 'Public Sans',sans-serif;color:#1F6F78;cursor:pointer;" onClick="{{ toggleAuthMode }}">{{ authToggleLabel }}</div>
+        <sc-if value="{{ showAuthSecondary }}" hint-placeholder-val="{{ true }}">
+          <div style="text-align:center;font:600 12.5px 'Public Sans',sans-serif;color:#1F6F78;cursor:pointer;" onClick="{{ toggleAuthMode }}">{{ authToggleLabel }}</div>
+        </sc-if>
 
         <sc-if value="{{ showBootstrapLink }}" hint-placeholder-val="{{ false }}">
           <div style="text-align:center;font:600 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);cursor:pointer;border-top:1px solid rgba(22,40,61,.1);padding-top:10px;margin-top:2px;" onClick="{{ toggleBootstrapForm }}">First time setting up this shop? Create the owner account &rarr;</div>
         </sc-if>
       </div>
     </form>
+  </div>
+  </sc-if>
+
+  <!-- ============ ACCOUNT NOT LINKED TO A SHOP (UNPROVISIONED) ============ -->
+  <sc-if value="{{ isUnprovisioned }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="width:100%;max-width:420px;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(22,40,61,.12);overflow:hidden;">
+      <div style="background:#16283D;padding:22px 24px;">
+        <div style="font:900 15px 'Archivo',sans-serif;color:#F6F1E4;letter-spacing:.3px;">ACCOUNT NOT LINKED</div>
+      </div>
+      <div style="padding:22px 24px;display:flex;flex-direction:column;gap:14px;">
+        <div style="font:600 14px 'Public Sans',sans-serif;color:#16283D;line-height:1.5;">Your account isn't linked to a shop yet. Ask your shop owner to invite <strong>{{ unprovisionedEmail }}</strong> from their Staff screen, then sign in again.</div>
+        <div style="text-align:center;font:700 12px 'Public Sans',sans-serif;background:#1F6F78;color:#fff;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ handleSignOut }}">SIGN OUT</div>
+      </div>
+    </div>
   </div>
   </sc-if>
 
@@ -1740,7 +1776,9 @@ class Component extends DCLogic {
     authChecking: true,
     session: null,
     profile: null,
-    authMode: 'login',
+    authView: 'login',   // 'login' | 'forgot' | 'recovery'
+    recoveryMode: false,
+    unprovisioned: false,
     authEmail: '',
     authPassword: '',
     authFullName: '',
@@ -1765,8 +1803,11 @@ class Component extends DCLogic {
 
     inviteFullName: '',
     inviteEmail: '',
+    inviteRole: 'mechanic',
     inviteMessage: '',
     inviteError: false,
+    inviteBusy: false,
+    pendingInviteConfirm: false,   // server asked to confirm adding an existing user
 
     archivedJobs: [],
     auditLog: [],
@@ -1887,6 +1928,11 @@ class Component extends DCLogic {
     serialEdits: {}, // recordId -> { label, value, showToCustomer, error }
     shopSerialLabels: [], // shop-configured label options (dropdown source)
 
+    // ---------- multi-tenant (schema section 20) ----------
+    memberships: [],      // shops this user actively belongs to (drives switcher)
+    activeShopId: null,   // profile.active_shop_id, resolved server-side
+    switchingShop: false,
+
     // ---------- shop configuration page ----------
     newLabelText: '',
     newLabelError: '',
@@ -1915,10 +1961,16 @@ class Component extends DCLogic {
       return;
     }
 
-    this._authSub = mod.onAuthStateChange(async (_event, session) => {
+    this._authSub = mod.onAuthStateChange(async (event, session) => {
       this.setState({ session });
-      if (session) { await this.loadForSession(); }
-      else { this.setState({ authChecking: false, loaded: false, profile: null, mechanics: [], jobs: [] }); }
+      // A recovery link opens a valid session whose only purpose is to set a new
+      // password — show the recovery screen instead of loading the app.
+      if (event === 'PASSWORD_RECOVERY') {
+        this.setState({ recoveryMode: true, authView: 'recovery', authChecking: false, loaded: false, profile: null, authPassword: '', authError: '', authNotice: '' });
+        return;
+      }
+      if (session && !this.state.recoveryMode) { await this.loadForSession(); }
+      else if (!session) { this.setState({ authChecking: false, loaded: false, profile: null, mechanics: [], jobs: [], memberships: [], unprovisioned: false, recoveryMode: false }); }
     });
 
     try {
@@ -1960,7 +2012,7 @@ class Component extends DCLogic {
       await this._dataMod.bootstrapShopOwner(bootstrapEmail, bootstrapPassword, bootstrapFullName, bootstrapCode);
       this.setState({
         bootstrapBusy: false, showBootstrapForm: false, bootstrapNeeded: false,
-        authMode: 'login', authEmail: bootstrapEmail, authPassword: '',
+        authView: 'login', authEmail: bootstrapEmail, authPassword: '',
         authNotice: 'Shop owner account created \u2014 sign in below. Bootstrap is now disabled for all future accounts.',
         bootstrapFullName: '', bootstrapEmail: '', bootstrapPassword: '', bootstrapCode: '',
       });
@@ -1999,6 +2051,22 @@ class Component extends DCLogic {
     window.addEventListener('resize', this._onResize);
   }
   toggleNavMenu = () => this.setState(s => ({ navMenuOpen: !s.navMenuOpen }));
+  // Switching shops: persist server-side (validated against membership) then
+  // do a FULL reload so no tenant-scoped state from the previous shop can
+  // linger in memory or cached component state.
+  switchShop = async (shopId) => {
+    if (this.state.switchingShop || shopId === this.state.activeShopId) return;
+    this.setState({ switchingShop: true });
+    try {
+      // Drop this shop's signed URLs before we leave; the full reload clears
+      // the rest of in-memory tenant state.
+      if (this._dataMod && this._dataMod.clearPhotoUrlCache) this._dataMod.clearPhotoUrlCache();
+      await this._dataMod.setActiveShop(shopId);
+      window.location.reload();
+    } catch (e) {
+      this.setState({ switchingShop: false, loadError: (e && e.message) || 'Could not switch shop.' });
+    }
+  };
   closeNavMenu = () => this.setState({ navMenuOpen: false });
   toggleFilters = () => this.setState(s => ({ filtersOpen: !s.filtersOpen }));
   navGoDashboard = () => { this.closeNavMenu(); this.goDashboard(); };
@@ -2025,8 +2093,16 @@ class Component extends DCLogic {
         this.setState({ authChecking: false, loaded: false, profile: null, loadError: profile ? 'Your account has been disabled. Contact your shop owner.' : '' });
         return;
       }
+      // Membership is the sole source of tenant access. An account with zero
+      // active memberships is explicitly UNPROVISIONED — never infer a shop and
+      // never run any tenant-scoped query for it.
+      const memberships = await mod.fetchMyMemberships();
+      if (!memberships.length) {
+        this.setState({ profile, memberships: [], activeShopId: null, unprovisioned: true, loaded: true, authChecking: false, loadError: '' });
+        return;
+      }
       const [mechanics, jobs, shopSerialLabels, staffRoster] = await Promise.all([mod.fetchMechanics(), mod.fetchJobs(), mod.fetchSerialLabelOptions(), mod.fetchStaffRoster()]);
-      this.setState({ profile, mechanics, jobs, shopSerialLabels, staffRoster, loaded: true, authChecking: false, loadError: '' }, () => {
+      this.setState({ profile, mechanics, jobs, shopSerialLabels, staffRoster, memberships, activeShopId: profile.activeShopId || null, unprovisioned: false, loaded: true, authChecking: false, loadError: '' }, () => {
         this.resolvePendingJob();
       });
     } catch (e) {
@@ -2038,22 +2114,43 @@ class Component extends DCLogic {
   setAuthEmail = (e) => this.setState({ authEmail: e.target.value });
   setAuthPassword = (e) => this.setState({ authPassword: e.target.value });
   setAuthFullName = (e) => this.setState({ authFullName: e.target.value });
-  toggleAuthMode = () => this.setState({ authMode: this.state.authMode === 'login' ? 'signup' : 'login', authError: '', authNotice: '' });
+  // Login screen toggles only between sign-in and forgot-password. There is no
+  // public signup path. Recovery mode is entered via the PASSWORD_RECOVERY auth
+  // event, never from here.
+  toggleAuthMode = () => this.setState({ authView: this.state.authView === 'forgot' ? 'login' : 'forgot', authError: '', authNotice: '', authPassword: '' });
 
   submitAuthForm = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
-    const { authMode, authEmail, authPassword, authFullName } = this.state;
+    const view = this.state.authView || 'login';
+    const { authEmail, authPassword } = this.state;
+
+    if (view === 'forgot') {
+      if (!authEmail) { this.setState({ authError: 'Enter your email.' }); return; }
+      this.setState({ authBusy: true, authError: '', authNotice: '' });
+      try { await this._dataMod.sendPasswordReset(authEmail); } catch (err) { /* neutral: never reveal existence */ }
+      this.setState({ authBusy: false, authNotice: 'If an account exists for that email, a reset link has been sent.' });
+      return;
+    }
+
+    if (view === 'recovery') {
+      if (!authPassword || authPassword.length < 8) { this.setState({ authError: 'Choose a password of at least 8 characters.' }); return; }
+      this.setState({ authBusy: true, authError: '', authNotice: '' });
+      try {
+        await this._dataMod.updatePassword(authPassword);
+        this.setState({ authBusy: false, recoveryMode: false, authView: 'login', authPassword: '', authChecking: true });
+        await this.loadForSession();
+      } catch (err) {
+        this.setState({ authBusy: false, authError: (err && err.message) || 'Could not set your password.' });
+      }
+      return;
+    }
+
+    // view === 'login'
     if (!authEmail || !authPassword) { this.setState({ authError: 'Email and password are required.' }); return; }
-    if (authMode === 'signup' && !authFullName.trim()) { this.setState({ authError: 'Full name is required.' }); return; }
     this.setState({ authBusy: true, authError: '', authNotice: '' });
     try {
-      if (authMode === 'signup') {
-        await this._dataMod.signUp(authEmail, authPassword, authFullName);
-        this.setState({ authBusy: false, authNotice: 'Account created \u2014 check your email to confirm, then sign in.', authMode: 'login', authPassword: '' });
-      } else {
-        await this._dataMod.signIn(authEmail, authPassword);
-        this.setState({ authBusy: false, authPassword: '' });
-      }
+      await this._dataMod.signIn(authEmail, authPassword);
+      this.setState({ authBusy: false, authPassword: '' });
     } catch (err) {
       this.setState({ authBusy: false, authError: (err && err.message) || 'Something went wrong.' });
     }
@@ -2061,30 +2158,52 @@ class Component extends DCLogic {
 
   handleSignOut = async () => {
     this.unsubscribeComments();
+    // Wipe any cached signed photo URLs so a signed-out (or next) user can
+    // never reuse the prior session's URLs, and drop tenant-scoped photo state.
+    if (this._dataMod && this._dataMod.clearPhotoUrlCache) this._dataMod.clearPhotoUrlCache();
     try { await this._dataMod.signOut(); } catch (e) {}
-    this.setState({ screen: 'dashboard', profile: null });
+    this.setState({ screen: 'dashboard', profile: null, jobPhotos: [], serialNumbers: [], selectedJobId: null, memberships: [], unprovisioned: false, recoveryMode: false, authView: 'login' });
   };
 
   // ---------- roster / user management (shop_owner) ----------
   setInviteFullName = (e) => this.setState({ inviteFullName: e.target.value });
   setInviteEmail = (e) => this.setState({ inviteEmail: e.target.value });
-  sendInvite = async () => {
+  setInviteRole = (e) => this.setState({ inviteRole: e.target.value === 'shop_owner' ? 'shop_owner' : 'mechanic', pendingInviteConfirm: false });
+  sendInvite = async (opts = {}) => {
     if (!this.state.inviteEmail) { this.setState({ inviteMessage: 'Enter an email address.', inviteError: true }); return; }
     if (!this.state.inviteFullName.trim()) { this.setState({ inviteMessage: 'Enter a full name.', inviteError: true }); return; }
+    const email = this.state.inviteEmail;
+    const role = this.state.inviteRole === 'shop_owner' ? 'shop_owner' : 'mechanic';
+    this.setState({ inviteBusy: true, inviteMessage: '', inviteError: false });
     try {
-      await this._dataMod.inviteMechanic(this.state.inviteEmail, this.state.inviteFullName);
-      this.setState({ inviteMessage: 'Invite sent to ' + this.state.inviteEmail + '.', inviteError: false, inviteEmail: '', inviteFullName: '' });
+      const res = await this._dataMod.inviteStaff(email, this.state.inviteFullName, role, { addExistingUser: !!opts.addExistingUser });
+      if (res.status === 'requires_confirmation') {
+        this.setState({ inviteBusy: false, pendingInviteConfirm: true, inviteError: false,
+          inviteMessage: res.error || 'That email already has an account. Confirm to add them to your shop.' });
+        return;
+      }
+      if (!res.ok) {
+        this.setState({ inviteBusy: false, pendingInviteConfirm: false, inviteError: true,
+          inviteMessage: res.error || 'Could not send invite.' });
+        return;
+      }
+      const roleLabel = role === 'shop_owner' ? 'shop owner' : 'mechanic';
+      const msg = res.status === 'already_member' ? email + ' is already a member of this shop.'
+        : res.status === 'added_existing_user' ? 'Existing user ' + email + ' added to your shop as ' + roleLabel + '.'
+        : 'Invite sent to ' + email + ' as ' + roleLabel + '.';
+      this.setState({ inviteBusy: false, pendingInviteConfirm: false, inviteMessage: msg, inviteError: false, inviteEmail: '', inviteFullName: '', inviteRole: 'mechanic' });
       try {
         const mechanics = await this._dataMod.fetchMechanics();
         this.setState({ mechanics });
       } catch (e2) {
-        // invite itself succeeded; a stale roster list until next reload is a minor issue
         console.error('Failed to refresh mechanics after invite', e2);
       }
     } catch (e) {
-      this.setState({ inviteMessage: (e && e.message) || 'Could not send invite.', inviteError: true });
+      this.setState({ inviteBusy: false, pendingInviteConfirm: false, inviteMessage: (e && e.message) || 'Could not send invite.', inviteError: true });
     }
   };
+  confirmAddExistingUser = () => this.sendInvite({ addExistingUser: true });
+  cancelAddExistingUser = () => this.setState({ pendingInviteConfirm: false, inviteMessage: '', inviteError: false });
   toggleMechanicActive = async (mech) => {
     try {
       await this._dataMod.setUserActive(mech.id, !mech.active);
@@ -2348,8 +2467,28 @@ class Component extends DCLogic {
   };
   backToJob = () => this.setState({ screen: 'jobDetail' });
   goToTag = () => this.setState({ screen: 'tag' });
-  goToInvoice = () => this.setState({ screen: 'invoice' });
-  printPage = () => window.print();
+  // Signed photo URLs expire (see SIGNED_URL_TTL_SECONDS). Re-sign the current
+  // job's photos on the way into the invoice/print surface so a long-open job
+  // never renders (or prints) broken images; cached in-date URLs cost nothing.
+  goToInvoice = async () => {
+    try {
+      if (this._dataMod && this._dataMod.refreshPhotoUrls && this.state.jobPhotos.length) {
+        const signed = await this._dataMod.refreshPhotoUrls(this.state.jobPhotos);
+        this.setState({ jobPhotos: signed });
+      }
+    } catch (e) { console.error('Failed to refresh photo URLs for invoice', e); }
+    this.setState({ screen: 'invoice' });
+  };
+  printPage = async () => {
+    try {
+      if (this._dataMod && this._dataMod.refreshPhotoUrls && this.state.jobPhotos.length) {
+        const signed = await this._dataMod.refreshPhotoUrls(this.state.jobPhotos);
+        this.setState({ jobPhotos: signed });
+        await new Promise(r => setTimeout(r, 60)); // let images repaint before print
+      }
+    } catch (e) { console.error('Failed to refresh photo URLs for print', e); }
+    window.print();
+  };
   stopPropagation = (e) => e && e.stopPropagation && e.stopPropagation();
 
   openScanModal = () => this.setState({ showScanModal: true, scanInput: '', scanError: false });
@@ -3518,7 +3657,15 @@ class Component extends DCLogic {
     }
   };
 
-  isShopOwner() { return !!(this.state.profile && this.state.profile.role === 'shop_owner'); }
+  // Authorization for the CURRENT user is their membership role in the ACTIVE
+  // shop, never the global profiles.role (which is ambiguous for an identity
+  // that belongs to multiple shops). profiles.role is legacy/display only.
+  activeShopRole() {
+    const s = this.state;
+    const active = (s.memberships || []).find(m => m.shopId === s.activeShopId);
+    return active ? active.role : null;
+  }
+  isShopOwner() { return this.activeShopRole() === 'shop_owner'; }
   // Two-role model: every non-owner is a mechanic. Mechanics are full shop
   // staff — they work with ALL jobs in the shop; only account administration
   // (staff, roles, Shop Config, Audit Log) is shop_owner-only.
@@ -3652,25 +3799,31 @@ class Component extends DCLogic {
     if (s.loadError && !s.session) {
       return { ...blankScreens, isAuthChecking: false, isAuthScreen: false, loadErrorMessage: s.loadError };
     }
-    if (!s.session || !s.profile) {
-      const isSignUpMode = s.authMode === 'signup';
+    if (!s.session || !s.profile || s.recoveryMode) {
+      const view = s.recoveryMode ? 'recovery' : (s.authView || 'login');
+      const isForgot = view === 'forgot';
+      const isRecovery = view === 'recovery';
       return {
         ...blankScreens, isAuthChecking: false, isAuthScreen: true,
-        isSignUpMode,
-        authTitle: isSignUpMode ? 'Create your account' : 'Sign in',
+        isSignUpMode: false,
+        authTitle: isRecovery ? 'Set a new password' : (isForgot ? 'Reset your password' : 'Sign in'),
+        showAuthEmail: !isRecovery,
+        showAuthPassword: !isForgot,
+        passwordFieldLabel: isRecovery ? 'NEW PASSWORD' : 'PASSWORD',
         authFullName: s.authFullName, setAuthFullName: this.setAuthFullName,
         authEmail: s.authEmail, setAuthEmail: this.setAuthEmail,
         authPassword: s.authPassword, setAuthPassword: this.setAuthPassword,
-        authPasswordAutocomplete: isSignUpMode ? 'new-password' : 'current-password',
+        authPasswordAutocomplete: isRecovery ? 'new-password' : 'current-password',
         hasAuthError: !!s.authError, authErrorMessage: s.authError,
         hasAuthNotice: !!s.authNotice, authNoticeMessage: s.authNotice || (s.loadError || ''),
         authSubmitStyle: `width:100%;box-sizing:border-box;text-align:center;font:700 13px 'Public Sans',sans-serif;padding:13px;border-radius:4px;cursor:pointer;border:none;background:${s.authBusy ? '#B9C0C4' : '#1F6F78'};color:#fff;`,
-        authSubmitLabel: s.authBusy ? 'PLEASE WAIT\u2026' : (isSignUpMode ? 'CREATE ACCOUNT' : 'SIGN IN'),
+        authSubmitLabel: s.authBusy ? 'PLEASE WAIT\u2026' : (isRecovery ? 'SET PASSWORD' : (isForgot ? 'SEND RESET LINK' : 'SIGN IN')),
         submitAuthForm: this.submitAuthForm,
         toggleAuthMode: this.toggleAuthMode,
-        authToggleLabel: isSignUpMode ? 'Already have an account? Sign in' : 'Need an account? Create one',
+        showAuthSecondary: !isRecovery,
+        authToggleLabel: isForgot ? 'Back to sign in' : 'Forgot password?',
 
-        showBootstrapLink: s.bootstrapChecked && s.bootstrapNeeded && !s.showBootstrapForm,
+        showBootstrapLink: !isForgot && !isRecovery && s.bootstrapChecked && s.bootstrapNeeded && !s.showBootstrapForm,
         toggleBootstrapForm: this.toggleBootstrapForm,
         showBootstrapForm: s.showBootstrapForm,
         bootstrapFullName: s.bootstrapFullName, setBootstrapFullName: this.setBootstrapFullName,
@@ -3682,6 +3835,14 @@ class Component extends DCLogic {
         bootstrapSubmitStyle: `width:100%;box-sizing:border-box;text-align:center;font:700 13px 'Public Sans',sans-serif;padding:13px;border-radius:4px;cursor:pointer;border:none;background:${s.bootstrapBusy ? '#B9C0C4' : '#D97706'};color:#fff;`,
         bootstrapSubmitLabel: s.bootstrapBusy ? 'CREATING\u2026' : 'CREATE SHOP OWNER ACCOUNT',
         stopPropagation: this.stopPropagation,
+      };
+    }
+    if (s.unprovisioned) {
+      return {
+        ...blankScreens, isAuthChecking: false, isAuthScreen: false,
+        isUnprovisioned: true,
+        unprovisionedEmail: (s.profile && s.profile.email) || '',
+        handleSignOut: this.handleSignOut,
       };
     }
     if (!s.loaded) {
@@ -4293,7 +4454,7 @@ class Component extends DCLogic {
       isShopOwner,
       canEditJobDetails,
       currentUserName: s.profile ? s.profile.name : '',
-      currentUserRoleLabel: s.profile ? (s.profile.role === 'shop_owner' ? 'SHOP OWNER' : 'MECHANIC') : '',
+      currentUserRoleLabel: s.profile ? (this.activeShopRole() === 'shop_owner' ? 'SHOP OWNER' : 'MECHANIC') : '',
       handleSignOut: this.handleSignOut,
 
       isJobEditOpen: s.jobEditOpen,
@@ -4328,6 +4489,19 @@ class Component extends DCLogic {
       navGoDashboard: this.navGoDashboard, navGoIntake: this.navGoIntake, navGoRoster: this.navGoRoster,
       navGoArchive: this.navGoArchive, navGoAudit: this.navGoAudit, navGoShopConfig: this.navGoShopConfig,
       toggleNavMenu: this.toggleNavMenu,
+      showShopSwitcher: (s.memberships || []).length > 1,
+      shopSwitchList: (s.memberships || []).map(m => ({
+        id: m.shopId,
+        name: (m.shop && m.shop.name) || 'Shop',
+        roleLabel: m.role === 'shop_owner' ? 'OWNER' : 'MECHANIC',
+        rowStyle: 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-radius:3px;cursor:pointer;font:700 12px \'Public Sans\',sans-serif;'
+          + (m.shopId === s.activeShopId
+            ? 'background:#1F6F78;color:#F6F1E4;'
+            : 'background:rgba(255,255,255,.06);color:#F6F1E4;'),
+        isActive: m.shopId === s.activeShopId,
+        onSwitch: () => this.switchShop(m.shopId),
+      })),
+      switchShop: this.switchShop,
       navDashboardStyleFull: navBtnFull(s.screen === 'dashboard'),
       navIntakeStyleFull: navBtnFull(s.screen === 'intake'),
       navRosterStyleFull: navBtnFull(s.screen === 'roster'),
@@ -4343,7 +4517,13 @@ class Component extends DCLogic {
 
       inviteFullName: s.inviteFullName, setInviteFullName: this.setInviteFullName,
       inviteEmail: s.inviteEmail, setInviteEmail: this.setInviteEmail,
+      inviteRole: s.inviteRole, setInviteRole: this.setInviteRole,
+      inviteRoleIsOwner: s.inviteRole === 'shop_owner',
       sendInvite: this.sendInvite,
+      inviteBtnLabel: s.inviteBusy ? 'WORKING\u2026' : 'SEND INVITE',
+      showInviteConfirm: s.pendingInviteConfirm,
+      confirmAddExistingUser: this.confirmAddExistingUser,
+      cancelAddExistingUser: this.cancelAddExistingUser,
       hasInviteMessage: !!s.inviteMessage, inviteMessage: s.inviteMessage,
       inviteMessageColor: s.inviteError ? '#C0392B' : '#1F6F78',
 

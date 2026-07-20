@@ -54,7 +54,7 @@ exports.handler = async (event) => {
   const callerId = userData.user.id;
 
   const { data: callerProfile, error: callerErr } = await admin
-    .from('profiles').select('id, role, active, full_name').eq('id', callerId).single();
+    .from('profiles').select('id, role, active, full_name, active_shop_id').eq('id', callerId).single();
   if (callerErr || !callerProfile || !callerProfile.active) {
     return { statusCode: 403, headers: cors, body: JSON.stringify({ error: 'Your account is not active.' }) };
   }
@@ -71,6 +71,26 @@ exports.handler = async (event) => {
     return { statusCode: 404, headers: cors, body: JSON.stringify({ error: 'Staff member not found.' }) };
   }
 
+  // Function-level tenant trust (schema section 20): the caller may only change
+  // roles WITHIN their own active shop. The shop is derived from the caller's
+  // authenticated membership (callerProfile.active_shop_id), NEVER from request
+  // JSON, and the target MUST be an active member of that same shop.
+  if (!callerProfile.active_shop_id) {
+    return { statusCode: 409, headers: cors, body: JSON.stringify({ error: 'Your account has no active shop context.' }) };
+  }
+  const { data: callerMem, error: callerMemErr } = await admin
+    .from('shop_memberships').select('role, is_active')
+    .eq('profile_id', callerId).eq('shop_id', callerProfile.active_shop_id).single();
+  if (callerMemErr || !callerMem || !callerMem.is_active || callerMem.role !== 'shop_owner') {
+    return { statusCode: 403, headers: cors, body: JSON.stringify({ error: 'You are not an active owner of this shop.' }) };
+  }
+  const { data: targetMem, error: targetMemErr } = await admin
+    .from('shop_memberships').select('role, is_active')
+    .eq('profile_id', targetUserId).eq('shop_id', callerProfile.active_shop_id).single();
+  if (targetMemErr || !targetMem || !targetMem.is_active) {
+    return { statusCode: 403, headers: cors, body: JSON.stringify({ error: 'That staff member is not an active member of your shop.' }) };
+  }
+
   if (targetProfile.role === newRole) {
     return { statusCode: 400, headers: cors, body: JSON.stringify({ error: `${targetProfile.full_name} already has this role.` }) };
   }
@@ -83,12 +103,15 @@ exports.handler = async (event) => {
 
   // Safety rule: never leave the shop with zero active shop_owners, whether
   // the target is demoting themselves or is being demoted by someone else.
-  if (targetProfile.role === 'shop_owner' && newRole !== 'shop_owner') {
+  if (targetMem.role === 'shop_owner' && newRole !== 'shop_owner') {
+    // Owner count is scoped to THIS shop's active owner memberships (not a
+    // global profiles count) so a shop can never be left ownerless.
     const { count, error: countErr } = await admin
-      .from('profiles')
+      .from('shop_memberships')
       .select('id', { count: 'exact', head: true })
+      .eq('shop_id', callerProfile.active_shop_id)
       .eq('role', 'shop_owner')
-      .eq('active', true);
+      .eq('is_active', true);
     if (countErr) {
       return { statusCode: 500, headers: cors, body: JSON.stringify({ error: countErr.message }) };
     }
@@ -100,6 +123,15 @@ exports.handler = async (event) => {
   const nowIso = new Date().toISOString();
 
   try {
+    // Write the RLS authority (shop_memberships.role) FIRST, so if the second
+    // write fails the security answer is already correct (legacy display lags,
+    // never the other way around). Both are in the caller's shop only.
+    const { error: memErr } = await admin.from('shop_memberships')
+      .update({ role: newRole, updated_at: nowIso })
+      .eq('profile_id', targetUserId)
+      .eq('shop_id', callerProfile.active_shop_id);
+    if (memErr) throw memErr;
+
     const { data: updated, error: updateErr } = await admin
       .from('profiles')
       .update({ role: newRole, updated_at: nowIso })
@@ -110,16 +142,20 @@ exports.handler = async (event) => {
 
     // Append-only audit trail — never editable/deletable from the frontend
     // (audit_log has no client-facing insert/update/delete RLS policy at all).
-    await admin.from('audit_log').insert({
-      actor_id: callerId,
-      actor_name: callerProfile.full_name || '',
-      actor_role: callerProfile.role || '',
-      action: 'staff_role_changed',
-      table_name: 'profiles',
-      record_id: targetUserId,
-      old_value: { role: targetProfile.role, full_name: targetProfile.full_name },
-      new_value: { role: newRole, changed_by: callerProfile.full_name },
-    });
+    // Audit is best-effort: the role change has already committed, so a failed
+    // audit insert must NOT turn a successful role change into a reported failure.
+    try {
+      await admin.from('audit_log').insert({
+        actor_id: callerId,
+        actor_name: callerProfile.full_name || '',
+        actor_role: callerProfile.role || '',
+        action: 'staff_role_changed',
+        table_name: 'profiles',
+        record_id: targetUserId,
+        old_value: { role: targetProfile.role, full_name: targetProfile.full_name },
+        new_value: { role: newRole, changed_by: callerProfile.full_name },
+      });
+    } catch (auditErr) { console.error('audit_log insert failed (staff_role_changed):', auditErr); }
 
     return {
       statusCode: 200,

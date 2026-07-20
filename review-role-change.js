@@ -50,17 +50,9 @@ exports.handler = async (event) => {
   const callerId = userData.user.id;
 
   const { data: callerProfile, error: profErr } = await admin
-    .from('profiles').select('id, role, active, full_name').eq('id', callerId).single();
+    .from('profiles').select('id, active, full_name').eq('id', callerId).single();
   if (profErr || !callerProfile || !callerProfile.active) {
     return { statusCode: 403, headers: cors, body: JSON.stringify({ error: 'Your account is not active.' }) };
-  }
-  // Only an active shop_owner may approve/deny ANY role-change request
-  // (mechanic or shop_owner). This is deliberately
-  // stricter than "manager" self-service — the spec requires shop_owner
-  // sign-off specifically for owner-level grants, and this app's role model
-  // has no separate "manager" role, so shop_owner is the sole approver tier.
-  if (callerProfile.role !== 'shop_owner') {
-    return { statusCode: 403, headers: cors, body: JSON.stringify({ error: 'Only a shop owner may review role-change requests.' }) };
   }
 
   const { data: reqRow, error: reqErr } = await admin
@@ -68,6 +60,21 @@ exports.handler = async (event) => {
   if (reqErr || !reqRow) {
     return { statusCode: 404, headers: cors, body: JSON.stringify({ error: 'Request not found.' }) };
   }
+
+  // Authorization: the caller must be an ACTIVE shop_owner MEMBER of the shop the
+  // request belongs to — never the global profiles.role (ambiguous for an identity
+  // that belongs to multiple shops). The grant below is applied only within
+  // reqRow.shop_id, so the approver is verified against that same shop.
+  if (!reqRow.shop_id) {
+    return { statusCode: 409, headers: cors, body: JSON.stringify({ error: 'This request has no shop context and cannot be reviewed.' }) };
+  }
+  const { data: callerMem, error: callerMemErr } = await admin
+    .from('shop_memberships').select('role, is_active')
+    .eq('profile_id', callerId).eq('shop_id', reqRow.shop_id).single();
+  if (callerMemErr || !callerMem || !callerMem.is_active || callerMem.role !== 'shop_owner') {
+    return { statusCode: 403, headers: cors, body: JSON.stringify({ error: "Only an active shop owner of this request's shop may review it." }) };
+  }
+
   if (reqRow.status !== 'pending') {
     return { statusCode: 409, headers: cors, body: JSON.stringify({ error: `Request is already ${reqRow.status}.` }) };
   }
@@ -84,11 +91,17 @@ exports.handler = async (event) => {
       }).eq('id', requestId);
       if (error) throw error;
 
-      await admin.from('audit_log').insert({
-        actor_id: callerId, action: 'role_change_denied',
-        target_table: 'role_change_requests', target_id: requestId,
-        details: { profile_id: reqRow.profile_id, requested_role: reqRow.requested_role, review_note: reviewNote || '' },
-      });
+      // Audit is best-effort: the deny has already committed, so a failed audit
+      // insert must NOT turn a successful review into a reported failure.
+      try {
+        await admin.from('audit_log').insert({
+          actor_id: callerId, actor_name: callerProfile.full_name || '', actor_role: callerMem.role || 'shop_owner',
+          action: 'role_change_denied',
+          table_name: 'role_change_requests', record_id: requestId, shop_id: reqRow.shop_id,
+          old_value: { profile_id: reqRow.profile_id, requested_role: reqRow.requested_role },
+          new_value: { status: 'denied', review_note: reviewNote || '' },
+        });
+      } catch (auditErr) { console.error('audit_log insert failed (role_change_denied):', auditErr); }
       return { statusCode: 200, headers: cors, body: JSON.stringify({ ok: true, status: 'denied' }) };
     }
 
@@ -103,11 +116,17 @@ exports.handler = async (event) => {
     }).eq('id', requestId);
     if (reqUpdateErr) throw reqUpdateErr;
 
-    await admin.from('audit_log').insert({
-      actor_id: callerId, action: 'role_change_approved',
-      target_table: 'profiles', target_id: reqRow.profile_id,
-      details: { requested_role: reqRow.requested_role, previous_role: reqRow.role_before, request_id: requestId },
-    });
+    // Audit is best-effort: the role change has already committed, so a failed
+    // audit insert must NOT turn a successful approval into a reported failure.
+    try {
+      await admin.from('audit_log').insert({
+        actor_id: callerId, actor_name: callerProfile.full_name || '', actor_role: callerMem.role || 'shop_owner',
+        action: 'role_change_approved',
+        table_name: 'profiles', record_id: reqRow.profile_id, shop_id: reqRow.shop_id,
+        old_value: { role: reqRow.role_before },
+        new_value: { role: reqRow.requested_role, request_id: requestId },
+      });
+    } catch (auditErr) { console.error('audit_log insert failed (role_change_approved):', auditErr); }
     return { statusCode: 200, headers: cors, body: JSON.stringify({ ok: true, status: 'approved' }) };
   } catch (e) {
     return { statusCode: 500, headers: cors, body: JSON.stringify({ error: (e && e.message) || 'Unexpected server error' }) };

@@ -110,16 +110,20 @@ exports.handler = async (event) => {
 
     // Append-only audit trail — never editable/deletable from the frontend
     // (audit_log has no client-facing insert/update/delete RLS policy at all).
-    await admin.from('audit_log').insert({
-      actor_id: callerId,
-      actor_name: callerProfile.full_name || '',
-      actor_role: callerProfile.role || '',
-      action: 'staff_role_changed',
-      table_name: 'profiles',
-      record_id: targetUserId,
-      old_value: { role: targetProfile.role, full_name: targetProfile.full_name },
-      new_value: { role: newRole, changed_by: callerProfile.full_name },
-    });
+    // Audit is best-effort: the role change has already committed, so a failed
+    // audit insert must NOT turn a successful role change into a reported failure.
+    try {
+      await admin.from('audit_log').insert({
+        actor_id: callerId,
+        actor_name: callerProfile.full_name || '',
+        actor_role: callerProfile.role || '',
+        action: 'staff_role_changed',
+        table_name: 'profiles',
+        record_id: targetUserId,
+        old_value: { role: targetProfile.role, full_name: targetProfile.full_name },
+        new_value: { role: newRole, changed_by: callerProfile.full_name },
+      });
+    } catch (auditErr) { console.error('audit_log insert failed (staff_role_changed):', auditErr); }
 
     return {
       statusCode: 200,

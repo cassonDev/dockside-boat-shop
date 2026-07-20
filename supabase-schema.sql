@@ -1041,3 +1041,848 @@ drop policy if exists "profiles: service_advisor update availability" on public.
 
 -- 19g. Retire the advisor helper last — nothing references it anymore.
 drop function if exists public.is_service_advisor();
+
+-- ===========================================================================
+-- 20. MULTI-TENANT FOUNDATION (Platform → Shop → Location → Membership)   2026-07
+--
+--   Hierarchy:
+--     platform (this database)
+--       └─ shops            = a subscribing business/company (the TENANT)
+--            └─ shop_locations   = physical branches of that shop
+--                 └─ shop_memberships = a profile's role within a shop
+--                      └─ tenant-owned records (work_orders, activities, …)
+--
+--   Tenant boundary = shop_id. A location is an OPERATIONAL subdivision of a
+--   shop, never a separate tenant. This phase enforces shop isolation in RLS;
+--   location is a filter, NOT yet a mechanic access boundary.
+--
+--   Staged role migration: profiles.role is KEPT (the app still reads it).
+--   shop_memberships.role becomes authoritative for authorization. A later
+--   migration deprecates profiles.role once no executable code references it.
+--
+--   Active-shop context: profiles.active_shop_id, guarded by a trigger so a
+--   user can only ever point it at a shop where they hold an ACTIVE membership.
+--   current_user_shop_id() trusts it only after re-verifying that membership.
+--
+--   Idempotent. Runs in labelled phases 20A–20H. Fails LOUDLY rather than
+--   silently misassigning rows.
+--
+--   platform_admin is NOT a shop role — it lives in its own platform_admins
+--   table and is NEVER a permissive bypass baked into tenant policies.
+-- ===========================================================================
+
+-- ---------------------------------------------------------------------------
+-- 20A. Core tenant + location tables
+-- ---------------------------------------------------------------------------
+create table if not exists public.shops (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (char_length(trim(name)) > 0),
+  legal_name text,
+  phone text,
+  email text,
+  address_line1 text,
+  address_line2 text,
+  city text,
+  region text,             -- state/province
+  postal_code text,
+  country text,
+  timezone text not null default 'America/Toronto',
+  is_active boolean not null default true,
+  settings jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  created_by uuid references public.profiles(id)
+);
+alter table public.shops enable row level security;
+
+create table if not exists public.shop_locations (
+  id uuid primary key default gen_random_uuid(),
+  shop_id uuid not null references public.shops(id) on delete restrict,
+  name text not null check (char_length(trim(name)) > 0),
+  location_code text,
+  phone text,
+  email text,
+  address_line1 text,
+  address_line2 text,
+  city text,
+  region text,
+  postal_code text,
+  country text,
+  timezone text,           -- null → inherit shop timezone (resolved in app)
+  is_primary boolean not null default false,
+  is_active boolean not null default true,
+  settings jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  created_by uuid references public.profiles(id)
+);
+alter table public.shop_locations enable row level security;
+create index if not exists shop_locations_shop_idx on public.shop_locations (shop_id, is_active);
+-- Exactly one primary location per shop (partial unique index).
+create unique index if not exists shop_locations_one_primary
+  on public.shop_locations (shop_id) where is_primary = true;
+
+-- ---------------------------------------------------------------------------
+-- 20B. Memberships + helper functions
+-- ---------------------------------------------------------------------------
+create table if not exists public.shop_memberships (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  shop_id uuid not null references public.shops(id) on delete cascade,
+  role text not null default 'mechanic' check (role in ('shop_owner','mechanic')),
+  is_active boolean not null default true,
+  default_location_id uuid references public.shop_locations(id) on delete set null,
+  invited_by uuid references public.profiles(id),
+  approved_by uuid references public.profiles(id),
+  approved_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (profile_id, shop_id)          -- no duplicate membership in a shop
+);
+alter table public.shop_memberships enable row level security;
+create index if not exists shop_memberships_profile_idx on public.shop_memberships (profile_id, is_active);
+create index if not exists shop_memberships_shop_idx on public.shop_memberships (shop_id, is_active);
+create index if not exists shop_memberships_profile_shop_idx on public.shop_memberships (profile_id, shop_id);
+
+-- default_location_id, when set, must belong to the membership's own shop.
+create or replace function public.enforce_membership_location()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.default_location_id is not null and not exists (
+    select 1 from public.shop_locations l
+    where l.id = new.default_location_id and l.shop_id = new.shop_id
+  ) then
+    raise exception 'default_location_id % does not belong to shop %', new.default_location_id, new.shop_id;
+  end if;
+  new.updated_at := now();
+  return new;
+end $$;
+drop trigger if exists guard_membership_location on public.shop_memberships;
+create trigger guard_membership_location
+  before insert or update on public.shop_memberships
+  for each row execute function public.enforce_membership_location();
+
+-- Platform administrators — explicitly NOT a shop role, NOT in profiles.role.
+create table if not exists public.platform_admins (
+  profile_id uuid primary key references public.profiles(id) on delete cascade,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  created_by uuid references public.profiles(id)
+);
+alter table public.platform_admins enable row level security;
+-- No client policies at all: platform admin is granted/read only via the
+-- service-role key from a secure server process. RLS-enabled + zero policies
+-- = no client of any ordinary role can read or write this table.
+
+alter table public.profiles add column if not exists active_shop_id uuid references public.shops(id);
+
+-- Identity is ALWAYS auth.uid(); no helper accepts a caller-supplied user id.
+
+-- Active shop, resolved + verified: the caller's active_shop_id if it maps to
+-- an active membership, else their default/earliest active membership.
+create or replace function public.current_user_shop_id()
+returns uuid language plpgsql security definer stable set search_path = public as $$
+declare chosen uuid; resolved uuid;
+begin
+  if auth.uid() is null then return null; end if;
+  select p.active_shop_id into chosen from public.profiles p where p.id = auth.uid();
+  if chosen is not null and exists (
+    select 1 from public.shop_memberships m
+    where m.profile_id = auth.uid() and m.shop_id = chosen and m.is_active
+  ) then
+    return chosen;
+  end if;
+  select m.shop_id into resolved from public.shop_memberships m
+    where m.profile_id = auth.uid() and m.is_active
+    order by (m.default_location_id is not null) desc, m.created_at asc
+    limit 1;
+  return resolved;
+end $$;
+
+create or replace function public.is_active_shop_member(target_shop_id uuid)
+returns boolean language sql security definer stable set search_path = public as $$
+  select target_shop_id is not null and exists (
+    select 1 from public.shop_memberships m
+    join public.profiles p on p.id = m.profile_id
+    where m.profile_id = auth.uid() and m.shop_id = target_shop_id
+      and m.is_active and p.active
+  );
+$$;
+
+create or replace function public.current_user_membership_role()
+returns text language sql security definer stable set search_path = public as $$
+  select m.role from public.shop_memberships m
+    where m.profile_id = auth.uid() and m.shop_id = public.current_user_shop_id() and m.is_active
+    limit 1;
+$$;
+
+-- target-shop owner check
+create or replace function public.is_shop_owner(target_shop_id uuid)
+returns boolean language sql security definer stable set search_path = public as $$
+  select target_shop_id is not null and exists (
+    select 1 from public.shop_memberships m
+    join public.profiles p on p.id = m.profile_id
+    where m.profile_id = auth.uid() and m.shop_id = target_shop_id
+      and m.is_active and p.active and m.role = 'shop_owner'
+  );
+$$;
+
+create or replace function public.is_platform_admin()
+returns boolean language sql security definer stable set search_path = public as $$
+  select exists (select 1 from public.platform_admins a where a.profile_id = auth.uid() and a.is_active);
+$$;
+
+-- Backward-compatible zero-arg redefinitions: every section 1–19 policy that
+-- calls is_shop_owner()/is_active_user() becomes shop-scoped automatically.
+-- (These do NOT add a platform-admin bypass — that stays explicit.)
+create or replace function public.is_shop_owner()
+returns boolean language sql security definer stable set search_path = public as $$
+  select public.is_shop_owner(public.current_user_shop_id());
+$$;
+
+create or replace function public.is_active_user()
+returns boolean language sql security definer stable set search_path = public as $$
+  select public.is_active_shop_member(public.current_user_shop_id());
+$$;
+
+-- Row-in-current-shop predicate used throughout 20E.
+create or replace function public.row_in_current_shop(row_shop_id uuid)
+returns boolean language sql stable set search_path = public as $$
+  select row_shop_id is not null and row_shop_id = public.current_user_shop_id();
+$$;
+
+-- Guard active_shop_id: a user may only point it at an active membership.
+create or replace function public.enforce_active_shop_id()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.active_shop_id is distinct from old.active_shop_id and new.active_shop_id is not null then
+    if not exists (
+      select 1 from public.shop_memberships m
+      where m.profile_id = new.id and m.shop_id = new.active_shop_id and m.is_active
+    ) then
+      raise exception 'Cannot set active shop to one you are not an active member of';
+    end if;
+  end if;
+  return new;
+end $$;
+drop trigger if exists guard_active_shop_id on public.profiles;
+create trigger guard_active_shop_id
+  before update on public.profiles
+  for each row execute function public.enforce_active_shop_id();
+
+-- Client-callable, membership-validated active-shop switch.
+create or replace function public.set_active_shop(p_shop_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (
+    select 1 from public.shop_memberships m
+    where m.profile_id = auth.uid() and m.shop_id = p_shop_id and m.is_active
+  ) then
+    raise exception 'Not an active member of that shop';
+  end if;
+  update public.profiles set active_shop_id = p_shop_id, updated_at = now() where id = auth.uid();
+end $$;
+revoke all on function public.set_active_shop(uuid) from public;
+grant execute on function public.set_active_shop(uuid) to authenticated;
+
+-- Auto-enroll newly provisioned auth users into a shop. Invite flow may pass
+-- shop_id + role in app_metadata (service-role only); otherwise, if exactly
+-- one shop exists, enroll there as mechanic. Never trusts user_metadata.
+create or replace function public.handle_new_membership()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare target uuid; target_role text; prim uuid;
+begin
+  target := nullif( (select raw_app_meta_data->>'shop_id' from auth.users where id = new.id), '')::uuid;
+  target_role := coalesce((select raw_app_meta_data->>'role' from auth.users where id = new.id), 'mechanic');
+  if target_role not in ('shop_owner','mechanic') then target_role := 'mechanic'; end if;
+  if target is null then
+    select id into target from public.shops order by created_at asc limit 1;
+    if (select count(*) from public.shops) <> 1 then target := null; end if;  -- ambiguous → let invite set it
+  end if;
+  if target is not null then
+    select id into prim from public.shop_locations where shop_id = target and is_primary limit 1;
+    insert into public.shop_memberships (profile_id, shop_id, role, is_active, default_location_id)
+    values (new.id, target, target_role, true, prim)
+    on conflict (profile_id, shop_id) do nothing;
+    update public.profiles set active_shop_id = target where id = new.id and active_shop_id is null;
+  end if;
+  return new;
+end $$;
+drop trigger if exists on_profile_created_membership on public.profiles;
+create trigger on_profile_created_membership
+  after insert on public.profiles
+  for each row execute function public.handle_new_membership();
+
+-- ---------------------------------------------------------------------------
+-- 20C. Initial-shop + primary-location backfill (deterministic; fail-loud)
+-- ---------------------------------------------------------------------------
+do $$
+declare v_shop uuid; v_loc uuid; v_owner uuid; n_shops int;
+begin
+  select count(*) into n_shops from public.shops;
+  if n_shops > 1 then
+    raise exception 'Section 20C expects 0 or 1 pre-existing shop, found %; migrate manually.', n_shops;
+  end if;
+
+  select id into v_shop from public.shops where slug is not distinct from null and name = 'Lessard Marine Works' limit 1;
+  if v_shop is null then select id into v_shop from public.shops order by created_at asc limit 1; end if;
+  if v_shop is null then
+    insert into public.shops (name, legal_name, timezone)
+    values ('Lessard Marine Works', 'Lessard Marine Works', 'America/Toronto')
+    returning id into v_shop;
+  end if;
+
+  select id into v_loc from public.shop_locations where shop_id = v_shop and is_primary limit 1;
+  if v_loc is null then
+    insert into public.shop_locations (shop_id, name, is_primary, is_active)
+    values (v_shop, 'Main Location', true, true) returning id into v_loc;
+  end if;
+
+  -- every existing profile → membership, role carried from legacy profiles.role
+  insert into public.shop_memberships (profile_id, shop_id, role, is_active, default_location_id, approved_at)
+  select p.id, v_shop,
+         case when p.role = 'shop_owner' then 'shop_owner' else 'mechanic' end,
+         p.active, v_loc, now()
+  from public.profiles p
+  where not exists (select 1 from public.shop_memberships m where m.profile_id = p.id and m.shop_id = v_shop);
+
+  update public.profiles set active_shop_id = v_shop where active_shop_id is null;
+
+  select id into v_owner from public.profiles where role = 'shop_owner' and active limit 1;
+  if v_owner is not null then
+    update public.shops set created_by = coalesce(created_by, v_owner) where id = v_shop;
+    update public.shop_locations set created_by = coalesce(created_by, v_owner) where id = v_loc;
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- 20D. Tenant columns, backfill, constraints
+--   Classification:
+--     location-owned : work_orders            (shop_id + location_id)
+--     shop-owned      : work_order_comments, work_order_photos, activities,
+--                       work_order_serial_numbers, shop_serial_label_options,
+--                       role_change_requests, audit_log   (shop_id only)
+--     child-of-activity : activity_history    (no own key; scoped via join)
+--     platform-global : profiles (identity), shops, shop_locations,
+--                       shop_memberships, platform_admins
+-- ---------------------------------------------------------------------------
+do $$
+declare v_shop uuid; v_loc uuid; t text;
+  shop_tables text[] := array[
+    'work_orders','work_order_comments','work_order_photos','activities',
+    'work_order_serial_numbers','shop_serial_label_options','role_change_requests','audit_log'
+  ];
+begin
+  select id into v_shop from public.shops order by created_at asc limit 1;
+  select id into v_loc from public.shop_locations where shop_id = v_shop and is_primary limit 1;
+
+  foreach t in array shop_tables loop
+    execute format('alter table public.%I add column if not exists shop_id uuid references public.shops(id)', t);
+    execute format('update public.%I set shop_id = $1 where shop_id is null', t) using v_shop;
+    execute format('create index if not exists %I on public.%I (shop_id)', t||'_shop_idx', t);
+  end loop;
+
+  -- work_orders also carry a location
+  alter table public.work_orders add column if not exists location_id uuid references public.shop_locations(id);
+  update public.work_orders set location_id = v_loc where location_id is null;
+  create index if not exists work_orders_location_idx on public.work_orders (location_id);
+  create index if not exists work_orders_shop_status_idx on public.work_orders (shop_id, status, active);
+
+  -- FAIL LOUD if anything is still unassigned, then lock NOT NULL.
+  foreach t in array shop_tables loop
+    execute format('do $chk$ begin if exists (select 1 from public.%I where shop_id is null) then raise exception %L; end if; end $chk$;',
+                   t, 'Backfill left NULL shop_id in '||t);
+    execute format('alter table public.%I alter column shop_id set not null', t);
+  end loop;
+  if exists (select 1 from public.work_orders where location_id is null) then
+    raise exception 'Backfill left NULL location_id in work_orders';
+  end if;
+  alter table public.work_orders alter column location_id set not null;
+end $$;
+
+-- 20D-trigger. Stamp/verify shop_id on insert so clients can never forge it,
+-- and default+validate work_orders.location_id.
+create or replace function public.set_tenant_shop_id()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.shop_id is null or not public.is_active_shop_member(new.shop_id) then
+    new.shop_id := public.current_user_shop_id();
+  end if;
+  if new.shop_id is null then
+    raise exception 'Cannot determine current shop for insert into %', tg_table_name;
+  end if;
+  return new;
+end $$;
+
+do $$
+declare t text;
+  shop_tables text[] := array[
+    'work_orders','work_order_comments','work_order_photos','activities',
+    'work_order_serial_numbers','shop_serial_label_options','role_change_requests'
+  ];
+begin
+  foreach t in array shop_tables loop
+    execute format('drop trigger if exists set_shop_id on public.%I', t);
+    execute format('create trigger set_shop_id before insert on public.%I for each row execute function public.set_tenant_shop_id()', t);
+  end loop;
+end $$;
+
+create or replace function public.set_work_order_location()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare prim uuid;
+begin
+  if new.location_id is not null then
+    if not exists (select 1 from public.shop_locations l where l.id = new.location_id and l.shop_id = new.shop_id) then
+      raise exception 'location_id % does not belong to shop %', new.location_id, new.shop_id;
+    end if;
+  else
+    select id into prim from public.shop_locations where shop_id = new.shop_id and is_primary limit 1;
+    if prim is null then
+      select id into prim from public.shop_locations where shop_id = new.shop_id and is_active order by created_at limit 1;
+    end if;
+    if prim is null then raise exception 'Shop % has no location', new.shop_id; end if;
+    new.location_id := prim;
+  end if;
+  return new;
+end $$;
+drop trigger if exists set_wo_location on public.work_orders;
+-- runs AFTER set_shop_id (triggers fire alphabetically: set_shop_id < set_wo_location)
+create trigger set_wo_location before insert on public.work_orders
+  for each row execute function public.set_work_order_location();
+
+-- Prevent moving a row between shops on UPDATE (defense in depth on top of RLS).
+create or replace function public.forbid_shop_change()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.shop_id is distinct from old.shop_id and not public.is_platform_admin() then
+    raise exception 'Cannot move a record between shops';
+  end if;
+  return new;
+end $$;
+do $$
+declare t text;
+  shop_tables text[] := array[
+    'work_orders','work_order_comments','work_order_photos','activities',
+    'work_order_serial_numbers','shop_serial_label_options','role_change_requests'
+  ];
+begin
+  foreach t in array shop_tables loop
+    execute format('drop trigger if exists forbid_shop_change on public.%I', t);
+    execute format('create trigger forbid_shop_change before update on public.%I for each row execute function public.forbid_shop_change()', t);
+  end loop;
+end $$;
+
+-- Audit trigger now records shop_id (generic extraction; profiles has none →
+-- falls back to the actor's current shop).
+create or replace function public.write_audit_log()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare actor public.profiles; act text; rec_id text; sid uuid;
+begin
+  select * into actor from public.profiles where id = auth.uid();
+  if tg_op = 'INSERT' then act := 'insert';
+  elsif tg_op = 'UPDATE' then
+    act := case
+      when tg_table_name = 'work_orders' and new.active = false and old.active = true then 'archive'
+      when tg_table_name = 'work_orders' and new.active = true and old.active = false then 'restore'
+      when tg_table_name = 'profiles' and new.active = false and old.active = true then 'deactivate'
+      when tg_table_name = 'profiles' and new.active = true and old.active = false then 'reactivate'
+      else 'update' end;
+  elsif tg_op = 'DELETE' then act := 'delete';
+  end if;
+  rec_id := case when tg_op = 'DELETE' then old.id::text else new.id::text end;
+  sid := coalesce(
+    nullif(case when tg_op = 'DELETE' then to_jsonb(old) else to_jsonb(new) end ->> 'shop_id','')::uuid,
+    public.current_user_shop_id());
+  insert into public.audit_log (actor_id, actor_name, actor_role, action, table_name, record_id, old_value, new_value, shop_id)
+  values (auth.uid(), coalesce(actor.full_name,''), coalesce(actor.role,''), act, tg_table_name, rec_id,
+    case when tg_op in ('UPDATE','DELETE') then to_jsonb(old) else null end,
+    case when tg_op in ('UPDATE','INSERT') then to_jsonb(new) else null end,
+    sid);
+  return new;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- 20E. RLS replacement — every tenant policy rewritten with an explicit
+--      row_in_current_shop(shop_id) predicate. is_active_user()/is_shop_owner()
+--      are now shop-scoped (20B) but are NOT sufficient alone on UPDATE/DELETE
+--      (those don't require SELECT), so the row predicate is always present.
+-- ---------------------------------------------------------------------------
+
+-- shops
+drop policy if exists "shops: member read" on public.shops;
+create policy "shops: member read" on public.shops
+  for select using (public.is_active_shop_member(id));
+drop policy if exists "shops: owner update" on public.shops;
+create policy "shops: owner update" on public.shops
+  for update using (public.is_shop_owner(id)) with check (public.is_shop_owner(id));
+
+-- shop_locations
+drop policy if exists "locations: member read" on public.shop_locations;
+create policy "locations: member read" on public.shop_locations
+  for select using (public.is_active_shop_member(shop_id));
+drop policy if exists "locations: owner manage" on public.shop_locations;
+create policy "locations: owner manage" on public.shop_locations
+  for all using (public.is_shop_owner(shop_id)) with check (public.is_shop_owner(shop_id));
+
+-- shop_memberships
+drop policy if exists "memberships: self read" on public.shop_memberships;
+create policy "memberships: self read" on public.shop_memberships
+  for select using (profile_id = auth.uid() or public.is_shop_owner(shop_id));
+drop policy if exists "memberships: owner manage" on public.shop_memberships;
+create policy "memberships: owner manage" on public.shop_memberships
+  for all using (public.is_shop_owner(shop_id)) with check (public.is_shop_owner(shop_id));
+
+-- profiles: self always; owners see/manage only profiles that share their shop.
+drop policy if exists "profiles: shop_owner full access" on public.profiles;
+create policy "profiles: owner manage shop members" on public.profiles
+  for all using (
+    id = auth.uid() or exists (
+      select 1 from public.shop_memberships m
+      where m.profile_id = public.profiles.id and m.shop_id = public.current_user_shop_id()
+        and public.is_shop_owner(public.current_user_shop_id())
+    )
+  ) with check (
+    id = auth.uid() or public.is_shop_owner(public.current_user_shop_id())
+  );
+-- (self read / self update limited from section 9/16 remain in force.)
+
+-- work_orders
+drop policy if exists "work_orders: shop_owner full access" on public.work_orders;
+drop policy if exists "work_orders: mechanic read active" on public.work_orders;
+drop policy if exists "work_orders: mechanic insert" on public.work_orders;
+drop policy if exists "work_orders: staff update shop" on public.work_orders;
+create policy "work_orders: shop read" on public.work_orders
+  for select using (public.is_active_user() and public.row_in_current_shop(shop_id));
+create policy "work_orders: shop insert" on public.work_orders
+  for insert with check (public.is_active_user() and public.row_in_current_shop(shop_id) and created_by = auth.uid());
+create policy "work_orders: shop update" on public.work_orders
+  for update using (public.is_active_user() and public.row_in_current_shop(shop_id))
+  with check (public.is_active_user() and public.row_in_current_shop(shop_id));
+create policy "work_orders: owner delete" on public.work_orders
+  for delete using (public.is_shop_owner() and public.row_in_current_shop(shop_id));
+
+-- work_order_comments
+drop policy if exists "comments: shop_owner full access" on public.work_order_comments;
+drop policy if exists "comments: read active" on public.work_order_comments;
+drop policy if exists "comments: insert own" on public.work_order_comments;
+create policy "comments: shop read" on public.work_order_comments
+  for select using (public.is_active_user() and active = true and public.row_in_current_shop(shop_id));
+create policy "comments: shop insert" on public.work_order_comments
+  for insert with check (public.is_active_user() and public.row_in_current_shop(shop_id) and author_id = auth.uid());
+create policy "comments: owner update" on public.work_order_comments
+  for update using (public.is_shop_owner() and public.row_in_current_shop(shop_id))
+  with check (public.is_shop_owner() and public.row_in_current_shop(shop_id));
+
+-- work_order_photos
+drop policy if exists "photos: shop_owner full access" on public.work_order_photos;
+drop policy if exists "photos: read active" on public.work_order_photos;
+drop policy if exists "photos: staff insert any job" on public.work_order_photos;
+drop policy if exists "photos: staff curate any" on public.work_order_photos;
+drop policy if exists "photos: uploader update own" on public.work_order_photos;
+create policy "photos: shop read" on public.work_order_photos
+  for select using (public.is_active_user() and active = true and public.row_in_current_shop(shop_id));
+create policy "photos: shop insert" on public.work_order_photos
+  for insert with check (public.is_active_user() and public.row_in_current_shop(shop_id) and created_by = auth.uid());
+create policy "photos: shop update" on public.work_order_photos
+  for update using (public.is_active_user() and public.row_in_current_shop(shop_id))
+  with check (public.is_active_user() and public.row_in_current_shop(shop_id));
+
+-- activities
+drop policy if exists "activities: shop_owner full access" on public.activities;
+drop policy if exists "activities: read active" on public.activities;
+drop policy if exists "activities: insert own" on public.activities;
+drop policy if exists "activities: author or shop_owner update" on public.activities;
+create policy "activities: shop read" on public.activities
+  for select using (public.is_active_user() and active = true and public.row_in_current_shop(shop_id));
+create policy "activities: shop insert" on public.activities
+  for insert with check (public.is_active_user() and public.row_in_current_shop(shop_id) and author_id = auth.uid());
+create policy "activities: author or owner update" on public.activities
+  for update using (public.is_active_user() and public.row_in_current_shop(shop_id)
+    and (author_id = auth.uid() or public.is_shop_owner()))
+  with check (public.is_active_user() and public.row_in_current_shop(shop_id));
+
+-- activity_history: scoped through its parent activity's shop.
+drop policy if exists "activity_history: read active" on public.activity_history;
+drop policy if exists "activity_history: insert own" on public.activity_history;
+create policy "activity_history: read via activity" on public.activity_history
+  for select using (exists (
+    select 1 from public.activities a
+    where a.id = activity_history.activity_id and public.is_active_user() and public.row_in_current_shop(a.shop_id)
+  ));
+create policy "activity_history: insert own" on public.activity_history
+  for insert with check (edited_by = auth.uid() and exists (
+    select 1 from public.activities a
+    where a.id = activity_history.activity_id and public.is_active_user() and public.row_in_current_shop(a.shop_id)
+  ));
+
+-- work_order_serial_numbers
+drop policy if exists "serial_numbers: shop_owner full access" on public.work_order_serial_numbers;
+drop policy if exists "serial_numbers: read active" on public.work_order_serial_numbers;
+drop policy if exists "serial_numbers: insert own" on public.work_order_serial_numbers;
+drop policy if exists "serial_numbers: staff update any" on public.work_order_serial_numbers;
+create policy "serial_numbers: shop read" on public.work_order_serial_numbers
+  for select using (public.is_active_user() and active = true and public.row_in_current_shop(shop_id));
+create policy "serial_numbers: shop insert" on public.work_order_serial_numbers
+  for insert with check (public.is_active_user() and public.row_in_current_shop(shop_id) and created_by = auth.uid());
+create policy "serial_numbers: shop update" on public.work_order_serial_numbers
+  for update using (public.is_active_user() and public.row_in_current_shop(shop_id))
+  with check (public.is_active_user() and public.row_in_current_shop(shop_id));
+
+-- shop_serial_label_options
+drop policy if exists "serial_labels: shop_owner full access" on public.shop_serial_label_options;
+drop policy if exists "serial_labels: read all" on public.shop_serial_label_options;
+create policy "serial_labels: owner manage" on public.shop_serial_label_options
+  for all using (public.is_shop_owner() and public.row_in_current_shop(shop_id))
+  with check (public.is_shop_owner() and public.row_in_current_shop(shop_id));
+create policy "serial_labels: shop read" on public.shop_serial_label_options
+  for select using (public.is_active_user() and public.row_in_current_shop(shop_id));
+
+-- role_change_requests
+drop policy if exists "role_requests: shop_owner full access" on public.role_change_requests;
+drop policy if exists "role_requests: self read" on public.role_change_requests;
+drop policy if exists "role_requests: self insert" on public.role_change_requests;
+create policy "role_requests: owner manage" on public.role_change_requests
+  for all using (public.is_shop_owner() and public.row_in_current_shop(shop_id))
+  with check (public.is_shop_owner() and public.row_in_current_shop(shop_id));
+create policy "role_requests: self read" on public.role_change_requests
+  for select using (public.is_active_user() and profile_id = auth.uid() and public.row_in_current_shop(shop_id));
+create policy "role_requests: self insert" on public.role_change_requests
+  for insert with check (public.is_active_user() and profile_id = auth.uid() and public.row_in_current_shop(shop_id));
+
+-- audit_log
+drop policy if exists "audit_log: shop_owner read only" on public.audit_log;
+create policy "audit_log: owner read shop" on public.audit_log
+  for select using (public.is_shop_owner() and public.row_in_current_shop(shop_id));
+
+-- storage.objects: writes require membership in the work order's shop.
+drop policy if exists "work-order-photos: shop_owner full access" on storage.objects;
+drop policy if exists "work-order-photos: staff insert any job" on storage.objects;
+drop policy if exists "work-order-photos: mechanic insert own job" on storage.objects;
+create policy "work-order-photos: shop member insert" on storage.objects
+  for insert with check (
+    bucket_id = 'work-order-photos' and exists (
+      select 1 from public.work_orders wo
+      where wo.id = (storage.foldername(name))[1]
+        and public.is_active_user() and public.row_in_current_shop(wo.shop_id)
+    ));
+create policy "work-order-photos: owner manage" on storage.objects
+  for all using (
+    bucket_id = 'work-order-photos' and exists (
+      select 1 from public.work_orders wo
+      where wo.id = (storage.foldername(name))[1]
+        and public.is_shop_owner() and public.row_in_current_shop(wo.shop_id)
+    )) with check (
+    bucket_id = 'work-order-photos' and exists (
+      select 1 from public.work_orders wo
+      where wo.id = (storage.foldername(name))[1]
+        and public.is_shop_owner() and public.row_in_current_shop(wo.shop_id)
+    ));
+-- NOTE (unresolved risk): the bucket is public=true, so object BYTES are
+-- readable by anyone with the path via the CDN, bypassing the SELECT policy.
+-- Cross-tenant isolation of image bytes is therefore NOT enforced yet. To
+-- close this, make the bucket private and serve via signed URLs — tracked as
+-- a follow-up, out of scope for this phase (matches prior single-shop design).
+
+-- ---------------------------------------------------------------------------
+-- 20F. Indexes for common tenant queries (most created inline above)
+-- ---------------------------------------------------------------------------
+create index if not exists shop_memberships_active_idx on public.shop_memberships (shop_id) where is_active = true;
+create index if not exists work_orders_shop_loc_status_idx on public.work_orders (shop_id, location_id, status) where active = true;
+create index if not exists audit_log_shop_idx on public.audit_log (shop_id, created_at desc);
+
+-- ---------------------------------------------------------------------------
+-- 20G. Verification queries — run manually after migrating. Each should
+--      return ZERO rows (or the stated expectation).
+-- ---------------------------------------------------------------------------
+-- 1. No tenant row with null shop_id:
+--   select 'work_orders' t, count(*) from public.work_orders where shop_id is null
+--   union all select 'activities', count(*) from public.activities where shop_id is null
+--   union all select 'work_order_photos', count(*) from public.work_order_photos where shop_id is null
+--   union all select 'work_order_serial_numbers', count(*) from public.work_order_serial_numbers where shop_id is null
+--   union all select 'work_order_comments', count(*) from public.work_order_comments where shop_id is null
+--   union all select 'role_change_requests', count(*) from public.role_change_requests where shop_id is null
+--   union all select 'shop_serial_label_options', count(*) from public.shop_serial_label_options where shop_id is null
+--   union all select 'audit_log', count(*) from public.audit_log where shop_id is null;
+-- 2. No work order points at a location from another shop:
+--   select wo.id from public.work_orders wo join public.shop_locations l on l.id = wo.location_id
+--   where l.shop_id <> wo.shop_id;
+-- 3. Every active profile has a membership:
+--   select p.id, p.email from public.profiles p where p.active
+--   and not exists (select 1 from public.shop_memberships m where m.profile_id = p.id and m.is_active);
+-- 4. Every profile's active shop is one of its active memberships (or null):
+--   select p.id from public.profiles p where p.active_shop_id is not null
+--   and not exists (select 1 from public.shop_memberships m where m.profile_id = p.id and m.shop_id = p.active_shop_id and m.is_active);
+-- 5. No duplicate membership (guaranteed by unique constraint — should be 0):
+--   select profile_id, shop_id, count(*) from public.shop_memberships group by 1,2 having count(*) > 1;
+-- 6. Exactly one primary location per shop:
+--   select shop_id, count(*) from public.shop_locations where is_primary group by shop_id having count(*) <> 1;
+-- Cross-tenant negative tests (run while authenticated as a member of shop A,
+-- using a second test shop B from the test script) — each must return 0 / fail:
+-- 7. select count(*) from public.work_orders;                 -- only shop A rows
+-- 8. insert ... work_orders (..., shop_id = '<shop B id>');   -- trigger rewrites to A / WITH CHECK blocks
+-- 9. update public.work_orders set shop_id = '<shop B id>';   -- forbid_shop_change raises
+-- 10. as a mechanic: update public.shop_memberships set role='shop_owner' where profile_id=auth.uid();  -- blocked (owner-only policy)
+-- 11. as a shop_owner: insert into public.platform_admins ...; -- blocked (no client policy)
+-- 12. deactivate a membership, re-run query 7 → 0 rows (tenant access lost).
+-- 13. RECONCILIATION — legacy profiles.role must agree with the active
+--     membership role in the user's active shop. Should return 0 rows; any row
+--     is a dual-write drift to investigate before dropping profiles.role.
+--   select p.id, p.email, p.role as legacy_role, m.role as membership_role, p.active_shop_id
+--   from public.profiles p
+--   join public.shop_memberships m
+--     on m.profile_id = p.id and m.shop_id = p.active_shop_id and m.is_active
+--   where p.role is distinct from m.role;
+
+-- ---------------------------------------------------------------------------
+-- 20H. Application migration notes (see DEPLOY-INSTRUCTIONS.md for full steps)
+--   - profiles.role is retained (staged). shop_memberships.role is
+--     authoritative for RLS. Do NOT drop profiles.role until a later
+--     migration confirms no executable code reads it.
+--   - Netlify functions (manage-users / update-staff-role / review-role-change)
+--     still write profiles.role; they must ALSO upsert shop_memberships.role
+--     for the target shop, and invites should pass app_metadata.shop_id so the
+--     provisioning trigger enrolls the new user in the right shop.
+--   - Frontend must call set_active_shop() via RPC on shop switch, clear all
+--     tenant-scoped state, and reload. QR-linked jobs must verify membership
+--     in that job's shop before opening.
+-- ===========================================================================
+
+-- ===========================================================================
+-- 21. PRIVATE-STORAGE CONVERSION (additive; bucket stays PUBLIC in this pass)
+--
+--   Goal: make work-order-photos safe to flip to a PRIVATE bucket WITHOUT
+--   breaking reads, and lock every storage operation to the caller's shop as
+--   proven by AUTHORITATIVE DATABASE DATA — never by trusting the object path
+--   text. This section is safe to apply while the bucket is still public:
+--   the SELECT policy below is inert on a public bucket (public reads bypass
+--   RLS) and simply becomes the enforcement point the moment the bucket is
+--   flipped private (that flip is a DEPLOY step, NOT run here).
+--
+--   NOTHING in this section deletes bytes or changes the bucket's public flag.
+-- ===========================================================================
+
+-- 21A. Authoritative path->work_order resolver + object-name format guard.
+--   The object path is <work_order_id>/<photo_id>-{orig|thumb}.jpg. We resolve
+--   the FIRST segment against public.work_orders and return the row ONLY if it
+--   genuinely exists; a made-up prefix resolves to nothing and is denied. The
+--   format guard additionally prevents arbitrary path creation.
+create or replace function public.storage_wo_in_current_shop(object_name text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.work_orders wo
+    where wo.id = (storage.foldername(object_name))[1]
+      and public.is_active_user()
+      and public.row_in_current_shop(wo.shop_id)
+  );
+$$;
+
+create or replace function public.storage_wo_owned_in_current_shop(object_name text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.work_orders wo
+    where wo.id = (storage.foldername(object_name))[1]
+      and public.is_shop_owner()
+      and public.row_in_current_shop(wo.shop_id)
+  );
+$$;
+
+-- Enforced object-name shape: "<segment>/<uuid-or-token>-orig.jpg" | "...-thumb.jpg".
+-- Blocks arbitrary keys and stray folders (name must have exactly one "/").
+create or replace function public.storage_name_is_valid_photo(object_name text)
+returns boolean language sql immutable set search_path = public as $$
+  select object_name ~ '^[^/]+/[^/]+-(orig|thumb)\.jpg$';
+$$;
+
+-- 21B. Storage policies (DB-authoritative). Replace the section-20 set.
+drop policy if exists "work-order-photos: shop member insert" on storage.objects;
+drop policy if exists "work-order-photos: owner manage" on storage.objects;
+drop policy if exists "wop: select shop member" on storage.objects;
+drop policy if exists "wop: insert shop member" on storage.objects;
+drop policy if exists "wop: update shop member noshopmove" on storage.objects;
+drop policy if exists "wop: delete owner only" on storage.objects;
+
+-- READ: any active member of the work order's shop. Inert while the bucket is
+-- public; the enforcement point once it is flipped private.
+create policy "wop: select shop member" on storage.objects
+  for select using (
+    bucket_id = 'work-order-photos'
+    and public.storage_wo_in_current_shop(name)
+  );
+
+-- INSERT: active member of the WO's shop AND a well-formed photo key. The WO
+-- must exist in the DB and belong to the caller's current shop.
+create policy "wop: insert shop member" on storage.objects
+  for insert with check (
+    bucket_id = 'work-order-photos'
+    and public.storage_name_is_valid_photo(name)
+    and public.storage_wo_in_current_shop(name)
+  );
+
+-- UPDATE: active member of the WO's shop. USING pins the object to the current
+-- shop; WITH CHECK re-validates the (possibly renamed) key against a WO in the
+-- SAME shop and the required name shape — so an object can never be renamed or
+-- moved into another work order or another shop.
+create policy "wop: update shop member noshopmove" on storage.objects
+  for update using (
+    bucket_id = 'work-order-photos'
+    and public.storage_wo_in_current_shop(name)
+  ) with check (
+    bucket_id = 'work-order-photos'
+    and public.storage_name_is_valid_photo(name)
+    and public.storage_wo_in_current_shop(name)
+  );
+
+-- DELETE (byte removal): shop_owner of the WO's shop ONLY, as defense in depth.
+-- The application never deletes bytes from the browser (soft delete only); the
+-- real permanent purge runs server-side with the service-role key, which
+-- bypasses RLS. This policy exists so that IF a browser-side delete is ever
+-- attempted, a mechanic cannot destroy evidence and a cross-tenant caller is
+-- refused. Mechanics: intentionally NO storage delete permission.
+create policy "wop: delete owner only" on storage.objects
+  for delete using (
+    bucket_id = 'work-order-photos'
+    and public.storage_wo_owned_in_current_shop(name)
+  );
+
+-- 21C. Retention / purge lifecycle columns on work_order_photos.
+--   Smallest coherent model: reuse the EXISTING soft-delete pair
+--   (archived_at = deleted_at, archived_by = deleted_by) and add ONLY the
+--   purge-specific state. Three distinct states are representable:
+--     inactive           : active = false                (soft-deleted, keep)
+--     approved-for-purge : purge_approved_at is not null AND purge_after set
+--     purged             : storage_deleted_at is not null (bytes gone)
+alter table public.work_order_photos add column if not exists purge_approved_at timestamptz;
+alter table public.work_order_photos add column if not exists purge_approved_by uuid references public.profiles(id);
+alter table public.work_order_photos add column if not exists purge_after timestamptz;
+alter table public.work_order_photos add column if not exists storage_deleted_at timestamptz;
+alter table public.work_order_photos add column if not exists storage_delete_error text;
+-- Replacement lineage (Phase D): the photo that superseded this one, if any.
+alter table public.work_order_photos add column if not exists replaced_by_photo_id uuid references public.work_order_photos(id) on delete set null;
+
+-- Index for the future purge worker: only rows explicitly approved, past their
+-- retention date, and not yet purged.
+create index if not exists work_order_photos_purge_ready_idx
+  on public.work_order_photos (purge_after)
+  where purge_approved_at is not null and storage_deleted_at is null;
+
+-- 21D. Read-only purge-candidate view. This SELECTS candidates; it NEVER
+--   deletes. A future controlled release adds a service-role worker that reads
+--   this view, re-verifies each row, removes the orig+thumb objects via the
+--   Storage API, then stamps storage_deleted_at (or storage_delete_error).
+--   No purge is wired up in this pass.
+create or replace view public.work_order_photos_purge_candidates as
+  select id, work_order_id, shop_id, storage_path, thumb_path,
+         active, archived_at, archived_by,
+         purge_approved_at, purge_approved_by, purge_after
+  from public.work_order_photos
+  where active = false
+    and purge_approved_at is not null
+    and purge_after is not null
+    and purge_after <= now()
+    and storage_deleted_at is null;
+
+-- NOTE: the bucket is DELIBERATELY still public here. Flip it private only as a
+-- deploy step AFTER the signed-URL frontend is live and verified:
+--     update storage.buckets set public = false where id = 'work-order-photos';
+-- Rollback: set public = true (reads work again immediately via CDN).
+-- ===========================================================================

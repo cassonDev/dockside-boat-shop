@@ -29,14 +29,21 @@ export const supabase = configError ? null : createClient(SUPABASE_URL, SUPABASE
 });
 
 // ---------- auth ----------
-export async function signUp(email, password, fullName) {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { full_name: fullName || '' } }, // role defaults to 'mechanic' via DB trigger
-  });
+// Password recovery uses Supabase's native flow. The caller always shows a
+// neutral message regardless of the result, so this never reveals whether an
+// email is registered.
+export async function sendPasswordReset(email) {
+  const redirectTo = (typeof window !== 'undefined')
+    ? window.location.origin + window.location.pathname
+    : undefined;
+  const { error } = await supabase.auth.resetPasswordForEmail(email, redirectTo ? { redirectTo } : undefined);
   if (error) throw error;
-  return data;
+}
+
+// Sets a new password for the user during an active (recovery) session.
+export async function updatePassword(newPassword) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
 }
 
 export async function signIn(email, password) {
@@ -84,6 +91,7 @@ function profileFromRow(row) {
     oooStart: row.out_of_office_start || '',
     oooEnd: row.out_of_office_end || '',
     availabilityNote: row.availability_note || '',
+    activeShopId: row.active_shop_id || null,
   };
 }
 
@@ -129,6 +137,8 @@ function jobFromRow(row) {
     originalCustomerConcern: row.original_customer_concern || '',
     originalExtraction: row.original_extraction || null,
     active: row.active !== false,
+    locationId: row.location_id || null,
+    shopId: row.shop_id || null,
     archivedAt: row.archived_at ? new Date(row.archived_at).getTime() : null,
     entries: (row.entries || []).map(e => ({
       timestamp: new Date(e.timestamp).getTime(),
@@ -179,8 +189,12 @@ export async function fetchStaffRoster() {
   return (data || []).map(profileFromRow);
 }
 
-export async function fetchJobs() {
-  const { data, error } = await supabase.from('work_orders').select('*').eq('active', true).order('created_at', { ascending: false });
+// RLS already restricts rows to the caller's current shop; the optional
+// locationId is an in-shop operational filter, not a security boundary.
+export async function fetchJobs({ locationId } = {}) {
+  let q = supabase.from('work_orders').select('*').eq('active', true);
+  if (locationId) q = q.eq('location_id', locationId);
+  const { data, error } = await q.order('created_at', { ascending: false });
   if (error) throw error;
   return (data || []).map(jobFromRow);
 }
@@ -255,6 +269,10 @@ export async function insertJob(job, createdByUserId) {
     original_extraction: job.originalExtraction || null,
     entries: [],
     created_by: createdByUserId || null,
+    // shop_id is stamped server-side by the set_shop_id trigger (never trusted
+    // from the client); location_id defaults to the shop's primary location if
+    // omitted, and is validated against the shop by set_wo_location.
+    location_id: job.locationId || null,
   };
   const { data, error } = await supabase.from('work_orders').insert(row).select().single();
   if (error) throw error;
@@ -542,18 +560,76 @@ export async function fetchAuditLog(limit) {
 export const PHOTO_CATEGORIES = ['Intake', 'Before Repair', 'During Repair', 'After Repair', 'Damage', 'Parts', 'Warranty', 'Serial Number', 'Other'];
 const PHOTO_BUCKET = 'work-order-photos';
 
-function publicPhotoUrl(path) {
-  if (!path) return '';
-  const { data } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path);
-  return data && data.publicUrl;
+// ---------- signed-URL layer (private-bucket conversion, Phase B) ----------
+// The database stores ONLY object paths (storage_path / thumb_path). We never
+// persist a signed or public URL anywhere (DB, localStorage, IndexedDB). URLs
+// are minted on demand via createSignedUrl and held ONLY in this in-memory
+// cache for the current session/shop. clearPhotoUrlCache() wipes it on sign-out
+// and shop-switch so a previous tenant's URLs can never be reused.
+//
+// TTL rationale: 1h (3600s) balances not re-signing on every render against
+// keeping the exposure window short once the bucket is private (a leaked URL
+// dies within the hour). Print/invoice re-signs on entry (see refreshPhotoUrls)
+// so a long-open job never prints broken images. If a future workflow needs a
+// URL to outlive an hour (e.g. emailing a customer a link), mint that one
+// deliberately with a longer TTL at that call site — do NOT raise this default.
+export const SIGNED_URL_TTL_SECONDS = 3600;
+const SIGNED_URL_REFRESH_MARGIN_MS = 5 * 60 * 1000; // re-sign 5 min before expiry
+const _signedUrlCache = new Map(); // path -> { url, expiresAt }
+
+// Clears all in-memory signed URLs. MUST be called on sign-out and shop-switch.
+export function clearPhotoUrlCache() {
+  _signedUrlCache.clear();
 }
+
+// Batch-signs a list of object paths in one round trip, using cached URLs that
+// are still comfortably in-date. Returns a plain { path: url } map. A path that
+// fails to sign maps to '' (caller renders its own broken/placeholder state).
+async function signPaths(paths) {
+  const out = {};
+  const now = Date.now();
+  const need = [];
+  for (const p of paths) {
+    if (!p) continue;
+    const hit = _signedUrlCache.get(p);
+    if (hit && hit.expiresAt - SIGNED_URL_REFRESH_MARGIN_MS > now) out[p] = hit.url;
+    else if (!need.includes(p)) need.push(p);
+  }
+  if (need.length) {
+    const { data, error } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrls(need, SIGNED_URL_TTL_SECONDS);
+    if (error) throw error;
+    const expiresAt = now + SIGNED_URL_TTL_SECONDS * 1000;
+    for (const entry of (data || [])) {
+      const url = entry.signedUrl || '';
+      out[entry.path] = url;
+      if (url) _signedUrlCache.set(entry.path, { url, expiresAt });
+    }
+  }
+  return out;
+}
+
+// Fills .url / .thumbUrl on a list of photo objects from their stored paths.
+// Exported so callers can re-sign an already-loaded list before printing.
+export async function signPhotos(photos) {
+  const list = photos || [];
+  const paths = [];
+  for (const p of list) { if (p.storagePath) paths.push(p.storagePath); if (p.thumbPath) paths.push(p.thumbPath); }
+  let map = {};
+  try { map = await signPaths(paths); } catch (e) { console.error('Failed to sign photo URLs', e); }
+  return list.map(p => ({ ...p, url: map[p.storagePath] || '', thumbUrl: map[p.thumbPath] || '' }));
+}
+// Alias used by the UI when refreshing URLs on print/invoice entry.
+export const refreshPhotoUrls = signPhotos;
 
 function photoFromRow(row) {
   return {
     id: row.id,
     workOrderId: row.work_order_id,
-    url: publicPhotoUrl(row.storage_path),
-    thumbUrl: publicPhotoUrl(row.thumb_path),
+    // Only the paths come from the DB; url/thumbUrl are filled by signPhotos().
+    storagePath: row.storage_path,
+    thumbPath: row.thumb_path,
+    url: '',
+    thumbUrl: '',
     width: row.width || null,
     height: row.height || null,
     caption: row.caption || '',
@@ -567,6 +643,17 @@ function photoFromRow(row) {
     extractionConfidence: row.extraction_confidence != null ? Number(row.extraction_confidence) : null,
     createdAt: new Date(row.created_at).getTime(),
     createdBy: row.created_by,
+    // Soft-delete + retention/purge lifecycle (Phase C). These describe WHY an
+    // object still exists in storage even after the row is inactive; nothing
+    // here deletes bytes — permanent purge is a separate server-side release.
+    active: row.active !== false,
+    archivedAt: row.archived_at ? new Date(row.archived_at).getTime() : null,
+    archivedBy: row.archived_by || null,
+    purgeApprovedAt: row.purge_approved_at ? new Date(row.purge_approved_at).getTime() : null,
+    purgeApprovedBy: row.purge_approved_by || null,
+    purgeAfter: row.purge_after ? new Date(row.purge_after).getTime() : null,
+    storageDeletedAt: row.storage_deleted_at ? new Date(row.storage_deleted_at).getTime() : null,
+    replacedByPhotoId: row.replaced_by_photo_id || null,
   };
 }
 
@@ -579,7 +666,7 @@ export async function fetchWorkOrderPhotos(workOrderId) {
     .order('display_order')
     .order('created_at');
   if (error) throw error;
-  return (data || []).map(photoFromRow);
+  return signPhotos((data || []).map(photoFromRow));
 }
 
 // blobOrig / blobThumb: already-enhanced JPEG Blobs produced client-side
@@ -616,7 +703,8 @@ export async function uploadWorkOrderPhoto(workOrderId, photo, userId) {
   };
   const { data, error } = await supabase.from('work_order_photos').insert(row).select().single();
   if (error) throw error;
-  return photoFromRow(data);
+  const [signed] = await signPhotos([photoFromRow(data)]);
+  return signed;
 }
 
 // Patches apply immediately to Supabase — callers never hold a selection
@@ -634,7 +722,8 @@ export async function updateWorkOrderPhoto(photoId, patch) {
   if (patch.extractionConfidence !== undefined) row.extraction_confidence = patch.extractionConfidence;
   const { data, error } = await supabase.from('work_order_photos').update(row).eq('id', photoId).select().single();
   if (error) throw error;
-  return photoFromRow(data);
+  const [signed] = await signPhotos([photoFromRow(data)]);
+  return signed;
 }
 
 // Thin, explicit wrapper for the one action the invoice-selection UI needs —
@@ -650,6 +739,11 @@ export async function setPhotoCustomerVisible(photoId, visible) {
   return updateWorkOrderPhoto(photoId, { customerVisible: !!visible });
 }
 
+// SOFT DELETE ONLY. This flips the row inactive and records who/when; it never
+// touches storage bytes. The object is deliberately preserved for audit,
+// dispute, warranty, insurance, and recovery. Permanent removal is a separate,
+// approval-gated, server-side purge (see supabase-schema.sql §21 + the
+// scripts/storage-inventory-and-classify.js report), never a browser action.
 export async function deleteWorkOrderPhoto(photoId, userId) {
   const { error } = await supabase.from('work_order_photos').update({
     active: false, archived_at: new Date().toISOString(), archived_by: userId || null,
@@ -767,9 +861,16 @@ export async function updateSerialNumberRecord(id, patch) {
   return record;
 }
 
-// Replacing/rescanning a record's photo: uploads the new photo, points the
-// record at it, and keeps the old photo (never deleted) as gallery history.
+// Replacing/rescanning a record's photo: uploads the NEW photo to a fresh
+// generated path, points the record at it only after the upload succeeds, and
+// KEEPS the prior object + row (never deleted) as recoverable evidence during
+// the retention period. Lineage: the prior photo row is stamped with
+// replaced_by_photo_id = new photo, so the supersede chain is queryable.
 export async function replaceSerialNumberPhoto(id, workOrderId, photoFile, reviewedValue, confidence, userId) {
+  // Capture the outgoing photo id BEFORE we repoint the record.
+  const { data: existing } = await supabase.from('work_order_serial_numbers').select('photo_id').eq('id', id).single();
+  const priorPhotoId = existing && existing.photo_id;
+
   const photo = await uploadWorkOrderPhoto(workOrderId, {
     ...photoFile,
     categories: Array.from(new Set([...(photoFile.categories || []), 'Serial Number'])),
@@ -782,6 +883,15 @@ export async function replaceSerialNumberPhoto(id, workOrderId, photoFile, revie
     extraction_confidence: confidence != null ? confidence : null, updated_at: new Date().toISOString(),
   }).eq('id', id).select().single();
   if (error) throw error;
+  // Best-effort lineage + soft-archive of the superseded photo. A failure here
+  // must not lose the new photo/record, so it only logs.
+  if (priorPhotoId && priorPhotoId !== photo.id) {
+    const { error: linErr } = await supabase.from('work_order_photos').update({
+      replaced_by_photo_id: photo.id, active: false,
+      archived_at: new Date().toISOString(), archived_by: userId || null,
+    }).eq('id', priorPhotoId);
+    if (linErr) console.error('Failed to record serial-photo replacement lineage', linErr);
+  }
   return { record: serialNumberRowToRecord(data), photo };
 }
 
@@ -827,8 +937,31 @@ async function callManageUsers(action, payload) {
   return json;
 }
 
-export async function inviteMechanic(email, fullName, role) {
-  return callManageUsers('invite_mechanic', { email, fullName, role: role || 'mechanic' });
+// Invite (or add an existing user as) staff. Roles are restricted server-side
+// to mechanic|shop_owner; shop_id is derived from the inviter's active shop on
+// the server and can't be set here. Returns the raw result including `status`
+// so the UI can branch (invited | added_existing_user | already_member |
+// inactive_member | requires_confirmation) instead of treating business
+// responses as thrown errors.
+export async function inviteStaff(email, fullName, role, opts = {}) {
+  const session = await getSession();
+  if (!session) throw new Error('Not signed in.');
+  const res = await fetch(MANAGE_USERS_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify({
+      action: 'invite_staff', email, fullName, role: role || 'mechanic',
+      addExistingUser: !!opts.addExistingUser,
+      locationId: opts.locationId || null,
+    }),
+  });
+  const json = await res.json().catch(() => ({}));
+  return { ok: res.ok, httpStatus: res.status, status: json.status || null, userId: json.userId || null, error: json.error || null };
+}
+
+// One-release compatibility alias for older callers.
+export async function inviteMechanic(email, fullName) {
+  return inviteStaff(email, fullName, 'mechanic');
 }
 export async function setUserActive(userId, active) {
   return callManageUsers('set_active', { userId, active });
@@ -871,4 +1004,127 @@ async function callUpdateStaffRole(payload) {
 }
 export async function updateStaffRole(targetUserId, newRole) {
   return callUpdateStaffRole({ targetUserId, newRole });
+}
+
+// ===========================================================================
+// Multi-tenant: shops, locations, memberships, active-shop context
+// (schema section 20). The tenant boundary is enforced by RLS + the
+// current_user_shop_id() helper server-side; these functions drive the UI.
+// ===========================================================================
+function shopFromRow(r) {
+  return {
+    id: r.id, name: r.name, legalName: r.legal_name || '', phone: r.phone || '',
+    email: r.email || '', timezone: r.timezone || '', isActive: r.is_active !== false,
+    address: [r.address_line1, r.address_line2, r.city, r.region, r.postal_code].filter(Boolean).join(', '),
+    addressLine1: r.address_line1 || '', addressLine2: r.address_line2 || '',
+    city: r.city || '', region: r.region || '', postalCode: r.postal_code || '', country: r.country || '',
+    settings: r.settings || {},
+  };
+}
+function locationFromRow(r) {
+  return {
+    id: r.id, shopId: r.shop_id, name: r.name, locationCode: r.location_code || '',
+    phone: r.phone || '', email: r.email || '', timezone: r.timezone || '',
+    isPrimary: r.is_primary === true, isActive: r.is_active !== false,
+    address: [r.address_line1, r.address_line2, r.city, r.region, r.postal_code].filter(Boolean).join(', '),
+    settings: r.settings || {},
+  };
+}
+function membershipFromRow(r) {
+  return {
+    id: r.id, profileId: r.profile_id, shopId: r.shop_id, role: r.role,
+    isActive: r.is_active !== false, defaultLocationId: r.default_location_id || null,
+    shop: r.shops ? shopFromRow(r.shops) : null,
+  };
+}
+
+// Every shop the signed-in user actively belongs to (drives the shop switcher).
+export async function fetchMyMemberships() {
+  const session = await getSession();
+  const uid = session && session.user && session.user.id;
+  if (!uid) return [];
+  const { data, error } = await supabase
+    .from('shop_memberships').select('*, shops(*)')
+    .eq('profile_id', uid).eq('is_active', true);
+  if (error) throw error;
+  return (data || []).map(membershipFromRow);
+}
+
+// Switch active shop. Validated server-side (set_active_shop only accepts a
+// shop the caller is an active member of) then persisted on profiles. The
+// CALLER is responsible for clearing all tenant-scoped UI state and reloading
+// so no rows from the previous shop remain visible.
+export async function setActiveShop(shopId) {
+  const { error } = await supabase.rpc('set_active_shop', { p_shop_id: shopId });
+  if (error) throw error;
+  return shopId;
+}
+
+export async function fetchShop(shopId) {
+  const { data, error } = await supabase.from('shops').select('*').eq('id', shopId).single();
+  if (error) throw error;
+  return shopFromRow(data);
+}
+
+export async function updateShop(shopId, patch) {
+  const row = { updated_at: new Date().toISOString() };
+  if (patch.name !== undefined) row.name = patch.name.trim();
+  if (patch.legalName !== undefined) row.legal_name = patch.legalName;
+  if (patch.phone !== undefined) row.phone = patch.phone;
+  if (patch.email !== undefined) row.email = patch.email;
+  if (patch.timezone !== undefined) row.timezone = patch.timezone;
+  if (patch.addressLine1 !== undefined) row.address_line1 = patch.addressLine1;
+  if (patch.addressLine2 !== undefined) row.address_line2 = patch.addressLine2;
+  if (patch.city !== undefined) row.city = patch.city;
+  if (patch.region !== undefined) row.region = patch.region;
+  if (patch.postalCode !== undefined) row.postal_code = patch.postalCode;
+  if (patch.country !== undefined) row.country = patch.country;
+  if (patch.settings !== undefined) row.settings = patch.settings;
+  const { data, error } = await supabase.from('shops').update(row).eq('id', shopId).select().single();
+  if (error) throw error;
+  return shopFromRow(data);
+}
+
+// Locations for the active shop (RLS scopes automatically); pass a shopId only
+// when reading a specific shop you belong to.
+export async function fetchLocations(shopId) {
+  let q = supabase.from('shop_locations').select('*').eq('is_active', true);
+  if (shopId) q = q.eq('shop_id', shopId);
+  const { data, error } = await q.order('is_primary', { ascending: false }).order('name');
+  if (error) throw error;
+  return (data || []).map(locationFromRow);
+}
+
+export async function createLocation(shopId, fields) {
+  const { data, error } = await supabase.from('shop_locations').insert({
+    shop_id: shopId, name: (fields.name || '').trim(), location_code: fields.locationCode || null,
+    phone: fields.phone || null, email: fields.email || null, timezone: fields.timezone || null,
+    is_primary: !!fields.isPrimary,
+  }).select().single();
+  if (error) throw error;
+  return locationFromRow(data);
+}
+
+export async function updateLocation(id, patch) {
+  const row = { updated_at: new Date().toISOString() };
+  if (patch.name !== undefined) row.name = patch.name.trim();
+  if (patch.locationCode !== undefined) row.location_code = patch.locationCode;
+  if (patch.phone !== undefined) row.phone = patch.phone;
+  if (patch.email !== undefined) row.email = patch.email;
+  if (patch.timezone !== undefined) row.timezone = patch.timezone;
+  if (patch.isPrimary !== undefined) row.is_primary = patch.isPrimary;
+  if (patch.isActive !== undefined) row.is_active = patch.isActive;
+  const { data, error } = await supabase.from('shop_locations').update(row).eq('id', id).select().single();
+  if (error) throw error;
+  return locationFromRow(data);
+}
+
+// Owner-only: staff roster for the active shop, joined with their membership
+// role. Read via the "memberships: self read" (owner branch) policy.
+export async function fetchShopMembers(shopId) {
+  const { data, error } = await supabase
+    .from('shop_memberships').select('*, profiles(*)')
+    .eq('shop_id', shopId).eq('is_active', true);
+  if (error) throw error;
+  return (data || []).map(r => ({ ...membershipFromRow(r), profile: r.profiles ? profileFromRow(r.profiles) : null }));
 }

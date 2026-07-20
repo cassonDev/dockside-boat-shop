@@ -7,7 +7,7 @@ This zip contains the updated app with the simplified role model:
 ## What changed
 - `index.html` — Manage Role / Role Request show only Mechanic and Shop Owner (with explanatory text); mechanics can edit any job's details, photos, and serials, and use Archive; Shop Config, Audit Log, staff activation, and role controls remain owner-only.
 - `supabase-schema.sql` — new migration **section 19** (bottom of file): data migration, role constraints, shop-wide mechanic RLS policies, activity-edit guard, drops advisor policies/helper.
-- `netlify/functions/update-staff-role.js`, `manage-users.js`, `review-role-change.js` (and their root mirrors) — accept only mechanic/shop_owner; invites always start as mechanic.
+- `netlify/functions/update-staff-role.js`, `manage-users.js`, `review-role-change.js` (and their root mirrors) — accept only mechanic/shop_owner; invites can now assign mechanic OR shop_owner (see the invitation-only section below).
 - `supabase-client.js` — updated permission comments.
 
 ## Deploy steps
@@ -50,3 +50,29 @@ Do not add `platform_admin` to `profiles.role` or any dropdown. When you
 build platform-level administration, store it in a separate table/claim and
 grant it only via a secure server-side process (service role key), never
 from the browser.
+
+## Invitation-only staff onboarding (2026-07)
+Public self-signup is removed. New behavior:
+- Sign-in screen offers only **Sign in** and **Forgot password** (native
+  Supabase recovery: reset email → recovery session → set new password).
+- Owners invite staff from the Staff screen as **Mechanic** or **Shop Owner**.
+  `invite_staff` (manage-users, both mirrors) derives `shop_id` from the
+  authenticated inviter's active shop (never from the request), rejects any
+  role other than mechanic/shop_owner, and creates the membership explicitly
+  (idempotent; relies on the existing `UNIQUE(profile_id, shop_id)`).
+- Inviting an email that already has an account in another shop returns
+  `requires_confirmation`; the owner must confirm to add the existing user to
+  their shop. Existing active members are a no-op (role changes go through
+  `update-staff-role`); removed members are not reactivated via invite.
+- An authenticated account with **zero shop memberships** is treated as
+  unprovisioned: the app shows an "account not linked" screen and runs no
+  tenant queries. Membership is the only grant of tenant access.
+- No database migration is required for this change (no auto-enroll trigger
+  exists in production; the unique constraint already exists).
+
+### Manual Supabase dashboard changes (do these at deploy time)
+1. **Authentication → Providers → Email:** turn **OFF** "Allow new users to
+   sign up." This is the real control — the removed UI is secondary.
+2. **Authentication → URL Configuration:** ensure Site URL and the redirect
+   allow-list include the deployed origin, so invite and password-recovery
+   links resolve back to the app.
