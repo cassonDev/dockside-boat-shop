@@ -43,7 +43,7 @@
   <sc-if value="{{ navVisible }}" hint-placeholder-val="{{ true }}">
   <div class="no-print" style="background:#16283D;background-image:linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);background-size:24px 24px;padding:calc(env(safe-area-inset-top,0px) + 10px) max(16px,env(safe-area-inset-left,0px)) 10px max(16px,env(safe-area-inset-right,0px));position:sticky;top:0;z-index:50;">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;min-width:0;" onClick="{{ goDashboard }}">
+      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:none;" onClick="{{ goDashboard }}">
         <img src="https://lessardmarineworks.com/wp-content/uploads/2022/11/cropped-lessard-marine-works-logo.png" style="width:34px;height:34px;border-radius:6px;object-fit:contain;background:#fff;padding:2px;flex:none;"/>
         <div style="min-width:0;">
           <div style="font:800 clamp(12px,3.6vw,15px) 'Archivo',sans-serif;color:#F6F1E4;letter-spacing:.3px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">LESSARD MARINE WORKS</div>
@@ -61,12 +61,8 @@
             <div style="{{ navDashboardStyle }}" onClick="{{ goDashboard }}">DASHBOARD</div>
             <div style="{{ navIntakeStyle }}" onClick="{{ goIntake }}">+ NEW JOB</div>
             <div style="{{ navRosterStyle }}" onClick="{{ goRoster }}">MECHANICS</div>
-            <div style="{{ navArchiveStyle }}" onClick="{{ goArchive }}">ARCHIVE</div>
-            <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
-            <div style="{{ navAuditStyle }}" onClick="{{ goAudit }}">AUDIT LOG</div>
-            <div style="{{ navConfigStyle }}" onClick="{{ goShopConfig }}">SHOP CONFIG</div>
-            </sc-if>
           </div>
+          <div style="{{ navMoreStyle }}" onClick="{{ toggleNavMenu }}" aria-label="More menu" title="More">{{ navMenuIcon }} MORE</div>
           <div style="text-align:right;">
             <div style="font:700 12px 'Public Sans',sans-serif;color:#F6F1E4;">{{ currentUserName }}</div>
             <div style="font:600 9px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.5px;">{{ currentUserRoleLabel }}</div>
@@ -104,6 +100,17 @@
             <div style="font:600 9px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.5px;">{{ currentUserRoleLabel }}</div>
           </div>
           <div style="background:rgba(255,255,255,.08);color:#F6F1E4;font:700 11px 'IBM Plex Mono',monospace;padding:12px 14px;border-radius:3px;cursor:pointer;letter-spacing:.4px;flex:none;" onClick="{{ handleSignOut }}">SIGN OUT</div>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ showWideMenu }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;justify-content:flex-end;">
+        <div style="margin-top:10px;min-width:220px;background:#1B3149;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:6px;display:flex;flex-direction:column;gap:4px;box-shadow:0 12px 28px rgba(0,0,0,.35);animation:dk-slidedown .15s ease-out;">
+          <div style="{{ navArchiveStyleFull }}" onClick="{{ navGoArchive }}">ARCHIVE</div>
+          <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
+          <div style="{{ navAuditStyleFull }}" onClick="{{ navGoAudit }}">AUDIT LOG</div>
+          <div style="{{ navConfigStyleFull }}" onClick="{{ navGoShopConfig }}">SHOP CONFIG</div>
+          </sc-if>
         </div>
       </div>
     </sc-if>
@@ -4509,9 +4516,11 @@ class Component extends DCLogic {
       navArchiveStyle: navBtn(s.screen === 'archive'),
       navAuditStyle: navBtn(s.screen === 'auditLog'),
       navConfigStyle: navBtn(s.screen === 'shopConfig'),
+      navMoreStyle: navBtn(s.screen === 'archive' || s.screen === 'auditLog' || s.screen === 'shopConfig'),
       isNarrowNav, isWideNav: !isNarrowNav,
       navMenuIcon: s.navMenuOpen ? '\u2715' : '\u2261',
       showNavMenu: isNarrowNav && s.navMenuOpen,
+      showWideMenu: !isNarrowNav && s.navMenuOpen,
       navGoDashboard: this.navGoDashboard, navGoIntake: this.navGoIntake, navGoRoster: this.navGoRoster,
       navGoArchive: this.navGoArchive, navGoAudit: this.navGoAudit, navGoShopConfig: this.navGoShopConfig,
       toggleNavMenu: this.toggleNavMenu,
