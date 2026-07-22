@@ -16,6 +16,38 @@ const SUPABASE_ANON_KEY = _cfg.anonKey || '';
 // as a normal error message.
 const MANAGE_USERS_ENDPOINT = '/.netlify/functions/manage-users';
 
+// Capture the auth-callback URL ONCE, synchronously at module load, BEFORE
+// createClient({ detectSessionInUrl: true }) consumes and cleans the hash/query.
+// This is the only reliable per-browser-load signal that this visit began from
+// an invite or recovery link. It must never be re-derived later.
+const _initialUrl = (typeof window !== 'undefined') ? window.location.href : '';
+function _detectInitialAuthCallback(href) {
+  const out = { type: null, hasCode: false, hasToken: false, isCallback: false };
+  if (!href) return out;
+  try {
+    const u = new URL(href);
+    out.hasCode = u.searchParams.has('code');
+    const queryType = u.searchParams.get('type');
+    const hash = u.hash && u.hash.charAt(0) === '#' ? u.hash.slice(1) : (u.hash || '');
+    const hp = new URLSearchParams(hash);
+    out.hasToken = hp.has('access_token');
+    const hashType = hp.get('type');
+    out.type = hashType || queryType || null;
+  } catch (e) { /* malformed URL — leave defaults */ }
+  out.isCallback = !!(out.type || out.hasCode || out.hasToken);
+  return out;
+}
+// Frozen snapshot of the auth callback for this browser load.
+export const initialAuthCallback = _detectInitialAuthCallback(_initialUrl);
+
+// Strips the auth token/code from the address bar without a reload, after the
+// invite/recovery session has been consumed.
+export function cleanAuthCallbackUrl() {
+  if (typeof window === 'undefined' || !window.history || !window.history.replaceState) return;
+  const clean = window.location.origin + window.location.pathname;
+  try { window.history.replaceState({}, document.title, clean); } catch (e) { /* ignore */ }
+}
+
 export const configError = (!SUPABASE_URL || !SUPABASE_ANON_KEY)
   ? 'Supabase is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY in your Netlify environment variables and redeploy.'
   : null;

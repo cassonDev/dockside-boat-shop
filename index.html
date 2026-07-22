@@ -1963,9 +1963,10 @@ class Component extends DCLogic {
 
     this._authSub = mod.onAuthStateChange(async (event, session) => {
       this.setState({ session });
-      // A recovery link opens a valid session whose only purpose is to set a new
-      // password — show the recovery screen instead of loading the app.
-      if (event === 'PASSWORD_RECOVERY') {
+      // A recovery link, OR a freshly-accepted invite (which Supabase surfaces as
+      // SIGNED_IN rather than PASSWORD_RECOVERY), opens a session whose only purpose
+      // is to set a password. Route both to the Set-Password screen, never the app.
+      if (event === 'PASSWORD_RECOVERY' || (session && !this.state.recoveryMode && this._isInviteOnboarding(session))) {
         this.setState({ recoveryMode: true, authView: 'recovery', authChecking: false, loaded: false, profile: null, authPassword: '', authError: '', authNotice: '' });
         return;
       }
@@ -1976,7 +1977,11 @@ class Component extends DCLogic {
     try {
       const session = await mod.getSession();
       this.setState({ session });
-      if (session) { await this.loadForSession(); }
+      if (this.state.recoveryMode) { this.setState({ authChecking: false }); }
+      else if (session && this._isInviteOnboarding(session)) {
+        this.setState({ recoveryMode: true, authView: 'recovery', authChecking: false, loaded: false, profile: null, authPassword: '', authError: '', authNotice: '' });
+      }
+      else if (session) { await this.loadForSession(); }
       else { this.setState({ authChecking: false }); }
     } catch (e) {
       this.setState({ authChecking: false });
@@ -1984,6 +1989,23 @@ class Component extends DCLogic {
 
     if (!this.state.session) { this.refreshBootstrapStatus(); }
   }
+
+  // True only when THIS browser load began from an invite auth-callback URL and the
+  // resulting session is an invited user's first sign-in. invited_at is consulted
+  // ONLY together with the one-time callback URL (never on its own), so a
+  // previously-activated invitee signing in normally is never sent back here. The
+  // one-time flag is consumed once the password is set.
+  _isInviteOnboarding = (session) => {
+    if (this._inviteOnboardingConsumed) return false;
+    const cb = this._dataMod && this._dataMod.initialAuthCallback;
+    if (!cb || !cb.isCallback) return false;
+    if (cb.type === 'invite') return true;              // explicit invite link
+    if (cb.type === 'recovery') return false;           // handled via PASSWORD_RECOVERY
+    // PKCE/implicit callback with no explicit type: treat as invite onboarding only
+    // when the session user was actually created by invitation.
+    const u = session && session.user;
+    return !!(u && u.invited_at && (cb.hasCode || cb.hasToken));
+  };
 
   refreshBootstrapStatus = async () => {
     try {
@@ -2137,6 +2159,10 @@ class Component extends DCLogic {
       this.setState({ authBusy: true, authError: '', authNotice: '' });
       try {
         await this._dataMod.updatePassword(authPassword);
+        // Consume the one-time invite/recovery flag and scrub the token/code from the
+        // address bar so a later refresh event cannot route back to Set Password.
+        this._inviteOnboardingConsumed = true;
+        if (this._dataMod.cleanAuthCallbackUrl) this._dataMod.cleanAuthCallbackUrl();
         this.setState({ authBusy: false, recoveryMode: false, authView: 'login', authPassword: '', authChecking: true });
         await this.loadForSession();
       } catch (err) {
@@ -3806,7 +3832,7 @@ class Component extends DCLogic {
       return {
         ...blankScreens, isAuthChecking: false, isAuthScreen: true,
         isSignUpMode: false,
-        authTitle: isRecovery ? 'Set a new password' : (isForgot ? 'Reset your password' : 'Sign in'),
+        authTitle: isRecovery ? 'Set your password' : (isForgot ? 'Reset your password' : 'Sign in'),
         showAuthEmail: !isRecovery,
         showAuthPassword: !isForgot,
         passwordFieldLabel: isRecovery ? 'NEW PASSWORD' : 'PASSWORD',
