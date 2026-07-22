@@ -42,7 +42,7 @@
 
   <sc-if value="{{ navVisible }}" hint-placeholder-val="{{ true }}">
   <div class="no-print" style="background:#16283D;background-image:linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);background-size:24px 24px;padding:calc(env(safe-area-inset-top,0px) + 10px) max(16px,env(safe-area-inset-left,0px)) 10px max(16px,env(safe-area-inset-right,0px));position:sticky;top:0;z-index:50;">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+    <div style="{{ navTopRowStyle }}">
       <div style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:none;" onClick="{{ goDashboard }}">
         <img src="https://lessardmarineworks.com/wp-content/uploads/2022/11/cropped-lessard-marine-works-logo.png" style="width:34px;height:34px;border-radius:6px;object-fit:contain;background:#fff;padding:2px;flex:none;"/>
         <div style="min-width:0;">
@@ -4517,6 +4517,9 @@ class Component extends DCLogic {
       navAuditStyle: navBtn(s.screen === 'auditLog'),
       navConfigStyle: navBtn(s.screen === 'shopConfig'),
       navMoreStyle: navBtn(s.screen === 'archive' || s.screen === 'auditLog' || s.screen === 'shopConfig'),
+      navTopRowStyle: isNarrowNav
+        ? 'display:flex;flex-direction:column;align-items:flex-start;gap:10px;'
+        : 'display:flex;align-items:center;justify-content:space-between;gap:12px;',
       isNarrowNav, isWideNav: !isNarrowNav,
       navMenuIcon: s.navMenuOpen ? '\u2715' : '\u2261',
       showNavMenu: isNarrowNav && s.navMenuOpen,
