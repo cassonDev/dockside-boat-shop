@@ -2697,25 +2697,39 @@ class Component extends DCLogic {
     this.setState({ intakeAiLoading: true });
     const fields = await this.runExtraction(
       raw,
-      ['customerName', 'phone', 'boatYear', 'boatMake', 'boatModel', 'issue', 'customerConcern'],
-      'boatYear is the 4-digit model year if mentioned (e.g. "2016"), otherwise an empty string. boatMake is ONLY the boat/engine brand (e.g. "Sea-Doo", "Yamaha", "Bayliner", "Mercury", "Lund") \u2014 normalize common spellings ("sea doo" or "seadoo" \u2192 "Sea-Doo"). boatModel is the specific model name or number ONLY if it was explicitly said (e.g. "24 Cuddy Cabin"); if no model was mentioned, leave boatModel completely EMPTY \u2014 never guess or invent a model. phone should be formatted like (555) 010-0142 if a number is present. issue should be rewritten as a short, clean, customer-facing phrase describing the problem (professional tone, no shop slang or filler words) \u2014 the mechanic\u2019s raw wording is kept separately as a private note, so feel free to tidy it up here. customerConcern is a polished, professional customer-facing sentence describing what the customer requested or is concerned about, suitable for a service order or invoice — written in the third person referring to "Customer" (e.g. "Customer requests inspection of cosmetic concerns on a 2001 Supra.").'
+      ['customerName', 'phone', 'boatYear', 'boatMake', 'boatModel', 'issue', 'customerConcern', 'priority', 'assignedMechanicName'],
+      'boatYear is the 4-digit model year if mentioned (e.g. "2016"), otherwise an empty string. boatMake is ONLY the boat/engine brand (e.g. "Sea-Doo", "Yamaha", "Bayliner", "Mercury", "Lund") \u2014 normalize common spellings ("sea doo" or "seadoo" \u2192 "Sea-Doo"). boatModel is the specific model name or number ONLY if it was explicitly said (e.g. "24 Cuddy Cabin"); if no model was mentioned, leave boatModel completely EMPTY \u2014 never guess or invent a model. phone is the customer phone number if one was spoken (any format); leave empty if no phone number was said. issue should be rewritten as a short, clean, customer-facing phrase describing the problem (professional tone, no shop slang or filler words) \u2014 the mechanic\u2019s raw wording is kept separately as a private note, so feel free to tidy it up here. customerConcern is a polished, professional customer-facing sentence describing what the customer requested or is concerned about, suitable for a service order or invoice \u2014 written in the third person referring to "Customer" (e.g. "Customer requests inspection of cosmetic concerns on a 2001 Supra."); keep it concise and do not change its meaning. priority is "high" if the notes convey urgency (urgent, rush, emergency, ASAP, high priority), "low" if they convey no urgency (no rush, low priority, whenever), "normal" if normal/standard priority is stated, otherwise empty string. assignedMechanicName is the exact name of a mechanic ONLY if the notes explicitly assign the job to a named person (e.g. "assign to Marcus", "give this to Dana"); otherwise empty string \u2014 never guess a mechanic.'
     );
+    // Priority: map the extracted tier to a value the app can store. The app has
+    // only 'normal' and 'high', so a spoken "low" collapses to 'normal'. A blank
+    // (no priority spoken) keeps whatever the toggle already shows (default normal).
+    const extractedPriority = fields.priority === 'high' ? 'high'
+      : (fields.priority === 'normal' || fields.priority === 'low') ? 'normal'
+      : this.state.intakePriority;
+    // Mechanic: assign only on a confident match against the real roster. Match
+    // on full name first, then a unique first-name match; never invent an id.
+    const matchedMechanicId = this.matchMechanicByName(fields.assignedMechanicName || '');
+    // Format the phone consistently even on the in-editor fallback path (the
+    // deployed function already returns it normalized; this is idempotent).
+    const normPhone = this.normalizePhoneClient(fields.phone || '');
     this.setState({
       intakeAiLoading: false,
       intakeStep: 'review',
       intakeRawNotesFinal: raw,
       phoneFieldError: false,
       intakeConfirmClear: false,
+      intakePriority: extractedPriority,
+      intakeMechanic: matchedMechanicId,
       intakeOriginalConcern: fields.customerConcern || fields.issue || '',
       intakeOriginalExtraction: {
-        customerName: fields.customerName || '', phone: fields.phone || '',
+        customerName: fields.customerName || '', phone: normPhone,
         boatYear: (fields.boatYear || '').trim(), boatMake: this.normalizeBoatMake(fields.boatMake || ''),
         boatModel: (fields.boatModel || '').trim(), issue: fields.issue || '',
         customerConcern: fields.customerConcern || fields.issue || '',
       },
       intakeFields: {
         customerName: fields.customerName || '',
-        phone: fields.phone || '',
+        phone: normPhone,
         boatYear: (fields.boatYear || '').trim(),
         boatMake: this.normalizeBoatMake(fields.boatMake || ''),
         boatModel: (fields.boatModel || '').trim(),
@@ -2735,6 +2749,34 @@ class Component extends DCLogic {
     const collapsed = make.trim().toLowerCase().replace(/[-\s]+/g, '');
     if (BRANDS[collapsed]) return BRANDS[collapsed];
     return make.trim().replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+  }
+
+  // Resolves a spoken mechanic name to a real roster id, or '' (Unassigned) if
+  // there's no confident match. Tries exact full-name, then a UNIQUE first-name
+  // match; an ambiguous or unknown name never assigns anyone. Out-of-office
+  // mechanics still match (the assigner may know they're back) — never invents.
+  // Client mirror of the server phone normalizer (see netlify/functions/
+  // ai-extract.js) so the in-editor fallback and the deployed path produce the
+  // same (NNN) NNN-NNNN format. Returns '' when no full 10-digit number exists.
+  normalizePhoneClient(raw) {
+    if (raw == null) return '';
+    const W = { zero:'0', oh:'0', o:'0', nought:'0', one:'1', two:'2', three:'3', four:'4', five:'5', six:'6', seven:'7', eight:'8', nine:'9', niner:'9' };
+    let t = String(raw).toLowerCase().replace(/[a-z]+/g, (w) => (W[w] != null ? W[w] : ' '));
+    let d = (t.match(/\d/g) || []).join('');
+    if (d.length === 11 && d[0] === '1') d = d.slice(1);
+    if (d.length !== 10) return '';
+    return '(' + d.slice(0,3) + ') ' + d.slice(3,6) + '-' + d.slice(6);
+  }
+
+  matchMechanicByName(name) {
+    const q = (name || '').trim().toLowerCase();
+    if (!q) return '';
+    const mechs = this.state.mechanics || [];
+    const full = mechs.filter(m => (m.name || '').trim().toLowerCase() === q);
+    if (full.length === 1) return full[0].id;
+    const first = mechs.filter(m => (m.name || '').trim().toLowerCase().split(/\s+/)[0] === q);
+    if (first.length === 1) return first[0].id;
+    return '';
   }
 
   setFieldCustomerName = (e) => this.setState({ intakeFields: { ...this.state.intakeFields, customerName: e.target.value } });
