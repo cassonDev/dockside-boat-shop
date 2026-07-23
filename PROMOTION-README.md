@@ -1,12 +1,10 @@
 # Staging → Production Promotion Package
 
-**Date:** 2026-07-22 · **Goal:** bring production fully up to the current staging
+**Date:** 2026-07-23 · **Goal:** bring production fully up to the current staging
 version in one clean promotion, without copying any staging data.
 
-> ⚠️ **Read this before running anything.** Do **not** run the migration just
-> because it says "production." Run **`01-PROD-PREFLIGHT.sql`** first and send the
-> output back. The migration is idempotent and safe, but the preflight confirms
-> what production already has so we only add what is genuinely missing.
+> ✅ **Production promotion completed successfully on 2026-07-23.**
+> `01-PROD-PREFLIGHT.sql` was reviewed, `02-PROD-MIGRATION.sql` was applied successfully in one transaction, and every V1–V12 check in `03-PROD-POST-VERIFICATION.sql` passed. The photo bucket remains public intentionally. These scripts are retained as an audit record and must not be rerun merely because they are stored in the repository.
 
 ---
 
