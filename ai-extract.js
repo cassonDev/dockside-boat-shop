@@ -83,6 +83,58 @@ function toDigitStream(text) {
   return (t.match(/\d/g) || []).join('');
 }
 
+// Words that label a following number as a phone number.
+const PHONE_LABELS = new Set(['phone', 'number', 'cell', 'mobile', 'tel', 'telephone', 'call', 'contact']);
+
+// Extracts a phone number from free-form transcript text WITHOUT concatenating
+// digits across the whole string (the staging bug). It tokenizes on whitespace/
+// commas, classifies each token as a digit token (a spoken number-word, or a
+// token made only of digits + phone punctuation), a label, or a boundary, then:
+//   - groups CONSECUTIVE digit tokens into runs (a boundary like a word, or a
+//     mixed alnum token such as "VR5", ends a run so year/model digits are never
+//     borrowed);
+//   - within each run finds every contiguous window whose joined digits form a
+//     valid number (10 digits, or 11 with a leading country-code 1);
+//   - prefers candidates immediately labelled by "phone"/"phone number", and
+//     among the chosen pool returns the LAST one (so a corrected number spoken
+//     after malformed attempts wins).
+// Returns '' when no unambiguous valid 10-digit candidate exists.
+function extractPhone(text) {
+  if (text == null) return '';
+  const tokens = String(text).toLowerCase().split(/[\s,]+/).filter(Boolean);
+  const klass = tokens.map((tok) => {
+    if (WORD_DIGITS[tok] != null) return { type: 'digit', digits: WORD_DIGITS[tok] };
+    if (/^[\d().+\-]+$/.test(tok) && /\d/.test(tok)) return { type: 'digit', digits: tok.replace(/\D/g, '') };
+    if (PHONE_LABELS.has(tok.replace(/[^a-z]/g, ''))) return { type: 'label' };
+    return { type: 'boundary' };
+  });
+  const candidates = [];
+  let i = 0;
+  while (i < tokens.length) {
+    if (klass[i].type !== 'digit') { i++; continue; }
+    let j = i;
+    const seg = [];
+    while (j < tokens.length && klass[j].type === 'digit') { seg.push(klass[j].digits); j++; }
+    const labeled = (i >= 1 && klass[i - 1].type === 'label') || (i >= 2 && klass[i - 2].type === 'label');
+    for (let a = 0; a < seg.length; a++) {
+      let acc = '';
+      for (let b = a; b < seg.length; b++) {
+        acc += seg[b];
+        if (acc.length > 11) break;
+        let d = acc;
+        if (d.length === 11 && d[0] === '1') d = d.slice(1);
+        if (d.length === 10) candidates.push({ value: `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`, labeled, pos: i + a });
+      }
+    }
+    i = j;
+  }
+  if (!candidates.length) return '';
+  const labeledC = candidates.filter((c) => c.labeled);
+  const pool = labeledC.length ? labeledC : candidates;
+  pool.sort((x, y) => x.pos - y.pos);
+  return pool[pool.length - 1].value;
+}
+
 // Clamps a canonical priority tier to a value the app can actually store. The
 // app has only 'normal' and 'high', so 'low' collapses to 'normal'. '' stays ''
 // so the caller can preserve its existing default.
@@ -136,18 +188,11 @@ function sanitizeFields(parsed, schemaFields, rawText) {
     fields[key] = v == null ? '' : String(v).trim();
   }
   if (schemaFields.includes('phone')) {
-    // Anti-hallucination: normalize the model's phone, then REQUIRE its 10
-    // digits to actually appear in the transcript (as typed digits or spoken
-    // digits). A number the model invented — not present in the input — is
-    // rejected to blank. This is what guarantees we never surface a phone that
-    // wasn't said.
-    const formatted = normalizePhone(fields.phone);
-    if (formatted) {
-      const digits = formatted.replace(/\D/g, '');
-      fields.phone = toDigitStream(rawText).includes(digits) ? formatted : '';
-    } else {
-      fields.phone = '';
-    }
+    // Extract the phone directly from the transcript using candidate scanning
+    // (see extractPhone). This is inherently hallucination-proof — the model's
+    // own phone value is never used — and never concatenates digits across the
+    // whole transcript or borrows adjacent year/model digits.
+    fields.phone = extractPhone(rawText);
   }
   if (schemaFields.includes('priority')) {
     // Priority comes EXCLUSIVELY from the transcript cue — the model's own
@@ -260,4 +305,4 @@ exports.handler = async (event) => {
 };
 
 // Exposed for automated tests (no network). Not part of the HTTP contract.
-exports._test = { normalizePhone, detectPriority, toAppPriority, toDigitStream, buildJsonSchema, parseContent, sanitizeFields };
+exports._test = { normalizePhone, extractPhone, detectPriority, toAppPriority, toDigitStream, buildJsonSchema, parseContent, sanitizeFields };
