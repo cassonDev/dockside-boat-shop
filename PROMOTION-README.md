@@ -130,5 +130,4 @@ no DB change (`work_orders.assigned_mechanic` was already nullable).
 | `code/` | Deploy via Netlify | Current staging application runtime. |
 | `PROMOTION-README.md` | No | This file. |
 
-**Nothing in this package has been run against production. No staging changes were
-made in producing it.**
+Production migration completed and was verified on 2026-07-23. No staging data was copied. The bucket public-to-private change remains deferred.
