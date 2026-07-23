@@ -292,7 +292,8 @@ export async function insertJob(job, createdByUserId) {
     photos: job.photos || [],
     size: job.size,
     priority: job.priority,
-    assigned_mechanic: job.assignedMechanic,
+    // null = Unassigned (column is nullable; RLS insert only checks created_by).
+    assigned_mechanic: job.assignedMechanic || null,
     status: job.status,
     intake_raw_notes: job.intakeRawNotes || '',
     customer_concern: job.customerConcern || '',

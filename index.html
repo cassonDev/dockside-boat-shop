@@ -2345,7 +2345,7 @@ class Component extends DCLogic {
     intakeFields: { customerName: '', phone: '', boatYear: '', boatMake: '', boatModel: '', issue: '', customerConcern: '' },
     phoneFieldError: false, intakeConfirmClear: false, reviewTranscriptOpen: false,
     intakeOriginalConcern: null, intakeOriginalExtraction: null,
-    intakeSize: 'M', intakePriority: 'normal', intakeMechanic: (this.state.mechanics[0] || {}).id || '',
+    intakeSize: 'M', intakePriority: 'normal', intakeMechanic: '',
     intakeStagedPhotos: [], intakeRecording: false, intakeMicError: '', intakeRawNotesFinal: '', showScanModal: false,
     intakeSaving: false, intakeSaveError: '', intakeRecBusy: false, intakeStopping: false,
     jobPhotos: [], selectedJobId: null,
@@ -3325,8 +3325,11 @@ class Component extends DCLogic {
     if (!f.customerName || !f.customerName.trim()) { this.setState({ intakeSaveError: 'Customer name is required.', phoneFieldError: false }); return; }
     if (!f.boatMake || !f.boatMake.trim()) { this.setState({ intakeSaveError: 'Boat make is required.', phoneFieldError: false }); return; }
     if (!f.issue || !f.issue.trim()) { this.setState({ intakeSaveError: 'Issue description is required.', phoneFieldError: false }); return; }
-    const mechanicId = this.state.intakeMechanic || (this.state.mechanics[0] || {}).id;
-    if (!mechanicId) { this.setState({ intakeSaveError: 'Assign a mechanic before saving.', phoneFieldError: false }); return; }
+    // Mechanic assignment is optional at intake. No fallback to the first
+    // roster entry and no auto-assign of the current user — an unset value
+    // means the job is created Unassigned and can be assigned later from the
+    // work-order workflow.
+    const mechanicId = this.state.intakeMechanic || null;
     if (!this._dataMod) { this.setState({ intakeSaveError: 'Not connected to the database \u2014 cannot save job.', phoneFieldError: false }); return; }
 
     this.setState({ intakeSaving: true, intakeSaveError: '', phoneFieldError: false });
@@ -4165,7 +4168,7 @@ class Component extends DCLogic {
       onSelect: () => this.setIntakePriority(p.v),
     }));
 
-    const mechanicChoiceOptions = s.mechanics.map(m => ({ value: m.id, label: m.name + (m.outOfOffice ? ' (OOO)' : '') }));
+    const mechanicChoiceOptions = [{ value: '', label: 'Unassigned' }].concat(s.mechanics.map(m => ({ value: m.id, label: m.name + (m.outOfOffice ? ' (OOO)' : '') })));
 
     const jf = s.jobEditForm || {};
     const jobEditPriorityOptions = [{ v: 'normal', l: 'NORMAL' }, { v: 'high', l: 'HIGH' }].map(p => ({
