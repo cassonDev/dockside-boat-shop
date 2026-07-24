@@ -53,7 +53,9 @@
       <div style="display:flex;align-items:center;gap:8px;flex:none;">
         <sc-if value="{{ isNarrowNav }}" hint-placeholder-val="{{ false }}">
           <div aria-label="Create new job" title="New Job" style="background:#1F6F78;color:#fff;font:800 20px 'IBM Plex Mono',monospace;width:44px;height:44px;border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;" onClick="{{ navGoIntake }}">+</div>
+          <sc-if value="{{ featureQrEnabled }}" hint-placeholder-val="{{ true }}">
           <div style="background:#D97706;color:#fff;font:700 18px 'IBM Plex Mono',monospace;width:44px;height:44px;border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;" onClick="{{ openScanModal }}">&#9635;</div>
+          </sc-if>
           <div style="background:rgba(255,255,255,.1);color:#F6F1E4;font:700 20px 'IBM Plex Mono',monospace;width:44px;height:44px;border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;" onClick="{{ toggleNavMenu }}">{{ navMenuIcon }}</div>
         </sc-if>
         <sc-if value="{{ isWideNav }}" hint-placeholder-val="{{ true }}">
@@ -67,7 +69,9 @@
             <div style="font:700 12px 'Public Sans',sans-serif;color:#F6F1E4;">{{ currentUserName }}</div>
             <div style="font:600 9px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.5px;">{{ currentUserRoleLabel }}</div>
           </div>
+          <sc-if value="{{ featureQrEnabled }}" hint-placeholder-val="{{ true }}">
           <div style="background:#D97706;color:#fff;font:700 12px 'IBM Plex Mono',monospace;padding:12px 16px;border-radius:3px;cursor:pointer;letter-spacing:.4px;" onClick="{{ openScanModal }}">&#9635; SCAN TAG</div>
+          </sc-if>
           <div style="background:rgba(255,255,255,.08);color:#F6F1E4;font:700 11px 'IBM Plex Mono',monospace;padding:12px 14px;border-radius:3px;cursor:pointer;letter-spacing:.4px;" onClick="{{ handleSignOut }}">SIGN OUT</div>
         </sc-if>
       </div>
@@ -415,7 +419,9 @@
           </sc-for>
         </div>
         <div class="no-print" style="display:flex;gap:8px;margin-top:6px;">
+          <sc-if value="{{ featureQrEnabled }}" hint-placeholder-val="{{ true }}">
           <div style="flex:1;background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ goToTag }}">PRINT TAG</div>
+          </sc-if>
           <div style="flex:1;background:#FBEAEA;color:#C0392B;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;" onClick="{{ archiveSelectedJob }}">ARCHIVE</div>
         </div>
       </div>
@@ -484,9 +490,11 @@
         <sc-if value="{{ noSerialNumbers }}" hint-placeholder-val="{{ true }}">
           <div style="padding:14px 20px;font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No serial numbers captured yet.</div>
         </sc-if>
+        <sc-if value="{{ featureSerialEnabled }}" hint-placeholder-val="{{ true }}">
         <div class="no-print" style="padding:14px 20px;">
           <div style="background:#D97706;color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;width:fit-content;" onClick="{{ openSerialScan }}">&#128247; SCAN SERIAL NUMBER</div>
         </div>
+        </sc-if>
       </div>
     </div>
 
@@ -1232,54 +1240,343 @@
 
   <!-- ============ SHOP CONFIGURATION (shop_owner) ============ -->
   <sc-if value="{{ isShopConfig }}" hint-placeholder-val="{{ false }}">
-  <div style="max-width:640px;margin:0 auto;padding:20px 16px 60px;">
+  <div style="max-width:720px;margin:0 auto;padding:20px 16px 60px;">
     <div style="font:800 20px 'Archivo',sans-serif;color:#16283D;margin-bottom:4px;">Shop Configuration</div>
-    <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);margin-bottom:18px;">Settings for this shop. Changes here do not affect other shops.</div>
+    <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);margin-bottom:14px;">Manage your business, team &amp; premium features. Changes here only affect this shop.</div>
 
+    <div class="no-print" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:16px;-webkit-overflow-scrolling:touch;">
+      <sc-for list="{{ configTabList }}" as="tab" hint-placeholder-count="6">
+        <div style="{{ tab.style }}" onClick="{{ tab.onSelect }}">{{ tab.label }}</div>
+      </sc-for>
+    </div>
+
+    <!-- ---- INFO ---- -->
+    <sc-if value="{{ isConfigInfo }}" hint-placeholder-val="{{ true }}">
     <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);">
-      <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);">
-        <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">SERIAL NUMBER LABELS</div>
-        <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);margin-top:2px;">Choices shown when staff scan a serial number. Disabling a label removes it from new scans but keeps existing records readable.</div>
+      <div style="background:#16283D;padding:14px 20px;"><div style="font:800 14px 'Archivo',sans-serif;color:#fff;letter-spacing:.3px;">SHOP INFORMATION</div></div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px;">
+        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">SHOP NAME *</div>
+          <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ shopInfoDraft.name }}" onChange="{{ setShopName }}"/>
+        </div>
+        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">LEGAL NAME</div>
+          <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ shopInfoDraft.legalName }}" onChange="{{ setShopLegalName }}"/>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:150px;background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">PHONE</div>
+            <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ shopInfoDraft.phone }}" onChange="{{ setShopPhone }}"/>
+          </div>
+          <div style="flex:1;min-width:150px;background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">EMAIL</div>
+            <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ shopInfoDraft.email }}" onChange="{{ setShopEmail }}"/>
+          </div>
+        </div>
+        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">ADDRESS</div>
+          <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" placeholder="Street address" value="{{ shopInfoDraft.addressLine1 }}" onChange="{{ setShopAddr1 }}"/>
+        </div>
+        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+          <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" placeholder="Suite / unit (optional)" value="{{ shopInfoDraft.addressLine2 }}" onChange="{{ setShopAddr2 }}"/>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="flex:2;min-width:120px;background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">CITY</div>
+            <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ shopInfoDraft.city }}" onChange="{{ setShopCity }}"/>
+          </div>
+          <div style="flex:1;min-width:80px;background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">STATE</div>
+            <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ shopInfoDraft.region }}" onChange="{{ setShopRegion }}"/>
+          </div>
+          <div style="flex:1;min-width:90px;background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">POSTAL</div>
+            <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ shopInfoDraft.postalCode }}" onChange="{{ setShopPostal }}"/>
+          </div>
+        </div>
+        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">TIME ZONE</div>
+          <select style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ shopInfoDraft.timezone }}" onChange="{{ setShopTimezone }}">
+            <sc-for list="{{ timezoneOptions }}" as="tz" hint-placeholder-count="7">
+              <option value="{{ tz.value }}">{{ tz.label }}</option>
+            </sc-for>
+          </select>
+        </div>
+        <sc-if value="{{ hasShopInfoMsg }}" hint-placeholder-val="{{ false }}">
+          <div style="{{ shopInfoMsgStyle }}">{{ shopInfoMsg }}</div>
+        </sc-if>
+        <div style="{{ shopInfoSaveStyle }}" onClick="{{ saveShopInfo }}">{{ shopInfoSaveLabel }}</div>
       </div>
+    </div>
+    </sc-if>
+
+    <!-- ---- LOCATIONS ---- -->
+    <sc-if value="{{ isConfigLocations }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);">
+      <div style="background:#16283D;padding:14px 20px;"><div style="font:800 14px 'Archivo',sans-serif;color:#fff;letter-spacing:.3px;">LOCATIONS</div><div style="font:500 11.5px 'Public Sans',sans-serif;color:#8FBFAE;margin-top:2px;">Physical branches of this shop. New jobs default to the primary location.</div></div>
       <div>
-        <sc-for list="{{ serialLabelsConfigDisplay }}" as="lbl" hint-placeholder-count="9">
-          <div style="{{ lbl.rowStyle }}">
-            <div class="no-print" style="display:flex;flex-direction:column;gap:0;">
-              <div style="font:700 11px 'IBM Plex Mono',monospace;color:#16283D;cursor:pointer;line-height:1;" onClick="{{ lbl.moveUp }}">&#9650;</div>
-              <div style="font:700 11px 'IBM Plex Mono',monospace;color:#16283D;cursor:pointer;line-height:1;" onClick="{{ lbl.moveDown }}">&#9660;</div>
+        <sc-for list="{{ configLocationsDisplay }}" as="loc" hint-placeholder-count="2">
+          <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.08);display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <div style="flex:1;min-width:160px;">
+              <sc-if value="{{ loc.isEditing }}" hint-placeholder-val="{{ false }}">
+                <input style="width:100%;max-width:260px;box-sizing:border-box;border:1px solid rgba(22,40,61,.25);border-radius:4px;padding:9px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ loc.nameDraft }}" onChange="{{ loc.setName }}"/>
+              </sc-if>
+              <sc-if value="{{ loc.isViewing }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <div style="font:600 14px 'Public Sans',sans-serif;color:#16283D;">{{ loc.name }}</div>
+                  <sc-if value="{{ loc.isPrimary }}" hint-placeholder-val="{{ false }}">
+                    <div style="font:700 8px 'IBM Plex Mono',monospace;letter-spacing:.5px;background:#EAF3F1;color:#1F6F78;border:1px solid rgba(31,111,120,.3);padding:3px 7px;border-radius:2px;">PRIMARY</div>
+                  </sc-if>
+                </div>
+              </sc-if>
             </div>
-            <div style="flex:1;min-width:0;">
-              <sc-if value="{{ lbl.isEditing }}" hint-placeholder-val="{{ false }}">
-                <input style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.25);border-radius:4px;padding:9px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ lbl.draft }}" onChange="{{ lbl.setDraft }}"/>
+            <div class="no-print" style="display:flex;gap:12px;flex:none;">
+              <sc-if value="{{ loc.isEditing }}" hint-placeholder-val="{{ false }}">
+                <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;" onClick="{{ loc.save }}">SAVE</div>
+                <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);cursor:pointer;" onClick="{{ loc.cancel }}">CANCEL</div>
               </sc-if>
-              <sc-if value="{{ lbl.isViewing }}" hint-placeholder-val="{{ true }}">
-                <div style="font:600 14px 'Public Sans',sans-serif;color:#16283D;">{{ lbl.label }}</div>
-              </sc-if>
-            </div>
-            <div class="no-print" style="display:flex;gap:10px;flex:none;">
-              <sc-if value="{{ lbl.isEditing }}" hint-placeholder-val="{{ false }}">
-                <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;" onClick="{{ lbl.saveEdit }}">SAVE</div>
-                <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);cursor:pointer;" onClick="{{ lbl.cancelEdit }}">CANCEL</div>
-              </sc-if>
-              <sc-if value="{{ lbl.isViewing }}" hint-placeholder-val="{{ true }}">
-                <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;" onClick="{{ lbl.startEdit }}">RENAME</div>
-                <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#C0392B;cursor:pointer;" onClick="{{ lbl.toggleActive }}">{{ lbl.toggleLabel }}</div>
+              <sc-if value="{{ loc.isViewing }}" hint-placeholder-val="{{ true }}">
+                <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;" onClick="{{ loc.startEdit }}">RENAME</div>
+                <sc-if value="{{ loc.canMakePrimary }}" hint-placeholder-val="{{ false }}">
+                  <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;" onClick="{{ loc.makePrimary }}">SET PRIMARY</div>
+                </sc-if>
+                <sc-if value="{{ loc.canDeactivate }}" hint-placeholder-val="{{ false }}">
+                  <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#C0392B;cursor:pointer;" onClick="{{ loc.deactivate }}">DEACTIVATE</div>
+                </sc-if>
               </sc-if>
             </div>
           </div>
         </sc-for>
-        <sc-if value="{{ noSerialLabelsConfig }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:14px 20px;font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No labels configured.</div>
+        <sc-if value="{{ locationConfirmOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="margin:14px 20px;background:#fff;border:1px solid #C0392B;border-radius:6px;padding:12px 14px;">
+            <div style="font:700 12.5px 'Public Sans',sans-serif;color:#16283D;">Deactivate this location?</div>
+            <div style="font:500 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-top:3px;">{{ locationConfirmMessage }}</div>
+            <div style="display:flex;gap:8px;margin-top:10px;">
+              <div style="flex:1;text-align:center;font:700 11px 'IBM Plex Mono',monospace;padding:10px;border-radius:4px;cursor:pointer;background:#EDE6D6;color:#16283D;" onClick="{{ cancelDeactivateLocation }}">CANCEL</div>
+              <div style="flex:1;text-align:center;font:700 11px 'IBM Plex Mono',monospace;padding:10px;border-radius:4px;cursor:pointer;background:#C0392B;color:#fff;" onClick="{{ confirmDeactivateLocation }}">DEACTIVATE</div>
+            </div>
+          </div>
         </sc-if>
       </div>
-      <div style="padding:14px 20px;display:flex;gap:8px;border-top:1px solid rgba(22,40,61,.08);">
-        <input style="flex:1;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:10px 12px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" placeholder="New label name" value="{{ newLabelText }}" onChange="{{ setNewLabelText }}"/>
-        <div style="background:#D97706;color:#fff;font:700 12px 'IBM Plex Mono',monospace;padding:10px 16px;border-radius:4px;cursor:pointer;white-space:nowrap;" onClick="{{ addSerialLabel }}">+ ADD LABEL</div>
+      <div class="no-print" style="padding:14px 20px;display:flex;gap:8px;border-top:1px solid rgba(22,40,61,.08);">
+        <input style="flex:1;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:10px 12px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" placeholder="New location name" value="{{ newLocationName }}" onChange="{{ setNewLocationName }}"/>
+        <div style="background:#D97706;color:#fff;font:700 12px 'IBM Plex Mono',monospace;padding:10px 16px;border-radius:4px;cursor:pointer;white-space:nowrap;" onClick="{{ addLocation }}">+ ADD</div>
       </div>
-      <sc-if value="{{ hasNewLabelError }}" hint-placeholder-val="{{ false }}">
-        <div style="padding:0 20px 14px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ newLabelError }}</div>
+      <sc-if value="{{ hasLocationError }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:0 20px 14px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ locationError }}</div>
       </sc-if>
     </div>
+    </sc-if>
+
+    <!-- ---- TEAM ---- -->
+    <sc-if value="{{ isConfigTeam }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);">
+      <div style="background:#16283D;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <div><div style="font:800 14px 'Archivo',sans-serif;color:#fff;letter-spacing:.3px;">TEAM</div><div style="font:500 11.5px 'Public Sans',sans-serif;color:#8FBFAE;margin-top:2px;">Invites, roles &amp; access are managed on the Mechanics screen.</div></div>
+        <div style="background:#1F6F78;color:#fff;font:700 11px 'IBM Plex Mono',monospace;padding:10px 14px;border-radius:4px;cursor:pointer;letter-spacing:.3px;white-space:nowrap;" onClick="{{ goRoster }}">MANAGE TEAM &rarr;</div>
+      </div>
+      <div>
+        <sc-for list="{{ configTeamDisplay }}" as="member" hint-placeholder-count="3">
+          <div style="padding:12px 20px;border-bottom:1px solid rgba(22,40,61,.08);display:flex;align-items:center;gap:12px;cursor:pointer;" onClick="{{ member.onOpen }}">
+            <div style="flex:1;min-width:0;">
+              <div style="font:600 14px 'Public Sans',sans-serif;color:#16283D;">{{ member.name }}</div>
+              <div style="font:500 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">{{ member.email }}</div>
+            </div>
+            <div style="{{ member.roleBadgeStyle }}">{{ member.roleLabel }}</div>
+            <div style="{{ member.statusBadgeStyle }}">{{ member.statusLabel }}</div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ noConfigTeam }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:14px 20px;font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No team members yet.</div>
+        </sc-if>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ---- FEATURES ---- -->
+    <sc-if value="{{ isConfigFeatures }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);">
+        <div style="background:#16283D;padding:14px 20px;"><div style="font:800 14px 'Archivo',sans-serif;color:#fff;letter-spacing:.3px;">AVAILABLE FEATURES</div></div>
+        <div style="padding:16px 20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;">
+          <sc-for list="{{ availableFeatures }}" as="f" hint-placeholder-count="3">
+            <div style="border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+                <div style="font:800 13px 'Archivo',sans-serif;color:#16283D;">{{ f.title }}</div>
+                <sc-if value="{{ f.showToggle }}" hint-placeholder-val="{{ true }}">
+                  <div style="{{ f.trackStyle }}" onClick="{{ f.onToggle }}"><div style="{{ f.knobStyle }}"></div></div>
+                </sc-if>
+                <sc-if value="{{ f.showStatus }}" hint-placeholder-val="{{ false }}">
+                  <div style="{{ f.statusBadgeStyle }}">{{ f.statusLabel }}</div>
+                </sc-if>
+              </div>
+              <div style="font:500 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);line-height:1.45;">{{ f.desc }}</div>
+              <div style="{{ f.stateLabelStyle }}">{{ f.stateLabel }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ hasFeatureError }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:0 20px 14px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ featureError }}</div>
+        </sc-if>
+      </div>
+
+      <!-- Serial-number labels (part of Serial Number Scanning) -->
+      <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);">
+        <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);">
+          <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">SERIAL NUMBER LABELS</div>
+          <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);margin-top:2px;">Choices shown when staff scan a serial number. Disabling a label removes it from new scans but keeps existing records readable.</div>
+        </div>
+        <div>
+          <sc-for list="{{ serialLabelsConfigDisplay }}" as="lbl" hint-placeholder-count="9">
+            <div style="{{ lbl.rowStyle }}">
+              <div class="no-print" style="display:flex;flex-direction:column;gap:0;">
+                <div style="font:700 11px 'IBM Plex Mono',monospace;color:#16283D;cursor:pointer;line-height:1;" onClick="{{ lbl.moveUp }}">&#9650;</div>
+                <div style="font:700 11px 'IBM Plex Mono',monospace;color:#16283D;cursor:pointer;line-height:1;" onClick="{{ lbl.moveDown }}">&#9660;</div>
+              </div>
+              <div style="flex:1;min-width:0;">
+                <sc-if value="{{ lbl.isEditing }}" hint-placeholder-val="{{ false }}">
+                  <input style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.25);border-radius:4px;padding:9px 10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" value="{{ lbl.draft }}" onChange="{{ lbl.setDraft }}"/>
+                </sc-if>
+                <sc-if value="{{ lbl.isViewing }}" hint-placeholder-val="{{ true }}">
+                  <div style="font:600 14px 'Public Sans',sans-serif;color:#16283D;">{{ lbl.label }}</div>
+                </sc-if>
+              </div>
+              <div class="no-print" style="display:flex;gap:10px;flex:none;">
+                <sc-if value="{{ lbl.isEditing }}" hint-placeholder-val="{{ false }}">
+                  <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;" onClick="{{ lbl.saveEdit }}">SAVE</div>
+                  <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);cursor:pointer;" onClick="{{ lbl.cancelEdit }}">CANCEL</div>
+                </sc-if>
+                <sc-if value="{{ lbl.isViewing }}" hint-placeholder-val="{{ true }}">
+                  <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;" onClick="{{ lbl.startEdit }}">RENAME</div>
+                  <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#C0392B;cursor:pointer;" onClick="{{ lbl.toggleActive }}">{{ lbl.toggleLabel }}</div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-for>
+          <sc-if value="{{ noSerialLabelsConfig }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:14px 20px;font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No labels configured.</div>
+          </sc-if>
+        </div>
+        <div style="padding:14px 20px;display:flex;gap:8px;border-top:1px solid rgba(22,40,61,.08);">
+          <input style="flex:1;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:10px 12px;font:600 13px 'Public Sans',sans-serif;color:#16283D;" placeholder="New label name" value="{{ newLabelText }}" onChange="{{ setNewLabelText }}"/>
+          <div style="background:#D97706;color:#fff;font:700 12px 'IBM Plex Mono',monospace;padding:10px 16px;border-radius:4px;cursor:pointer;white-space:nowrap;" onClick="{{ addSerialLabel }}">+ ADD LABEL</div>
+        </div>
+        <sc-if value="{{ hasNewLabelError }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:0 20px 14px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ newLabelError }}</div>
+        </sc-if>
+      </div>
+
+      <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);">
+        <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);"><div style="font:700 13px 'Archivo',sans-serif;color:rgba(22,40,61,.55);">COMING SOON</div></div>
+        <div style="padding:16px 20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+          <sc-for list="{{ comingSoonFeatures }}" as="f" hint-placeholder-count="7">
+            <div style="border:1px dashed rgba(22,40,61,.2);border-radius:6px;padding:14px;background:#FAF7EF;opacity:.72;">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+                <div style="font:800 12.5px 'Archivo',sans-serif;color:rgba(22,40,61,.6);">{{ f.title }}</div>
+                <div style="font:700 7.5px 'IBM Plex Mono',monospace;letter-spacing:.5px;background:rgba(22,40,61,.1);color:rgba(22,40,61,.55);padding:3px 6px;border-radius:2px;white-space:nowrap;">COMING SOON</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ---- BRANDING ---- -->
+    <sc-if value="{{ isConfigBranding }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);">
+      <div style="background:#16283D;padding:14px 20px;"><div style="font:800 14px 'Archivo',sans-serif;color:#fff;letter-spacing:.3px;">BRANDING</div><div style="font:500 11.5px 'Public Sans',sans-serif;color:#8FBFAE;margin-top:2px;">Applied to printed work orders, tags &amp; customer-facing output.</div></div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:16px;">
+        <div>
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:8px;">BUSINESS LOGO</div>
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+            <div style="width:72px;height:72px;border-radius:8px;border:1px solid rgba(22,40,61,.15);background:#F6F1E4;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none;">
+              <sc-if value="{{ hasBrandingLogo }}" hint-placeholder-val="{{ false }}">
+                <img src="{{ brandingDraft.logoDataUrl }}" style="width:100%;height:100%;object-fit:contain;"/>
+              </sc-if>
+              <sc-if value="{{ noBrandingLogo }}" hint-placeholder-val="{{ true }}">
+                <div style="font:700 8px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);text-align:center;">NO&nbsp;LOGO</div>
+              </sc-if>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <label style="background:#1F6F78;color:#fff;font:700 11px 'IBM Plex Mono',monospace;padding:10px 14px;border-radius:4px;cursor:pointer;">
+                UPLOAD LOGO
+                <input type="file" accept="image/*" style="display:none;" onChange="{{ pickShopLogo }}"/>
+              </label>
+              <sc-if value="{{ hasBrandingLogo }}" hint-placeholder-val="{{ false }}">
+                <div style="background:#FBEAEA;color:#C0392B;font:700 11px 'IBM Plex Mono',monospace;padding:10px 14px;border-radius:4px;cursor:pointer;" onClick="{{ removeShopLogo }}">REMOVE</div>
+              </sc-if>
+            </div>
+          </div>
+          <div style="font:500 10.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.4);margin-top:6px;">PNG or JPG. Automatically resized &amp; compressed before it's stored.</div>
+        </div>
+
+        <div>
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:8px;">ACCENT COLOUR</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <sc-for list="{{ accentSwatches }}" as="sw" hint-placeholder-count="6">
+              <div style="{{ sw.style }}" onClick="{{ sw.onSelect }}"></div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <label style="display:flex;align-items:center;gap:10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;cursor:pointer;">
+            <input type="checkbox" checked="{{ brandingDraft.showLogoOnPrint }}" onChange="{{ toggleShowLogoOnPrint }}" style="width:17px;height:17px;accent-color:#1F6F78;cursor:pointer;"/>
+            Show logo on printed work orders &amp; tags
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;font:600 13px 'Public Sans',sans-serif;color:#16283D;cursor:pointer;">
+            <input type="checkbox" checked="{{ brandingDraft.showAccentOnPrint }}" onChange="{{ toggleShowAccentOnPrint }}" style="width:17px;height:17px;accent-color:#1F6F78;cursor:pointer;"/>
+            Use accent colour on printed output
+          </label>
+        </div>
+
+        <div>
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:8px;">PREVIEW</div>
+          <div style="{{ brandingPreviewHeaderStyle }}">
+            <sc-if value="{{ hasBrandingLogo }}" hint-placeholder-val="{{ false }}">
+              <img src="{{ brandingDraft.logoDataUrl }}" style="width:34px;height:34px;border-radius:6px;object-fit:contain;background:#fff;padding:2px;flex:none;"/>
+            </sc-if>
+            <div style="min-width:0;">
+              <div style="font:800 14px 'Archivo',sans-serif;color:#fff;letter-spacing:.3px;line-height:1.1;">{{ brandingPreviewName }}</div>
+              <div style="{{ brandingPreviewSubStyle }}">WORK ORDER</div>
+            </div>
+          </div>
+        </div>
+
+        <sc-if value="{{ hasBrandingMsg }}" hint-placeholder-val="{{ false }}">
+          <div style="{{ brandingMsgStyle }}">{{ brandingMsg }}</div>
+        </sc-if>
+        <div style="{{ brandingSaveStyle }}" onClick="{{ saveBranding }}">{{ brandingSaveLabel }}</div>
+        <div style="font:500 10.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.4);">Note: printed work orders &amp; tags will pick up these settings in an upcoming update — they're saved now.</div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ---- AI ---- -->
+    <sc-if value="{{ isConfigAi }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);">
+      <div style="background:#16283D;padding:14px 20px;"><div style="font:800 14px 'Archivo',sans-serif;color:#fff;letter-spacing:.3px;">AI SETTINGS</div></div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:14px;">
+        <div style="border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:14px;display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:10px;height:10px;border-radius:50%;background:#16A34A;margin-top:5px;flex:none;"></div>
+          <div>
+            <div style="font:800 13px 'Archivo',sans-serif;color:#16283D;">AI extraction &amp; serial scanning</div>
+            <div style="font:600 10px 'IBM Plex Mono',monospace;color:#16A34A;letter-spacing:.5px;margin:2px 0 6px;">CONFIGURED &middot; SERVER-SIDE</div>
+            <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);line-height:1.5;">Voice/typed intake and serial-plate reading are processed securely on the server. Credentials are managed server-side and never exposed to this app or your staff's devices.</div>
+          </div>
+        </div>
+        <div style="border:1px dashed rgba(22,40,61,.2);border-radius:6px;padding:14px;background:#FAF7EF;opacity:.8;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+          <div><div style="font:800 12.5px 'Archivo',sans-serif;color:rgba(22,40,61,.6);">Prompt Settings</div><div style="font:500 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);margin-top:2px;">Customize how AI organizes intake &amp; work-log notes.</div></div>
+          <div style="font:700 7.5px 'IBM Plex Mono',monospace;letter-spacing:.5px;background:rgba(22,40,61,.1);color:rgba(22,40,61,.55);padding:3px 6px;border-radius:2px;white-space:nowrap;">COMING SOON</div>
+        </div>
+        <div style="border:1px dashed rgba(22,40,61,.2);border-radius:6px;padding:14px;background:#FAF7EF;opacity:.8;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+          <div><div style="font:800 12.5px 'Archivo',sans-serif;color:rgba(22,40,61,.6);">Usage Information</div><div style="font:500 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);margin-top:2px;">Track AI extractions &amp; scans used this billing period.</div></div>
+          <div style="font:700 7.5px 'IBM Plex Mono',monospace;letter-spacing:.5px;background:rgba(22,40,61,.1);color:rgba(22,40,61,.55);padding:3px 6px;border-radius:2px;white-space:nowrap;">COMING SOON</div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
   </div>
   </sc-if>
 
@@ -1945,6 +2242,25 @@ class Component extends DCLogic {
     newLabelError: '',
     editingLabelId: null,
     editingLabelDraft: '',
+    // shop config: tabs + shop record + locations (loaded on entering the page)
+    configTab: 'info',
+    shop: null,
+    shopLocations: [],
+    shopInfoDraft: null,
+    shopInfoSaving: false,
+    shopInfoMsg: '',
+    brandingDraft: null,
+    brandingSaving: false,
+    brandingMsg: '',
+    featureSaving: '',
+    featureError: '',
+    newLocationName: '',
+    locationSaving: false,
+    locationEditId: null,
+    locationDraft: null,
+    locationError: '',
+    locationConfirmId: null,
+    locationConfirmJobs: 0,
   };
 
   async componentDidMount() {
@@ -2107,12 +2423,168 @@ class Component extends DCLogic {
 
   goShopConfig = async () => {
     this.unsubscribeComments();
-    this.setState({ screen: 'shopConfig', newLabelText: '', newLabelError: '', editingLabelId: null, editingLabelDraft: '' });
+    this.setState({ screen: 'shopConfig', configTab: 'info', newLabelText: '', newLabelError: '', editingLabelId: null, editingLabelDraft: '', shopInfoMsg: '', brandingMsg: '', featureError: '', locationError: '', locationEditId: null, locationDraft: null, newLocationName: '', locationConfirmId: null });
+    const shopId = this.state.activeShopId;
     try {
-      const shopSerialLabels = await this._dataMod.fetchSerialLabelOptions();
-      this.setState({ shopSerialLabels });
-    } catch (e) { console.error('Failed to load shop serial labels', e); }
+      const [shopSerialLabels, shop, shopLocations] = await Promise.all([
+        this._dataMod.fetchSerialLabelOptions(),
+        shopId ? this._dataMod.fetchShop(shopId) : Promise.resolve(null),
+        shopId ? this._dataMod.fetchLocations(shopId) : Promise.resolve([]),
+      ]);
+      const b = (shop && shop.settings && shop.settings.branding) || {};
+      this.setState({
+        shopSerialLabels, shop, shopLocations,
+        shopInfoDraft: shop ? {
+          name: shop.name || '', legalName: shop.legalName || '', phone: shop.phone || '', email: shop.email || '',
+          timezone: shop.timezone || '', addressLine1: shop.addressLine1 || '', addressLine2: shop.addressLine2 || '',
+          city: shop.city || '', region: shop.region || '', postalCode: shop.postalCode || '', country: shop.country || '',
+        } : null,
+        brandingDraft: {
+          accentColor: b.accentColor || '#1F6F78', logoDataUrl: b.logoDataUrl || '',
+          showLogoOnPrint: b.showLogoOnPrint !== false, showAccentOnPrint: b.showAccentOnPrint !== false,
+        },
+      });
+    } catch (e) { console.error('Failed to load shop config', e); }
   };
+
+  setConfigTab = (tab) => this.setState({ configTab: tab, shopInfoMsg: '', brandingMsg: '', featureError: '', locationError: '', locationEditId: null, locationConfirmId: null });
+
+  // Deep-merge one settings sub-object without dropping unknown keys or the
+  // untouched sibling sub-object. Never replaces the whole JSON.
+  _mergeShopSettings = (partial) => {
+    const cur = (this.state.shop && this.state.shop.settings) || {};
+    const next = { ...cur };
+    for (const k of Object.keys(partial)) {
+      const v = partial[k];
+      next[k] = (v && typeof v === 'object' && !Array.isArray(v)) ? { ...(cur[k] || {}), ...v } : v;
+    }
+    return next;
+  };
+
+  // ---------- Shop Config: shop information ----------
+  setShopInfoField = (k) => (e) => this.setState(s => ({ shopInfoDraft: { ...s.shopInfoDraft, [k]: e.target.value }, shopInfoMsg: '' }));
+  saveShopInfo = async () => {
+    const d = this.state.shopInfoDraft; const shopId = this.state.activeShopId;
+    if (!d || !shopId) return;
+    if (!(d.name || '').trim()) { this.setState({ shopInfoMsg: 'Shop name is required.' }); return; }
+    this.setState({ shopInfoSaving: true, shopInfoMsg: '' });
+    try {
+      const shop = await this._dataMod.updateShop(shopId, { ...d });
+      this.setState({ shop, shopInfoSaving: false, shopInfoMsg: 'Saved.' });
+    } catch (e) { this.setState({ shopInfoSaving: false, shopInfoMsg: (e && e.message) || 'Could not save.' }); }
+  };
+
+  // ---------- Shop Config: feature toggles ----------
+  toggleFeature = async (key) => {
+    const shopId = this.state.activeShopId; if (!shopId || this.state.featureSaving) return;
+    const cur = (this.state.shop && this.state.shop.settings && this.state.shop.settings.features) || {};
+    const enabledNow = cur[key] !== false;
+    const settings = this._mergeShopSettings({ features: { [key]: !enabledNow } });
+    this.setState({ featureSaving: key, featureError: '' });
+    try {
+      const shop = await this._dataMod.updateShop(shopId, { settings });
+      this.setState({ shop, featureSaving: '' });
+    } catch (e) { this.setState({ featureSaving: '', featureError: (e && e.message) || 'Could not update feature.' }); }
+  };
+
+  // ---------- Shop Config: branding ----------
+  setBrandingAccent = (color) => this.setState(s => ({ brandingDraft: { ...s.brandingDraft, accentColor: color }, brandingMsg: '' }));
+  toggleBrandingFlag = (k) => this.setState(s => ({ brandingDraft: { ...s.brandingDraft, [k]: !s.brandingDraft[k] }, brandingMsg: '' }));
+  removeShopLogo = () => this.setState(s => ({ brandingDraft: { ...s.brandingDraft, logoDataUrl: '' }, brandingMsg: '' }));
+  pickShopLogo = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (e.target) e.target.value = '';
+    if (!file) return;
+    if (!/^image\//.test(file.type)) { this.setState({ brandingMsg: 'Please choose an image file.' }); return; }
+    try {
+      const dataUrl = await this._resizeLogo(file, 320);
+      if (dataUrl.length > 160000) { this.setState({ brandingMsg: 'That logo is too detailed to store inline. Use a simpler or smaller image.' }); return; }
+      this.setState(s => ({ brandingDraft: { ...s.brandingDraft, logoDataUrl: dataUrl }, brandingMsg: '' }));
+    } catch (err) { this.setState({ brandingMsg: 'Could not read that image.' }); }
+  };
+  // Downscale to <=maxDim on the long edge. Try PNG (keeps transparency); if it
+  // exceeds the inline cap, fall back to JPEG on white so photo-heavy logos fit.
+  _resizeLogo = (file, maxDim) => new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale)), h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
+      let out = canvas.toDataURL('image/png');
+      if (out.length > 160000) {
+        const c2 = document.createElement('canvas'); c2.width = w; c2.height = h;
+        const x2 = c2.getContext('2d'); x2.fillStyle = '#ffffff'; x2.fillRect(0, 0, w, h); x2.drawImage(img, 0, 0, w, h);
+        out = c2.toDataURL('image/jpeg', 0.82);
+      }
+      resolve(out);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
+    img.src = url;
+  });
+  saveBranding = async () => {
+    const shopId = this.state.activeShopId; const d = this.state.brandingDraft;
+    if (!shopId || !d) return;
+    const settings = this._mergeShopSettings({ branding: {
+      accentColor: d.accentColor, logoDataUrl: d.logoDataUrl,
+      showLogoOnPrint: !!d.showLogoOnPrint, showAccentOnPrint: !!d.showAccentOnPrint,
+    } });
+    this.setState({ brandingSaving: true, brandingMsg: '' });
+    try {
+      const shop = await this._dataMod.updateShop(shopId, { settings });
+      this.setState({ shop, brandingSaving: false, brandingMsg: 'Saved.' });
+    } catch (e) { this.setState({ brandingSaving: false, brandingMsg: (e && e.message) || 'Could not save branding.' }); }
+  };
+
+  // ---------- Shop Config: locations ----------
+  setNewLocationName = (e) => this.setState({ newLocationName: e.target.value, locationError: '' });
+  addLocation = async () => {
+    const name = (this.state.newLocationName || '').trim(); const shopId = this.state.activeShopId;
+    if (!name) { this.setState({ locationError: 'Enter a location name.' }); return; }
+    if (!shopId) return;
+    this.setState({ locationSaving: true, locationError: '' });
+    try {
+      const isPrimary = (this.state.shopLocations || []).length === 0;
+      const loc = await this._dataMod.createLocation(shopId, { name, isPrimary });
+      this.setState(s => ({ shopLocations: [...s.shopLocations, loc], newLocationName: '', locationSaving: false }));
+    } catch (e) { this.setState({ locationSaving: false, locationError: (e && e.message) || 'Could not add location.' }); }
+  };
+  startEditLocation = (loc) => this.setState({ locationEditId: loc.id, locationDraft: { name: loc.name }, locationError: '' });
+  setLocationDraftName = (e) => this.setState(s => ({ locationDraft: { ...s.locationDraft, name: e.target.value }, locationError: '' }));
+  cancelEditLocation = () => this.setState({ locationEditId: null, locationDraft: null, locationError: '' });
+  saveEditLocation = async (id) => {
+    const name = ((this.state.locationDraft && this.state.locationDraft.name) || '').trim();
+    if (!name) { this.setState({ locationError: 'Name is required.' }); return; }
+    try {
+      const loc = await this._dataMod.updateLocation(id, { name });
+      this.setState(s => ({ shopLocations: s.shopLocations.map(l => l.id === id ? loc : l), locationEditId: null, locationDraft: null }));
+    } catch (e) { this.setState({ locationError: (e && e.message) || 'Could not save.' }); }
+  };
+  makeLocationPrimary = async (id) => {
+    const others = (this.state.shopLocations || []).filter(l => l.isPrimary && l.id !== id);
+    try {
+      await this._dataMod.updateLocation(id, { isPrimary: true });
+      for (const o of others) { try { await this._dataMod.updateLocation(o.id, { isPrimary: false }); } catch (_) {} }
+      this.setState(s => ({ shopLocations: s.shopLocations.map(l => ({ ...l, isPrimary: l.id === id })) }));
+    } catch (e) { this.setState({ locationError: (e && e.message) || 'Could not set primary.' }); }
+  };
+  requestDeactivateLocation = (loc) => {
+    const active = (this.state.shopLocations || []).filter(l => l.isActive);
+    if (active.length <= 1) { this.setState({ locationError: 'You cannot deactivate the only active location.' }); return; }
+    if (loc.isPrimary) { this.setState({ locationError: 'Set another location as primary before deactivating this one.' }); return; }
+    const linkedJobs = (this.state.jobs || []).filter(j => j.locationId === loc.id).length;
+    this.setState({ locationConfirmId: loc.id, locationConfirmJobs: linkedJobs, locationError: '' });
+  };
+  confirmDeactivateLocation = async () => {
+    const id = this.state.locationConfirmId; if (!id) return;
+    try {
+      await this._dataMod.updateLocation(id, { isActive: false });
+      this.setState(s => ({ shopLocations: s.shopLocations.filter(l => l.id !== id), locationConfirmId: null, locationConfirmJobs: 0 }));
+    } catch (e) { this.setState({ locationConfirmId: null, locationError: (e && e.message) || 'Could not deactivate.' }); }
+  };
+  cancelDeactivateLocation = () => this.setState({ locationConfirmId: null, locationConfirmJobs: 0, locationError: '' });
 
   loadForSession = async () => {
     const mod = this._dataMod;
@@ -2130,8 +2602,8 @@ class Component extends DCLogic {
         this.setState({ profile, memberships: [], activeShopId: null, unprovisioned: true, loaded: true, authChecking: false, loadError: '' });
         return;
       }
-      const [mechanics, jobs, shopSerialLabels, staffRoster] = await Promise.all([mod.fetchMechanics(), mod.fetchJobs(), mod.fetchSerialLabelOptions(), mod.fetchStaffRoster()]);
-      this.setState({ profile, mechanics, jobs, shopSerialLabels, staffRoster, memberships, activeShopId: profile.activeShopId || null, unprovisioned: false, loaded: true, authChecking: false, loadError: '' }, () => {
+      const [mechanics, jobs, shopSerialLabels, staffRoster, shop] = await Promise.all([mod.fetchMechanics(), mod.fetchJobs(), mod.fetchSerialLabelOptions(), mod.fetchStaffRoster(), profile.activeShopId ? mod.fetchShop(profile.activeShopId).catch(() => null) : Promise.resolve(null)]);
+      this.setState({ profile, mechanics, jobs, shopSerialLabels, staffRoster, shop, memberships, activeShopId: profile.activeShopId || null, unprovisioned: false, loaded: true, authChecking: false, loadError: '' }, () => {
         this.resolvePendingJob();
       });
     } catch (e) {
@@ -4502,6 +4974,101 @@ class Component extends DCLogic {
       moveDown: () => this.moveSerialLabel(l.id, 1),
     }));
 
+    // ---------- Shop Configuration ----------
+    const shopSettings = (s.shop && s.shop.settings) || {};
+    const shopFeatures = shopSettings.features || {};
+    const featureQrEnabled = shopFeatures.qr_labels !== false;
+    const featureSerialEnabled = shopFeatures.serial_scanning !== false;
+
+    const configTabDefs = [
+      { key: 'info', label: 'INFO' }, { key: 'locations', label: 'LOCATIONS' },
+      { key: 'team', label: 'TEAM' }, { key: 'features', label: 'FEATURES' },
+      { key: 'branding', label: 'BRANDING' }, { key: 'ai', label: 'AI' },
+    ];
+    const configTabList = configTabDefs.map(t => ({
+      label: t.label,
+      onSelect: () => this.setConfigTab(t.key),
+      style: `font:700 11px 'IBM Plex Mono',monospace;letter-spacing:.4px;padding:9px 14px;border-radius:4px;cursor:pointer;white-space:nowrap;flex:none;background:${s.configTab === t.key ? '#16283D' : '#fff'};color:${s.configTab === t.key ? '#fff' : 'rgba(22,40,61,.6)'};border:1px solid ${s.configTab === t.key ? '#16283D' : 'rgba(22,40,61,.18)'};`,
+    }));
+
+    const shopInfoDraft = s.shopInfoDraft || {};
+    const shopInfoOk = s.shopInfoMsg === 'Saved.';
+    const shopInfoSaveLabel = s.shopInfoSaving ? 'SAVING\u2026' : 'SAVE CHANGES';
+    const shopInfoSaveStyle = `background:${s.shopInfoSaving ? '#B9C0C4' : '#1F6F78'};color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:12px;border-radius:4px;cursor:pointer;letter-spacing:.4px;`;
+    const shopInfoMsgStyle = `font:600 12px 'Public Sans',sans-serif;padding:9px 11px;border-radius:4px;background:${shopInfoOk ? '#EFF6F5' : '#FBEAEA'};border:1px solid ${shopInfoOk ? '#1F6F78' : '#C0392B'};color:${shopInfoOk ? '#1F6F78' : '#C0392B'};`;
+    const timezoneOptions = [
+      { value: '', label: 'Select a time zone\u2026' },
+      { value: 'America/St_Johns', label: 'Newfoundland (NST)' },
+      { value: 'America/Halifax', label: 'Atlantic (AST)' },
+      { value: 'America/Toronto', label: 'Eastern (ET)' },
+      { value: 'America/Chicago', label: 'Central (CT)' },
+      { value: 'America/Denver', label: 'Mountain (MT)' },
+      { value: 'America/Los_Angeles', label: 'Pacific (PT)' },
+      { value: 'America/Anchorage', label: 'Alaska (AKT)' },
+      { value: 'Pacific/Honolulu', label: 'Hawaii (HST)' },
+    ];
+
+    const activeLocationCount = (s.shopLocations || []).filter(l => l.isActive).length;
+    const configLocationsDisplay = (s.shopLocations || []).map(l => ({
+      id: l.id, name: l.name, isPrimary: l.isPrimary,
+      isEditing: s.locationEditId === l.id, isViewing: s.locationEditId !== l.id,
+      nameDraft: (s.locationDraft && s.locationDraft.name) || '',
+      setName: this.setLocationDraftName,
+      save: () => this.saveEditLocation(l.id), cancel: this.cancelEditLocation,
+      startEdit: () => this.startEditLocation(l),
+      makePrimary: () => this.makeLocationPrimary(l.id), canMakePrimary: !l.isPrimary,
+      deactivate: () => this.requestDeactivateLocation(l),
+      canDeactivate: !l.isPrimary && activeLocationCount > 1,
+    }));
+    const locationConfirmMessage = s.locationConfirmJobs > 0
+      ? `${s.locationConfirmJobs} active job${s.locationConfirmJobs === 1 ? '' : 's'} still reference this location. They'll stay visible on the dashboard, but this location won't be selectable for new jobs.`
+      : "This location won't be selectable for new jobs. Existing records are unaffected.";
+
+    const configTeamDisplay = (s.staffRoster || []).map(m => ({
+      name: m.name, email: m.email || '',
+      roleLabel: m.role === 'shop_owner' ? 'OWNER' : 'MECHANIC',
+      roleBadgeStyle: `font:700 8px 'IBM Plex Mono',monospace;letter-spacing:.5px;padding:4px 8px;border-radius:2px;flex:none;background:${m.role === 'shop_owner' ? '#16283D' : '#EAF3F1'};color:${m.role === 'shop_owner' ? '#fff' : '#1F6F78'};`,
+      statusLabel: m.active ? 'ACTIVE' : 'DISABLED',
+      statusBadgeStyle: `font:700 8px 'IBM Plex Mono',monospace;letter-spacing:.5px;padding:4px 8px;border-radius:2px;flex:none;background:${m.active ? '#EAF3F1' : '#FBEAEA'};color:${m.active ? '#16A34A' : '#C0392B'};`,
+      onOpen: () => this.goMechanicProfile(m.id),
+    }));
+
+    const featureToggleStyles = (enabled, saving) => ({
+      track: `width:42px;height:24px;border-radius:12px;cursor:${saving ? 'wait' : 'pointer'};flex:none;background:${enabled ? '#1F6F78' : 'rgba(22,40,61,.25)'};position:relative;opacity:${saving ? '.6' : '1'};`,
+      knob: `position:absolute;top:3px;left:${enabled ? '21px' : '3px'};width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);`,
+    });
+    const qrTog = featureToggleStyles(featureQrEnabled, s.featureSaving === 'qr_labels');
+    const snTog = featureToggleStyles(featureSerialEnabled, s.featureSaving === 'serial_scanning');
+    const stateLabelStyle = (on) => `font:700 9px 'IBM Plex Mono',monospace;letter-spacing:.5px;color:${on ? '#16A34A' : 'rgba(22,40,61,.45)'};`;
+    const availableFeatures = [
+      { title: 'Multi-Location', desc: 'Run multiple branches under one shop. Jobs are tagged to a location.',
+        showToggle: false, showStatus: true,
+        statusLabel: `ACTIVE \u00b7 ${activeLocationCount} LOC${activeLocationCount === 1 ? '' : 'S'}`,
+        statusBadgeStyle: "font:700 8px 'IBM Plex Mono',monospace;letter-spacing:.5px;padding:4px 8px;border-radius:2px;background:#EAF3F1;color:#1F6F78;white-space:nowrap;",
+        stateLabel: 'Managed on the Locations tab', stateLabelStyle: "font:700 9px 'IBM Plex Mono',monospace;letter-spacing:.5px;color:rgba(22,40,61,.45);" },
+      { title: 'QR Code Labels', desc: 'Print scannable QR tags for each job and open jobs by scanning them.',
+        showToggle: true, showStatus: false, onToggle: () => this.toggleFeature('qr_labels'),
+        trackStyle: qrTog.track, knobStyle: qrTog.knob,
+        stateLabel: featureQrEnabled ? 'ENABLED' : 'DISABLED', stateLabelStyle: stateLabelStyle(featureQrEnabled) },
+      { title: 'Serial Number Scanning', desc: 'Scan equipment/hull serial plates with AI and store them per job.',
+        showToggle: true, showStatus: false, onToggle: () => this.toggleFeature('serial_scanning'),
+        trackStyle: snTog.track, knobStyle: snTog.knob,
+        stateLabel: featureSerialEnabled ? 'ENABLED' : 'DISABLED', stateLabelStyle: stateLabelStyle(featureSerialEnabled) },
+    ];
+    const comingSoonFeatures = ['Customer Portal', 'SMS & Email Notifications', 'Advanced Reporting', 'Inventory', 'Online Booking', 'Invoicing', 'AI Service Advisor'].map(t => ({ title: t }));
+
+    const brandingDraft = s.brandingDraft || { accentColor: '#1F6F78', logoDataUrl: '', showLogoOnPrint: true, showAccentOnPrint: true };
+    const accentSwatches = ['#1F6F78', '#16283D', '#B45309', '#15803D', '#7E3F6E', '#3F5060'].map(c => ({
+      onSelect: () => this.setBrandingAccent(c),
+      style: `width:34px;height:34px;border-radius:6px;cursor:pointer;background:${c};border:3px solid ${brandingDraft.accentColor === c ? '#16283D' : 'transparent'};box-shadow:0 0 0 1px rgba(22,40,61,.15);`,
+    }));
+    const hasBrandingLogo = !!brandingDraft.logoDataUrl;
+    const brandingOk = s.brandingMsg === 'Saved.';
+    const brandingMsgStyle = `font:600 12px 'Public Sans',sans-serif;padding:9px 11px;border-radius:4px;background:${brandingOk ? '#EFF6F5' : '#FBEAEA'};border:1px solid ${brandingOk ? '#1F6F78' : '#C0392B'};color:${brandingOk ? '#1F6F78' : '#C0392B'};`;
+    const brandingSaveLabel = s.brandingSaving ? 'SAVING\u2026' : 'SAVE BRANDING';
+    const brandingSaveStyle = `background:${s.brandingSaving ? '#B9C0C4' : '#1F6F78'};color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:12px;border-radius:4px;cursor:pointer;letter-spacing:.4px;`;
+    const brandingAccentColor = brandingDraft.showAccentOnPrint ? brandingDraft.accentColor : '#16283D';
+
     return {
       navVisible: true,
       isAuthChecking: false, isAuthScreen: false,
@@ -4759,6 +5326,51 @@ class Component extends DCLogic {
 
       serialLabelsConfigDisplay,
       noSerialLabelsConfig: serialLabelsConfigDisplay.length === 0,
+
+      // ---------- Shop Configuration ----------
+      featureQrEnabled, featureSerialEnabled,
+      configTabList,
+      isConfigInfo: s.configTab === 'info',
+      isConfigLocations: s.configTab === 'locations',
+      isConfigTeam: s.configTab === 'team',
+      isConfigFeatures: s.configTab === 'features',
+      isConfigBranding: s.configTab === 'branding',
+      isConfigAi: s.configTab === 'ai',
+      shopInfoDraft,
+      setShopName: this.setShopInfoField('name'),
+      setShopLegalName: this.setShopInfoField('legalName'),
+      setShopPhone: this.setShopInfoField('phone'),
+      setShopEmail: this.setShopInfoField('email'),
+      setShopAddr1: this.setShopInfoField('addressLine1'),
+      setShopAddr2: this.setShopInfoField('addressLine2'),
+      setShopCity: this.setShopInfoField('city'),
+      setShopRegion: this.setShopInfoField('region'),
+      setShopPostal: this.setShopInfoField('postalCode'),
+      setShopTimezone: this.setShopInfoField('timezone'),
+      timezoneOptions,
+      saveShopInfo: this.saveShopInfo,
+      shopInfoSaveLabel, shopInfoSaveStyle,
+      hasShopInfoMsg: !!s.shopInfoMsg, shopInfoMsg: s.shopInfoMsg, shopInfoMsgStyle,
+      configLocationsDisplay,
+      newLocationName: s.newLocationName, setNewLocationName: this.setNewLocationName,
+      addLocation: this.addLocation,
+      hasLocationError: !!s.locationError, locationError: s.locationError,
+      locationConfirmOpen: !!s.locationConfirmId, locationConfirmMessage,
+      confirmDeactivateLocation: this.confirmDeactivateLocation,
+      cancelDeactivateLocation: this.cancelDeactivateLocation,
+      configTeamDisplay, noConfigTeam: configTeamDisplay.length === 0,
+      availableFeatures, comingSoonFeatures,
+      hasFeatureError: !!s.featureError, featureError: s.featureError,
+      brandingDraft, accentSwatches,
+      hasBrandingLogo, noBrandingLogo: !hasBrandingLogo,
+      pickShopLogo: this.pickShopLogo, removeShopLogo: this.removeShopLogo,
+      toggleShowLogoOnPrint: () => this.toggleBrandingFlag('showLogoOnPrint'),
+      toggleShowAccentOnPrint: () => this.toggleBrandingFlag('showAccentOnPrint'),
+      saveBranding: this.saveBranding, brandingSaveLabel, brandingSaveStyle,
+      hasBrandingMsg: !!s.brandingMsg, brandingMsg: s.brandingMsg, brandingMsgStyle,
+      brandingPreviewName: (s.shop && s.shop.name) || shopInfoDraft.name || 'YOUR SHOP',
+      brandingPreviewHeaderStyle: `background:${brandingAccentColor};padding:12px 16px;border-radius:6px;display:flex;align-items:center;gap:10px;`,
+      brandingPreviewSubStyle: "font:600 9px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.75);letter-spacing:.6px;",
       newLabelText: s.newLabelText,
       setNewLabelText: this.setNewLabelText,
       hasNewLabelError: !!s.newLabelError,
