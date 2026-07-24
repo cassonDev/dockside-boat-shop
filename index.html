@@ -2784,7 +2784,7 @@ class Component extends DCLogic {
     const shopId = this.state.activeShopId;
     if (!profileId || !shopId) return;
     try {
-      await this._dataMod.setMembershipActive({ profileId, shopId, active: makeActive });
+      await this._dataMod.setMembershipActive({ profileId, active: makeActive });
       this.setState(st => ({
         teamRoster: (st.teamRoster || []).map(m => m.profileId === profileId ? { ...m, isActive: makeActive } : m),
         teamRosterError: '',
