@@ -62,7 +62,7 @@
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
             <div style="{{ navDashboardStyle }}" onClick="{{ goDashboard }}">DASHBOARD</div>
             <div style="{{ navIntakeStyle }}" onClick="{{ goIntake }}">+ NEW JOB</div>
-            <div style="{{ navRosterStyle }}" onClick="{{ goRoster }}">MECHANICS</div>
+            <div style="{{ navRosterStyle }}" onClick="{{ goRoster }}">TEAM</div>
           </div>
           <div style="{{ navMoreStyle }}" onClick="{{ toggleNavMenu }}" aria-label="More menu" title="More">{{ navMenuIcon }} MORE</div>
           <div style="text-align:right;">
@@ -80,7 +80,7 @@
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.12);display:flex;flex-direction:column;gap:6px;animation:dk-slidedown .15s ease-out;">
         <div style="{{ navDashboardStyleFull }}" onClick="{{ navGoDashboard }}">DASHBOARD</div>
         <div style="{{ navIntakeStyleFull }}" onClick="{{ navGoIntake }}">+ NEW JOB</div>
-        <div style="{{ navRosterStyleFull }}" onClick="{{ navGoRoster }}">MECHANICS</div>
+        <div style="{{ navRosterStyleFull }}" onClick="{{ navGoRoster }}">TEAM</div>
         <div style="{{ navArchiveStyleFull }}" onClick="{{ navGoArchive }}">ARCHIVE</div>
         <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
         <div style="{{ navAuditStyleFull }}" onClick="{{ navGoAudit }}">AUDIT LOG</div>
@@ -876,7 +876,7 @@
   <!-- ============ MECHANICS ROSTER ============ -->
   <sc-if value="{{ isRoster }}" hint-placeholder-val="{{ false }}">
   <div style="max-width:480px;margin:0 auto;padding:20px 16px 60px;">
-    <div style="font:800 20px 'Archivo',sans-serif;color:#16283D;margin-bottom:14px;">Mechanics</div>
+    <div style="font:800 20px 'Archivo',sans-serif;color:#16283D;margin-bottom:14px;">Team</div>
 
     <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
     <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:14px 16px;margin-bottom:14px;">
@@ -902,47 +902,57 @@
     </div>
     </sc-if>
 
+    <sc-if value="{{ hasTeamRosterError }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:6px;padding:12px 14px;font:600 12.5px 'Public Sans',sans-serif;color:#C0392B;margin-bottom:14px;">{{ teamRosterErrorMessage }}</div>
+    </sc-if>
+
+    <sc-if value="{{ showTeamFilters }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;" class="no-print">
+      <sc-for list="{{ teamFilterChips }}" as="chip" hint-placeholder-count="3">
+        <div style="{{ chip.style }}" onClick="{{ chip.onSelect }}">{{ chip.label }}</div>
+      </sc-for>
+    </div>
+    </sc-if>
+
     <div style="display:flex;flex-direction:column;gap:8px;">
-      <sc-for list="{{ mechanicsDisplay }}" as="mech" hint-placeholder-count="5">
-        <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;cursor:pointer;" onClick="{{ mech.onOpenProfile }}">
-          <div>
-            <div style="font:700 14px 'Public Sans',sans-serif;color:#16283D;">{{ mech.name }} <span style="{{ mech.activeLabelStyle }}">{{ mech.activeLabel }}</span></div>
-            <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-top:2px;">{{ mech.jobCountLabel }}</div>
-            <div style="{{ mech.availabilityLabelStyle }}margin-top:2px;">{{ mech.availabilityLabel }}</div>
+      <sc-for list="{{ teamDisplay }}" as="mem" hint-placeholder-count="5">
+        <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;" onClick="{{ mem.onOpenProfile }}">
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <div style="font:700 15px 'Public Sans',sans-serif;color:#16283D;">{{ mem.name }}</div>
+              <div style="{{ mem.statusPillStyle }}">{{ mem.statusLabel }}</div>
+            </div>
+            <div style="font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.55);letter-spacing:.3px;margin-top:5px;">{{ mem.roleLabel }}</div>
+            <div style="font:600 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.72);margin-top:3px;">{{ mem.shopName }}</div>
+            <div style="{{ mem.locationLabelStyle }}">{{ mem.locationLabel }}</div>
           </div>
           <div style="display:flex;align-items:center;gap:10px;" class="no-print">
-            <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);">ACCOUNT ACTIVE</div>
-            <div style="{{ mech.toggleTrackStyle }}" onClick="{{ mech.onToggle }}">
-              <div style="{{ mech.toggleKnobStyle }}"></div>
-            </div>
-            <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
-              <div style="{{ mech.disableButtonStyle }}" onClick="{{ mech.onToggleActive }}">{{ mech.disableButtonLabel }}</div>
+            <sc-if value="{{ mem.showOwnerControls }}" hint-placeholder-val="{{ false }}">
+              <div style="{{ mem.disableButtonStyle }}" onClick="{{ mem.onToggleActive }}">{{ mem.disableButtonLabel }}</div>
             </sc-if>
-            <div style="color:rgba(22,40,61,.35);font-size:16px;">&rsaquo;</div>
+            <div style="color:rgba(22,40,61,.35);font-size:18px;">&rsaquo;</div>
           </div>
         </div>
       </sc-for>
+      <sc-if value="{{ noTeam }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:18px 16px;font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);text-align:center;">No team members match this filter.</div>
+      </sc-if>
     </div>
-
-    <sc-if value="{{ hasOtherStaff }}" hint-placeholder-val="{{ false }}">
-      <div style="font:700 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin:20px 0 8px;">OTHER STAFF</div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <sc-for list="{{ otherStaffDisplay }}" as="st" hint-placeholder-count="2">
-          <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;" onClick="{{ st.onOpenProfile }}">
-            <div>
-              <div style="font:700 14px 'Public Sans',sans-serif;color:#16283D;">{{ st.name }} <span style="{{ st.activeLabelStyle }}">{{ st.activeLabel }}</span></div>
-              <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-top:2px;">{{ st.roleLabel }}</div>
-            </div>
-            <div style="color:rgba(22,40,61,.35);font-size:16px;">&rsaquo;</div>
-          </div>
-        </sc-for>
-      </div>
-    </sc-if>
+  </div>
+  </sc-if>
+  <sc-if value="{{ isMechanicProfileError }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:520px;margin:0 auto;padding:20px 16px 60px;">
+    <div class="no-print" style="display:inline-flex;align-items:center;gap:6px;font:700 12px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;margin-bottom:14px;" onClick="{{ backToRoster }}">&#8592; TEAM</div>
+    <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:24px 20px;text-align:center;">
+      <div style="font:800 16px 'Archivo',sans-serif;color:#16283D;margin-bottom:6px;">Profile unavailable</div>
+      <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-bottom:16px;">This team member&rsquo;s details couldn&rsquo;t be loaded. They may no longer be part of this shop.</div>
+      <div style="display:inline-block;background:#1F6F78;color:#fff;font:700 12px 'Public Sans',sans-serif;padding:11px 18px;border-radius:4px;cursor:pointer;" onClick="{{ backToRoster }}">Back to Team</div>
+    </div>
   </div>
   </sc-if>
   <sc-if value="{{ isMechanicProfile }}" hint-placeholder-val="{{ false }}">
   <div style="max-width:520px;margin:0 auto;padding:20px 16px 60px;">
-    <div class="no-print" style="display:inline-flex;align-items:center;gap:6px;font:700 12px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;margin-bottom:14px;" onClick="{{ backToRoster }}">&#8592; MECHANICS</div>
+    <div class="no-print" style="display:inline-flex;align-items:center;gap:6px;font:700 12px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;margin-bottom:14px;" onClick="{{ backToRoster }}">&#8592; TEAM</div>
 
     <div style="background:#16283D;border-radius:8px;padding:20px;display:flex;align-items:center;gap:16px;margin-bottom:14px;">
       <div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;justify-content:center;font:800 20px 'Archivo',sans-serif;flex:none;">{{ profileMechInitials }}</div>
@@ -956,6 +966,7 @@
       </div>
     </div>
 
+    <sc-if value="{{ showFullProfileDetail }}" hint-placeholder-val="{{ true }}">
     <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;margin-bottom:14px;">
       <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:8px;">CONTACT</div>
       <div style="font:600 14px 'Public Sans',sans-serif;color:#16283D;">{{ profileMech.email }}</div>
@@ -964,6 +975,7 @@
       </sc-if>
       <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.4);margin-top:8px;">Read-only &mdash; contact details are managed via Edit Job Details permissions.</div>
     </div>
+    </sc-if>
 
     <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;margin-bottom:14px;">
       <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:8px;">ROLE &amp; PERMISSIONS</div>
@@ -971,6 +983,15 @@
       <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);line-height:1.5;margin-top:4px;">{{ profileRoleDescription }}</div>
     </div>
 
+    <sc-if value="{{ profileIsLimited }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;margin-bottom:14px;">
+      <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:8px;">LOCATION</div>
+      <div style="font:700 14px 'Public Sans',sans-serif;color:#16283D;">{{ profileMechLocationLabel }}</div>
+      <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.4);margin-top:8px;">You&rsquo;re viewing a limited team profile. Full details are available to shop owners.</div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ showFullProfileDetail }}" hint-placeholder-val="{{ true }}">
     <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;margin-bottom:14px;">
       <div style="display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap;">
         <div style="font:800 13px 'Public Sans',sans-serif;color:#16283D;">{{ profileActiveCount }} Active Jobs</div>
@@ -1039,6 +1060,7 @@
         <div style="background:#F6F1E4;color:#16283D;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ startAvailabilityEdit }}">UPDATE AVAILABILITY</div>
       </sc-if>
     </div>
+    </sc-if>
 
     <sc-if value="{{ canManageRole }}" hint-placeholder-val="{{ false }}">
     <div class="no-print" style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;margin-bottom:14px;">
@@ -1372,7 +1394,7 @@
     <sc-if value="{{ isConfigTeam }}" hint-placeholder-val="{{ false }}">
     <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);">
       <div style="background:#16283D;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-        <div><div style="font:800 14px 'Archivo',sans-serif;color:#fff;letter-spacing:.3px;">TEAM</div><div style="font:500 11.5px 'Public Sans',sans-serif;color:#8FBFAE;margin-top:2px;">Invites, roles &amp; access are managed on the Mechanics screen.</div></div>
+        <div><div style="font:800 14px 'Archivo',sans-serif;color:#fff;letter-spacing:.3px;">TEAM</div><div style="font:500 11.5px 'Public Sans',sans-serif;color:#8FBFAE;margin-top:2px;">Invites, roles &amp; access are managed on the Team screen.</div></div>
         <div style="background:#1F6F78;color:#fff;font:700 11px 'IBM Plex Mono',monospace;padding:10px 14px;border-radius:4px;cursor:pointer;letter-spacing:.3px;white-space:nowrap;" onClick="{{ goRoster }}">MANAGE TEAM &rarr;</div>
       </div>
       <div>
@@ -1381,6 +1403,7 @@
             <div style="flex:1;min-width:0;">
               <div style="font:600 14px 'Public Sans',sans-serif;color:#16283D;">{{ member.name }}</div>
               <div style="font:500 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">{{ member.email }}</div>
+              <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.4);margin-top:1px;">{{ member.locationLabel }}</div>
             </div>
             <div style="{{ member.roleBadgeStyle }}">{{ member.roleLabel }}</div>
             <div style="{{ member.statusBadgeStyle }}">{{ member.statusLabel }}</div>
@@ -2141,6 +2164,10 @@ class Component extends DCLogic {
 
     profileMechanicId: null,
     staffRoster: [],
+    teamRoster: [],       // canonical shop_memberships roster for the active shop (all roles, incl. inactive)
+    teamRosterError: '',  // set when the roster load fails; NEVER silently bypass to an empty/unfiltered view
+    teamFilter: 'all',    // Team page status filter: all | active | inactive
+    locations: [],        // active-shop locations, to resolve members' default-location names
     manageRoleDraft: '',
     manageRoleSaving: false,
     manageRoleError: '',
@@ -2602,8 +2629,29 @@ class Component extends DCLogic {
         this.setState({ profile, memberships: [], activeShopId: null, unprovisioned: true, loaded: true, authChecking: false, loadError: '' });
         return;
       }
-      const [mechanics, jobs, shopSerialLabels, staffRoster, shop] = await Promise.all([mod.fetchMechanics(), mod.fetchJobs(), mod.fetchSerialLabelOptions(), mod.fetchStaffRoster(), profile.activeShopId ? mod.fetchShop(profile.activeShopId).catch(() => null) : Promise.resolve(null)]);
-      this.setState({ profile, mechanics, jobs, shopSerialLabels, staffRoster, shop, memberships, activeShopId: profile.activeShopId || null, unprovisioned: false, loaded: true, authChecking: false, loadError: '' }, () => {
+      const [mechanics, jobs, shopSerialLabels, staffRoster, shop, locations] = await Promise.all([
+        mod.fetchMechanics(), mod.fetchJobs(), mod.fetchSerialLabelOptions(), mod.fetchStaffRoster(),
+        profile.activeShopId ? mod.fetchShop(profile.activeShopId).catch(() => null) : Promise.resolve(null),
+        profile.activeShopId ? mod.fetchLocations(profile.activeShopId).catch(() => []) : Promise.resolve([]),
+      ]);
+      // Team roster source depends on membership role in the ACTIVE shop:
+      //  - owner  -> full shop_memberships read (active + inactive) via existing owner-authorized path
+      //  - member -> get_team_roster() RPC: active coworkers only, whitelisted columns
+      // On failure we surface a clear error and leave the roster empty — we NEVER
+      // fall back to a broader/unfiltered path that could bypass the intended scope.
+      const activeMem = (memberships || []).find(m => m.shopId === profile.activeShopId) || memberships[0] || null;
+      const bootIsOwner = !!(activeMem && activeMem.role === 'shop_owner');
+      let teamRoster = [], teamRosterError = '';
+      if (profile.activeShopId) {
+        try {
+          teamRoster = bootIsOwner
+            ? await mod.fetchShopMembers(profile.activeShopId, { includeInactive: true })
+            : await mod.fetchTeamRosterLimited();
+        } catch (rosterErr) {
+          teamRosterError = (rosterErr && rosterErr.message) || 'Could not load the team roster.';
+        }
+      }
+      this.setState({ profile, mechanics, jobs, shopSerialLabels, staffRoster, shop, teamRoster, teamRosterError, locations, memberships, activeShopId: profile.activeShopId || null, unprovisioned: false, loaded: true, authChecking: false, loadError: '' }, () => {
         this.resolvePendingJob();
       });
     } catch (e) {
@@ -2700,6 +2748,7 @@ class Component extends DCLogic {
       try {
         const mechanics = await this._dataMod.fetchMechanics();
         this.setState({ mechanics });
+        this.reloadTeamRoster();
       } catch (e2) {
         console.error('Failed to refresh mechanics after invite', e2);
       }
@@ -2709,11 +2758,30 @@ class Component extends DCLogic {
   };
   confirmAddExistingUser = () => this.sendInvite({ addExistingUser: true });
   cancelAddExistingUser = () => this.setState({ pendingInviteConfirm: false, inviteMessage: '', inviteError: false });
+  setTeamFilter = (f) => this.setState({ teamFilter: f });
+  // One canonical roster reload shared by the Team page and Shop Config -> Team,
+  // so both always reflect the same people/status after any membership change.
+  // Owner-only actions trigger this; use the same role-appropriate source as boot
+  // and surface (never swallow) an error rather than blanking to an unscoped view.
+  reloadTeamRoster = async () => {
+    const shopId = this.state.activeShopId;
+    if (!shopId) return;
+    try {
+      const teamRoster = this.isShopOwner()
+        ? await this._dataMod.fetchShopMembers(shopId, { includeInactive: true })
+        : await this._dataMod.fetchTeamRosterLimited();
+      this.setState({ teamRoster, teamRosterError: '' });
+    } catch (e) {
+      console.error('Failed to reload team roster', e);
+      this.setState({ teamRosterError: (e && e.message) || 'Could not reload the team roster.' });
+    }
+  };
   toggleMechanicActive = async (mech) => {
     try {
       await this._dataMod.setUserActive(mech.id, !mech.active);
-      const mechanics = this.state.mechanics.map(m => m.id === mech.id ? { ...m, active: !mech.active } : m);
-      this.setState({ mechanics });
+      const flip = (list) => (list || []).map(m => m.id === mech.id ? { ...m, active: !mech.active } : m);
+      this.setState({ mechanics: flip(this.state.mechanics), staffRoster: flip(this.state.staffRoster) });
+      this.reloadTeamRoster();
     } catch (e) {
       console.error('Failed to toggle mechanic access', e);
     }
@@ -2856,6 +2924,7 @@ class Component extends DCLogic {
         showRoleConfirm: false,
         manageRoleSuccess: message,
       }));
+      this.reloadTeamRoster();
     } catch (e) {
       this.setState({ manageRoleSaving: false, manageRoleError: (e && e.message) || 'Could not update role.', showRoleConfirm: false });
     }
@@ -4714,40 +4783,30 @@ class Component extends DCLogic {
       const label = AVAILABILITY_LABELS[m.availabilityStatus] || 'Away';
       return m.oooEnd ? `${label} until ${fmtShortDate(m.oooEnd)}` : label;
     };
-    const mechanicsDisplay = s.mechanics.map(m => ({
-      id: m.id,
-      name: m.name,
-      active: m.active,
-      activeLabel: m.active ? '' : '(DISABLED)',
-      activeLabelStyle: `font:700 10px 'IBM Plex Mono',monospace;color:#C0392B;`,
-      jobCountLabel: `${jobCountFor(m.id)} active job${jobCountFor(m.id) === 1 ? '' : 's'}`,
-      availabilityLabel: availabilityLine(m),
-      availabilityLabelStyle: `font:600 11.5px 'Public Sans',sans-serif;color:${(m.availabilityStatus || 'available') === 'available' ? '#1F6F78' : '#D97706'};`,
-      toggleTrackStyle: `width:46px;height:26px;border-radius:14px;cursor:pointer;position:relative;background:${m.outOfOffice ? '#C0392B' : '#1F6F78'};transition:background .15s;`,
-      toggleKnobStyle: `width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;left:${m.outOfOffice ? '23px' : '3px'};transition:left .15s;`,
-      onToggle: (e) => { e && e.stopPropagation && e.stopPropagation(); this.toggleMechanicOOO(m.id); },
-      disableButtonStyle: `font:700 10.5px 'IBM Plex Mono',monospace;padding:8px 12px;border-radius:4px;cursor:pointer;background:${m.active ? '#FBEAEA' : '#EFF6F5'};color:${m.active ? '#C0392B' : '#1F6F78'};`,
-      disableButtonLabel: m.active ? 'DISABLE' : 'REACTIVATE',
-      onToggleActive: (e) => { e && e.stopPropagation && e.stopPropagation(); this.toggleMechanicActive(m); },
-      onOpenProfile: () => this.goMechanicProfile(m.id),
-    }));
-    const otherStaffDisplay = (s.staffRoster || [])
-      .filter(m => m.role !== 'mechanic')
-      .map(m => ({
-        id: m.id,
-        name: m.name,
-        active: m.active,
-        activeLabel: m.active ? '' : '(DISABLED)',
-        activeLabelStyle: `font:700 10px 'IBM Plex Mono',monospace;color:#C0392B;`,
-        roleLabel: this.roleLabel(m.role),
-        onOpenProfile: () => this.goMechanicProfile(m.id),
-      }));
+    // (Team roster cards are built below from the canonical shop_memberships loader.)
 
     const isShopOwner = this.isShopOwner();
     const canEditJobDetails = this.isActiveStaff(); // all staff may edit any job's details
 
     // ---------- mechanic profile page ----------
-    const profileMech = (s.staffRoster || []).find(m => m.id === s.profileMechanicId) || s.mechanics.find(m => m.id === s.profileMechanicId);
+    // Rich path: self (self-authorized) or owner viewing anyone (owner-authorized).
+    const richProfileMech = (s.staffRoster || []).find(m => m.id === s.profileMechanicId) || s.mechanics.find(m => m.id === s.profileMechanicId);
+    // Limited path: a non-owner viewing a coworker. RLS blocks that coworker's
+    // profiles row, so build the detail from the already-authorized roster fields
+    // only (name/role/status/location) — never a blocked profile fetch.
+    const profileRosterEntry = (s.teamRoster || []).find(m => m.profileId === s.profileMechanicId) || null;
+    const profileMech = richProfileMech || (profileRosterEntry ? {
+      id: profileRosterEntry.profileId,
+      name: (profileRosterEntry.profile && profileRosterEntry.profile.name) || 'Team member',
+      email: '', phone: '',
+      role: profileRosterEntry.role,
+      active: profileRosterEntry.isActive !== false,
+      availabilityStatus: 'available',
+    } : null);
+    const profileIsLimited = !richProfileMech && !!profileRosterEntry;
+    const profileMechLocationName = (profileIsLimited && profileRosterEntry && profileRosterEntry.defaultLocationId)
+      ? (((s.locations || []).find(x => x.id === profileRosterEntry.defaultLocationId) || {}).name || '')
+      : '';
     const isOwnProfile = !!(profileMech && s.profile && profileMech.id === s.profile.id);
     const canEditAvailability = isShopOwner || isOwnProfile;
     const ROLE_DESCRIPTIONS = {
@@ -5024,13 +5083,83 @@ class Component extends DCLogic {
       ? `${s.locationConfirmJobs} active job${s.locationConfirmJobs === 1 ? '' : 's'} still reference this location. They'll stay visible on the dashboard, but this location won't be selectable for new jobs.`
       : "This location won't be selectable for new jobs. Existing records are unaffected.";
 
-    const configTeamDisplay = (s.staffRoster || []).map(m => ({
+    // ---------- canonical team roster (source of truth: shop_memberships) ----------
+    // Used by BOTH the Team page and Shop Config -> Team so they never diverge.
+    const liveProfile = (pid) => (s.mechanics || []).find(m => m.id === pid) || (s.staffRoster || []).find(m => m.id === pid) || null;
+    const locName = (locId) => { const l = (s.locations || []).find(x => x.id === locId); return l ? l.name : ''; };
+    const teamShopName = (s.shop && s.shop.name) || '';
+    const teamMembers = (s.teamRoster || []).map(mem => {
+      const p = liveProfile(mem.profileId);
+      const prof = p || mem.profile || {};
+      const accountActive = prof.active !== false;   // profiles.active (account-level)
+      const memberActive = mem.isActive !== false;   // shop_memberships.is_active (tenant-level)
+      const status = (!memberActive || !accountActive) ? 'inactive' : 'active';
+      const location = locName(mem.defaultLocationId);
+      return {
+        profileId: mem.profileId,
+        name: prof.name || prof.email || 'Unknown',
+        email: prof.email || '',
+        role: mem.role,                              // membership role = authoritative
+        roleLabel: mem.role === 'shop_owner' ? 'Shop Owner' : 'Mechanic',
+        status,
+        statusLabel: status === 'active' ? 'ACTIVE' : 'INACTIVE',
+        shopName: teamShopName,
+        hasLocation: !!location,
+        locationLabel: location || 'No location assigned',
+        accountActive,
+        isSelf: !!(s.profile && s.profile.id === mem.profileId),
+        _live: p,
+      };
+    }).sort((a, b) => {
+      if ((a.role === 'shop_owner') !== (b.role === 'shop_owner')) return a.role === 'shop_owner' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    const teamActiveOwnerCount = teamMembers.filter(m => m.role === 'shop_owner' && m.status === 'active').length;
+    const teamCounts = {
+      all: teamMembers.length,
+      active: teamMembers.filter(m => m.status === 'active').length,
+      inactive: teamMembers.filter(m => m.status === 'inactive').length,
+    };
+    const teamFilter = ['all', 'active', 'inactive'].includes(s.teamFilter) ? s.teamFilter : 'all';
+    const teamFilterChips = [
+      { key: 'all', label: 'All' },
+      { key: 'active', label: 'Active' },
+      { key: 'inactive', label: 'Inactive' },
+    ].map(f => {
+      const on = teamFilter === f.key;
+      return {
+        key: f.key,
+        label: `${f.label} (${teamCounts[f.key]})`,
+        style: `font:700 11px 'IBM Plex Mono',monospace;letter-spacing:.3px;padding:9px 13px;border-radius:20px;cursor:pointer;white-space:nowrap;border:1px solid ${on ? '#16283D' : 'rgba(22,40,61,.2)'};background:${on ? '#16283D' : '#fff'};color:${on ? '#fff' : 'rgba(22,40,61,.65)'};`,
+        onSelect: () => this.setTeamFilter(f.key),
+      };
+    });
+    const teamStatusPill = (status) => `font:700 8.5px 'IBM Plex Mono',monospace;letter-spacing:.6px;padding:4px 9px;border-radius:20px;flex:none;background:${status === 'active' ? '#EAF3F1' : '#FBEAEA'};color:${status === 'active' ? '#16A34A' : '#C0392B'};`;
+    const teamDisplay = teamMembers
+      .filter(m => teamFilter === 'all' ? true : m.status === teamFilter)
+      .map(m => {
+        const isLastOwner = m.role === 'shop_owner' && m.accountActive && teamActiveOwnerCount <= 1;
+        return {
+          ...m,
+          statusPillStyle: teamStatusPill(m.status),
+          locationLabelStyle: `font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,${m.hasLocation ? '.5' : '.38'});font-style:${m.hasLocation ? 'normal' : 'italic'};margin-top:1px;`,
+          onOpenProfile: () => this.goMechanicProfile(m.profileId),
+          showOwnerControls: isShopOwner && !m.isSelf && !!m._live && !isLastOwner,
+          disableButtonStyle: `font:700 10px 'IBM Plex Mono',monospace;padding:7px 11px;border-radius:4px;cursor:pointer;background:${m.accountActive ? '#FBEAEA' : '#EFF6F5'};color:${m.accountActive ? '#C0392B' : '#1F6F78'};`,
+          disableButtonLabel: m.accountActive ? 'DISABLE' : 'REACTIVATE',
+          onToggleActive: (e) => { e && e.stopPropagation && e.stopPropagation(); if (m._live) this.toggleMechanicActive(m._live); },
+        };
+      });
+    const noTeam = teamDisplay.length === 0 && !s.teamRosterError;
+
+    const configTeamDisplay = teamMembers.map(m => ({
       name: m.name, email: m.email || '',
       roleLabel: m.role === 'shop_owner' ? 'OWNER' : 'MECHANIC',
       roleBadgeStyle: `font:700 8px 'IBM Plex Mono',monospace;letter-spacing:.5px;padding:4px 8px;border-radius:2px;flex:none;background:${m.role === 'shop_owner' ? '#16283D' : '#EAF3F1'};color:${m.role === 'shop_owner' ? '#fff' : '#1F6F78'};`,
-      statusLabel: m.active ? 'ACTIVE' : 'DISABLED',
-      statusBadgeStyle: `font:700 8px 'IBM Plex Mono',monospace;letter-spacing:.5px;padding:4px 8px;border-radius:2px;flex:none;background:${m.active ? '#EAF3F1' : '#FBEAEA'};color:${m.active ? '#16A34A' : '#C0392B'};`,
-      onOpen: () => this.goMechanicProfile(m.id),
+      statusLabel: m.statusLabel,
+      statusBadgeStyle: `font:700 8px 'IBM Plex Mono',monospace;letter-spacing:.5px;padding:4px 8px;border-radius:2px;flex:none;background:${m.status === 'active' ? '#EAF3F1' : '#FBEAEA'};color:${m.status === 'active' ? '#16A34A' : '#C0392B'};`,
+      locationLabel: m.locationLabel,
+      onOpen: () => this.goMechanicProfile(m.profileId),
     }));
 
     const featureToggleStyles = (enabled, saving) => ({
@@ -5087,6 +5216,10 @@ class Component extends DCLogic {
       workspaceWorkOrderStyle: workspaceBtnStyle(s.jobWorkspace === 'workorder'),
       isRoster: s.screen === 'roster',
       isMechanicProfile: s.screen === 'mechanicProfile' && !!profileMech,
+      isMechanicProfileError: s.screen === 'mechanicProfile' && !profileMech,
+      profileIsLimited,
+      showFullProfileDetail: !profileIsLimited,
+      profileMechLocationLabel: profileMechLocationName || 'No location assigned',
       isTag: s.screen === 'tag' && !!sj,
       isInvoice: s.screen === 'invoice' && !!sj,
       isArchive: s.screen === 'archive',
@@ -5426,9 +5559,9 @@ class Component extends DCLogic {
       lightboxSaveLabel: s.lightboxSaving ? 'SAVING\u2026' : 'SAVE CHANGES',
       hasLightboxError: !!s.lightboxError, lightboxErrorMessage: s.lightboxError,
 
-      mechanicsDisplay,
-      otherStaffDisplay,
-      hasOtherStaff: isShopOwner && otherStaffDisplay.length > 0,
+      teamDisplay, teamFilterChips, noTeam,
+      showTeamFilters: isShopOwner,
+      hasTeamRosterError: !!s.teamRosterError, teamRosterErrorMessage: s.teamRosterError,
       pendingRoleRequestsDisplay,
       hasPendingRoleRequests: pendingRoleRequestsDisplay.length > 0,
       pendingRoleRequestsCount: pendingRoleRequestsDisplay.length,

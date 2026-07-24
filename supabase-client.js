@@ -1154,10 +1154,35 @@ export async function updateLocation(id, patch) {
 
 // Owner-only: staff roster for the active shop, joined with their membership
 // role. Read via the "memberships: self read" (owner branch) policy.
-export async function fetchShopMembers(shopId) {
-  const { data, error } = await supabase
-    .from('shop_memberships').select('*, profiles(*)')
-    .eq('shop_id', shopId).eq('is_active', true);
+// Canonical team-roster loader. RLS still governs visibility (owner sees all
+// members of the shop; a non-owner only ever gets their own row). Pass
+// includeInactive:true to also return deactivated/removed memberships (needed
+// so the roster can show an "Inactive" status, not just silently drop them).
+export async function fetchShopMembers(shopId, { includeInactive = false } = {}) {
+  let q = supabase.from('shop_memberships').select('*, profiles(*)').eq('shop_id', shopId);
+  if (!includeInactive) q = q.eq('is_active', true);
+  const { data, error } = await q;
   if (error) throw error;
   return (data || []).map(r => ({ ...membershipFromRow(r), profile: r.profiles ? profileFromRow(r.profiles) : null }));
+}
+
+// Non-owner (mechanic) team-directory read. Backed by the get_team_roster()
+// SECURITY DEFINER function (section-22), which returns ONLY the whitelisted
+// roster columns for the caller's current shop and ACTIVE coworkers — no
+// email/phone/availability/admin fields, and no shop_id parameter to
+// manipulate. Shaped to match fetchShopMembers() so the roster UI is
+// source-agnostic.
+export async function fetchTeamRosterLimited() {
+  const { data, error } = await supabase.rpc('get_team_roster');
+  if (error) throw error;
+  return (data || []).map(r => ({
+    id: r.profile_id,
+    profileId: r.profile_id,
+    role: r.role,
+    isActive: r.is_active !== false,
+    defaultLocationId: r.default_location_id || null,
+    shop: null,
+    // Only whitelisted fields are known here; email is intentionally absent.
+    profile: { id: r.profile_id, name: r.full_name || '', email: '', role: r.role, active: r.is_active !== false },
+  }));
 }
