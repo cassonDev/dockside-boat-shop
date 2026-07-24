@@ -940,6 +940,16 @@
     </div>
   </div>
   </sc-if>
+  <sc-if value="{{ isMechanicProfileError }}" hint-placeholder-val="{{ false }}">
+  <div style="max-width:520px;margin:0 auto;padding:20px 16px 60px;">
+    <div class="no-print" style="display:inline-flex;align-items:center;gap:6px;font:700 12px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;margin-bottom:14px;" onClick="{{ backToRoster }}">&#8592; TEAM</div>
+    <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:24px 20px;text-align:center;">
+      <div style="font:800 16px 'Archivo',sans-serif;color:#16283D;margin-bottom:6px;">Profile unavailable</div>
+      <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);margin-bottom:16px;">This team member&rsquo;s details couldn&rsquo;t be loaded. They may no longer be part of this shop.</div>
+      <div style="display:inline-block;background:#1F6F78;color:#fff;font:700 12px 'Public Sans',sans-serif;padding:11px 18px;border-radius:4px;cursor:pointer;" onClick="{{ backToRoster }}">Back to Team</div>
+    </div>
+  </div>
+  </sc-if>
   <sc-if value="{{ isMechanicProfile }}" hint-placeholder-val="{{ false }}">
   <div style="max-width:520px;margin:0 auto;padding:20px 16px 60px;">
     <div class="no-print" style="display:inline-flex;align-items:center;gap:6px;font:700 12px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;margin-bottom:14px;" onClick="{{ backToRoster }}">&#8592; TEAM</div>
@@ -956,6 +966,7 @@
       </div>
     </div>
 
+    <sc-if value="{{ showFullProfileDetail }}" hint-placeholder-val="{{ true }}">
     <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;margin-bottom:14px;">
       <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:8px;">CONTACT</div>
       <div style="font:600 14px 'Public Sans',sans-serif;color:#16283D;">{{ profileMech.email }}</div>
@@ -964,6 +975,7 @@
       </sc-if>
       <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.4);margin-top:8px;">Read-only &mdash; contact details are managed via Edit Job Details permissions.</div>
     </div>
+    </sc-if>
 
     <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;margin-bottom:14px;">
       <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:8px;">ROLE &amp; PERMISSIONS</div>
@@ -971,6 +983,15 @@
       <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);line-height:1.5;margin-top:4px;">{{ profileRoleDescription }}</div>
     </div>
 
+    <sc-if value="{{ profileIsLimited }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;margin-bottom:14px;">
+      <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:8px;">LOCATION</div>
+      <div style="font:700 14px 'Public Sans',sans-serif;color:#16283D;">{{ profileMechLocationLabel }}</div>
+      <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.4);margin-top:8px;">You&rsquo;re viewing a limited team profile. Full details are available to shop owners.</div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ showFullProfileDetail }}" hint-placeholder-val="{{ true }}">
     <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;margin-bottom:14px;">
       <div style="display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap;">
         <div style="font:800 13px 'Public Sans',sans-serif;color:#16283D;">{{ profileActiveCount }} Active Jobs</div>
@@ -1039,6 +1060,7 @@
         <div style="background:#F6F1E4;color:#16283D;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ startAvailabilityEdit }}">UPDATE AVAILABILITY</div>
       </sc-if>
     </div>
+    </sc-if>
 
     <sc-if value="{{ canManageRole }}" hint-placeholder-val="{{ false }}">
     <div class="no-print" style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;margin-bottom:14px;">
@@ -4767,7 +4789,24 @@ class Component extends DCLogic {
     const canEditJobDetails = this.isActiveStaff(); // all staff may edit any job's details
 
     // ---------- mechanic profile page ----------
-    const profileMech = (s.staffRoster || []).find(m => m.id === s.profileMechanicId) || s.mechanics.find(m => m.id === s.profileMechanicId);
+    // Rich path: self (self-authorized) or owner viewing anyone (owner-authorized).
+    const richProfileMech = (s.staffRoster || []).find(m => m.id === s.profileMechanicId) || s.mechanics.find(m => m.id === s.profileMechanicId);
+    // Limited path: a non-owner viewing a coworker. RLS blocks that coworker's
+    // profiles row, so build the detail from the already-authorized roster fields
+    // only (name/role/status/location) — never a blocked profile fetch.
+    const profileRosterEntry = (s.teamRoster || []).find(m => m.profileId === s.profileMechanicId) || null;
+    const profileMech = richProfileMech || (profileRosterEntry ? {
+      id: profileRosterEntry.profileId,
+      name: (profileRosterEntry.profile && profileRosterEntry.profile.name) || 'Team member',
+      email: '', phone: '',
+      role: profileRosterEntry.role,
+      active: profileRosterEntry.isActive !== false,
+      availabilityStatus: 'available',
+    } : null);
+    const profileIsLimited = !richProfileMech && !!profileRosterEntry;
+    const profileMechLocationName = (profileIsLimited && profileRosterEntry && profileRosterEntry.defaultLocationId)
+      ? (((s.locations || []).find(x => x.id === profileRosterEntry.defaultLocationId) || {}).name || '')
+      : '';
     const isOwnProfile = !!(profileMech && s.profile && profileMech.id === s.profile.id);
     const canEditAvailability = isShopOwner || isOwnProfile;
     const ROLE_DESCRIPTIONS = {
@@ -5177,6 +5216,10 @@ class Component extends DCLogic {
       workspaceWorkOrderStyle: workspaceBtnStyle(s.jobWorkspace === 'workorder'),
       isRoster: s.screen === 'roster',
       isMechanicProfile: s.screen === 'mechanicProfile' && !!profileMech,
+      isMechanicProfileError: s.screen === 'mechanicProfile' && !profileMech,
+      profileIsLimited,
+      showFullProfileDetail: !profileIsLimited,
+      profileMechLocationLabel: profileMechLocationName || 'No location assigned',
       isTag: s.screen === 'tag' && !!sj,
       isInvoice: s.screen === 'invoice' && !!sj,
       isArchive: s.screen === 'archive',
