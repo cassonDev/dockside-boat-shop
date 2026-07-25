@@ -1716,6 +1716,34 @@
   </div>
   </sc-if>
 
+  <!-- ============ EXISTING-USER AGREEMENT GATE (section 25.5) ============ -->
+  <sc-if value="{{ isAgreementGate }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:24px 20px 60px;">
+    <div style="width:100%;max-width:560px;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(22,40,61,.12);overflow:hidden;">
+      <div style="background:#16283D;padding:22px 24px;">
+        <div style="font:900 16px 'Archivo',sans-serif;color:#F6F1E4;letter-spacing:.3px;">REVIEW & ACCEPT</div>
+        <div style="font:600 11px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.5px;margin-top:3px;">{{ gateEmail }}</div>
+      </div>
+      <form style="padding:22px 24px;display:flex;flex-direction:column;gap:18px;" onSubmit="{{ submitGateAcceptance }}">
+        <div style="font:600 13.5px 'Public Sans',sans-serif;color:#16283D;line-height:1.5;">Before you continue, please review and accept the current agreement. This won't change your shop, team, or work &mdash; you'll return right where you left off.</div>
+        <div>
+          <div style="font:800 13px 'Archivo',sans-serif;color:#16283D;margin-bottom:8px;">{{ gateAgreementTitle }}</div>
+          <div style="max-height:260px;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:14px 16px;font:500 12.5px 'Public Sans',sans-serif;color:#16283D;line-height:1.6;white-space:pre-wrap;">{{ gateAgreementBody }}</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;" onClick="{{ toggleGateAgreed }}">
+          <div style="{{ gateCheckboxStyle }}">{{ gateCheckMark }}</div>
+          <div style="font:600 13px 'Public Sans',sans-serif;color:#16283D;line-height:1.45;">I have read and agree to the {{ gateAgreementTitle }}. <span style="color:#C0392B;">*</span></div>
+        </div>
+        <sc-if value="{{ hasGateError }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ gateErrorMessage }}</div>
+        </sc-if>
+        <button type="submit" style="{{ gateSubmitStyle }}">{{ gateSubmitLabel }}</button>
+        <div style="text-align:center;font:600 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);cursor:pointer;" onClick="{{ handleSignOut }}">Sign out</div>
+      </form>
+    </div>
+  </div>
+  </sc-if>
+
   <!-- ============ OWNER ONBOARDING (no active shop membership) ============ -->
   <sc-if value="{{ isUnprovisioned }}" hint-placeholder-val="{{ false }}">
   <div style="min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:24px 20px 60px;">
@@ -2266,6 +2294,12 @@ class Component extends DCLogic {
     onboardLocationName: '',
     onboardBusy: false,
     onboardError: '',
+    // ---------- existing-user agreement gate (section 25.5) ----------
+    agreementGate: false,
+    gateAgreement: null,
+    gateAgreed: false,
+    gateBusy: false,
+    gateError: '',
     // ---------- read-only platform admin (section 25) ----------
     isPlatformAdmin: false,
     platformShops: [],
@@ -2826,6 +2860,20 @@ class Component extends DCLogic {
       const activeMem = (memberships || []).find(m => m.shopId === profile.activeShopId) || memberships[0] || null;
       const effectiveShopId = profile.activeShopId || (activeMem && activeMem.shopId) || null;
       const bootIsOwner = !!(activeMem && activeMem.role === 'shop_owner');
+      // Section 25.5 — existing-user agreement gate. Provisioned users (owners
+      // AND mechanics, incl. platform admins) who pre-date Section 25, or who
+      // haven't accepted the CURRENT agreement version, must accept before the
+      // app loads. This never touches their shop/membership/role/data — on
+      // acceptance we reload and boot resumes their existing session. Only
+      // applies when a current agreement exists and is unaccepted.
+      let gateStatus = { agreement: null, accepted: true };
+      try { gateStatus = await mod.fetchAgreementGateStatus('pilot_agreement'); } catch (e) { gateStatus = { agreement: null, accepted: true }; }
+      if (gateStatus.agreement && !gateStatus.accepted) {
+        this.setState({ profile, memberships, activeShopId: effectiveShopId, isPlatformAdmin,
+          unprovisioned: false, agreementGate: true, gateAgreement: gateStatus.agreement,
+          gateAgreed: false, gateError: '', loaded: true, authChecking: false, loadError: '' });
+        return;
+      }
       const [mechanics, jobs, shopSerialLabels, staffRoster, shop, locations] = await Promise.all([
         mod.fetchMechanics(), mod.fetchJobs(), mod.fetchSerialLabelOptions(), mod.fetchStaffRoster(),
         effectiveShopId ? mod.fetchShop(effectiveShopId).catch(() => null) : Promise.resolve(null),
@@ -2852,6 +2900,24 @@ class Component extends DCLogic {
       });
     } catch (e) {
       this.setState({ authChecking: false, loaded: true, loadError: (e && e.message) || 'Could not reach Supabase.' });
+    }
+  };
+
+  // ---------- existing-user agreement gate (section 25.5) ----------
+  toggleGateAgreed = () => this.setState(s => ({ gateAgreed: !s.gateAgreed, gateError: '' }));
+  submitGateAcceptance = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const ag = this.state.gateAgreement;
+    if (!ag) { this.setState({ gateError: 'The agreement could not be loaded. Refresh and try again.' }); return; }
+    if (!this.state.gateAgreed) { this.setState({ gateError: 'You must accept the agreement to continue.' }); return; }
+    this.setState({ gateBusy: true, gateError: '' });
+    try {
+      // Reuse the canonical accept RPC (identity = auth.uid()); then reload so
+      // boot resumes the user's EXISTING shop/session (no shop/membership change).
+      await this._dataMod.acceptLegalAgreement(ag.kind, ag.version);
+      window.location.reload();
+    } catch (err) {
+      this.setState({ gateBusy: false, gateError: (err && err.message) || 'Could not record your acceptance. Please try again.' });
     }
   };
 
@@ -2980,7 +3046,7 @@ class Component extends DCLogic {
     // never reuse the prior session's URLs, and drop tenant-scoped photo state.
     if (this._dataMod && this._dataMod.clearPhotoUrlCache) this._dataMod.clearPhotoUrlCache();
     try { await this._dataMod.signOut(); } catch (e) {}
-    this.setState({ screen: 'dashboard', profile: null, jobPhotos: [], serialNumbers: [], selectedJobId: null, memberships: [], unprovisioned: false, recoveryMode: false, authView: 'login', isPlatformAdmin: false, platformShops: [], platformSelectedShopId: null, platformMembers: [], onboardAgreement: null, onboardAgreed: false, onboardShopName: '', onboardLocationName: '' });
+    this.setState({ screen: 'dashboard', profile: null, jobPhotos: [], serialNumbers: [], selectedJobId: null, memberships: [], unprovisioned: false, recoveryMode: false, authView: 'login', isPlatformAdmin: false, platformShops: [], platformSelectedShopId: null, platformMembers: [], onboardAgreement: null, onboardAgreed: false, onboardShopName: '', onboardLocationName: '', agreementGate: false, gateAgreement: null, gateAgreed: false });
   };
 
   // ---------- roster / user management (shop_owner) ----------
@@ -4745,7 +4811,7 @@ class Component extends DCLogic {
 
   renderVals() {
     const s = this.state;
-    const blankScreens = { navVisible: false, isDashboard: false, isIntake: false, isJobDetail: false, isRoster: false, isTag: false, isInvoice: false, isArchive: false, isAuditLog: false, isPlatformAdminScreen: false, isUnprovisioned: false, showScanModal: false };
+    const blankScreens = { navVisible: false, isDashboard: false, isIntake: false, isJobDetail: false, isRoster: false, isTag: false, isInvoice: false, isArchive: false, isAuditLog: false, isPlatformAdminScreen: false, isUnprovisioned: false, isAgreementGate: false, showScanModal: false };
 
     if (s.authChecking) {
       return { ...blankScreens, isAuthChecking: true, isAuthScreen: false };
@@ -4804,6 +4870,27 @@ class Component extends DCLogic {
       // belongs to a shop. Server-side is_platform_admin() is the real gate.
       return { ...blankScreens, isAuthChecking: false, isAuthScreen: false,
         ...this.platformAdminRenderVals() };
+    }
+    if (s.agreementGate) {
+      // Existing-user agreement gate (25.5): shown to provisioned users who
+      // haven't accepted the current agreement. Accepting resumes their session.
+      const ag = s.gateAgreement;
+      return { ...blankScreens, isAuthChecking: false, isAuthScreen: false,
+        isAgreementGate: true,
+        gateEmail: (s.profile && s.profile.email) || '',
+        gateAgreementTitle: (ag && ag.title) || 'Agreement',
+        gateAgreementBody: (ag && ag.body) || 'The agreement could not be loaded. Please refresh.',
+        toggleGateAgreed: this.toggleGateAgreed,
+        gateCheckMark: s.gateAgreed ? '\u2713' : '',
+        gateCheckboxStyle: 'flex:none;width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font:700 14px \'Public Sans\',sans-serif;'
+          + (s.gateAgreed ? 'background:#1F6F78;color:#fff;border:1px solid #1F6F78;' : 'background:#fff;color:#1F6F78;border:1px solid rgba(22,40,61,.3);'),
+        hasGateError: !!s.gateError,
+        gateErrorMessage: s.gateError,
+        gateSubmitLabel: s.gateBusy ? 'RECORDING\u2026' : 'ACCEPT & CONTINUE',
+        gateSubmitStyle: `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:14px;border-radius:4px;cursor:pointer;border:none;background:${s.gateBusy ? '#B9C0C4' : '#1F6F78'};color:#fff;`,
+        submitGateAcceptance: this.submitGateAcceptance,
+        handleSignOut: this.handleSignOut,
+      };
     }
     if (s.unprovisioned) {
       const ag = s.onboardAgreement;

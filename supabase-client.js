@@ -1279,6 +1279,25 @@ export async function createShopAsOwner(shopName, locationName) {
   return data; // new shop id
 }
 
+// Section 25.5 — existing-user agreement gate. Read-only: returns the current
+// agreement of a kind and whether the CURRENT authenticated user has already
+// accepted THAT version. Identity is resolved server-side (RLS on
+// legal_acceptances only exposes the caller's own rows via profile_id =
+// auth.uid()); no profile id is sent from the client. `accepted` is true only
+// when a current agreement exists AND the caller has an acceptance row for it,
+// so a newer published version flips `accepted` back to false and re-gates.
+export async function fetchAgreementGateStatus(kind = 'pilot_agreement') {
+  const agreement = await fetchCurrentLegalAgreement(kind);
+  if (!agreement) return { agreement: null, accepted: true }; // nothing to gate on
+  const { data, error } = await supabase
+    .from('legal_acceptances')
+    .select('id')
+    .eq('agreement_id', agreement.id)
+    .limit(1);
+  if (error) throw error;
+  return { agreement, accepted: (data || []).length > 0 };
+}
+
 // ===========================================================================
 // Read-only platform administration (schema section 25)
 //   All three reads are SECURITY DEFINER functions gated by is_platform_admin()
