@@ -1,20 +1,28 @@
-# Section 25 — Production Release Package
+# Section 25 — Production Release Package (FINAL)
 
 Everything production needs for Section 25 (legal agreements, owner onboarding,
-read-only Platform Admin) **and** for Shop Configuration to load and save
-correctly. Consolidated from staging; the individual staging files
-(`section-25*.sql`, `section-25.2*.sql`, `section-25.4*.sql`) are superseded by
-the three SQL files in this folder — do **not** also run those.
+read-only Platform Admin, **existing-user agreement gate**) **and** for Shop
+Configuration + Locations to load and save correctly. Consolidated from staging;
+all earlier Section 25 bundles and the individual staging files
+(`section-25*.sql`, `section-25.2*.sql`, `section-25.4*.sql`, `section-25.6*.sql`)
+are **superseded** by the files in this folder — do **not** also run those.
+
+Includes (folded in, no separate steps):
+- **25.1** Shop Config prepopulation fix — in `index.html`.
+- **25.5** existing-user agreement gate — in `index.html` + `supabase-client.js`
+  (temporary staging diagnostics have been removed).
+- **25.6** `grant select on legal_acceptances to authenticated` — folded into
+  `01-…legal-and-platform-admin.sql` (the 403 fix).
 
 ## Contents
 
 | File | What |
 |---|---|
-| `01-section-25-legal-and-platform-admin.sql` | Section 25 core: `legal_agreements` + `legal_acceptances`, seeded pilot agreement, `accept_legal_agreement`, `create_shop_as_owner`, platform read RPCs, `platform_admins`/`is_platform_admin` (idempotent), **and the corrected `grant select on legal_agreements to authenticated`** (25.1-grant). |
+| `01-section-25-legal-and-platform-admin.sql` | Section 25 core: `legal_agreements` + `legal_acceptances`, seeded pilot agreement, `accept_legal_agreement`, `create_shop_as_owner`, platform read RPCs, `platform_admins`/`is_platform_admin` (idempotent), **and the corrected `grant select` on BOTH `legal_agreements` and `legal_acceptances` to `authenticated`** (25.1-grant + 25.6). |
 | `02-section-25.2-and-25.3-shops-fixes.sql` | 25.2 additive `shops` columns (`legal_name, phone, email, address_line1, address_line2, city, region, postal_code, country, timezone, settings`) **+** 25.3 owner-scoped `shops` UPDATE RLS policy. Idempotent, one txn. |
 | `03-section-25.4-shop-locations-fix.sql` | 25.4 additive `shop_locations` columns (`location_code, phone, email, timezone, is_primary, updated_at`) **+** owner-scoped RLS (`member read` SELECT, `owner insert` INSERT, `owner update` UPDATE). Idempotent, one txn. |
 | `ROLLBACK-section-25-release.sql` | Reverses 25.4 → 25.3 → 25.2 → core, in safe order. |
-| `index.html` | Frontend: owner onboarding, read-only Platform Admin area, and the 25.1 Shop Config prepopulation fix (`goShopConfig` per-call fallbacks). |
+| `index.html` | Frontend: owner onboarding, existing-user agreement gate (25.5, diagnostics removed), read-only Platform Admin area, and the 25.1 Shop Config prepopulation fix. |
 | `supabase-client.js` | Frontend: legal/onboarding/platform client functions. |
 
 > Note on 25.1: the Shop Config prepopulation fix was **frontend-only** and is
@@ -51,6 +59,7 @@ frontend.
 - [ ] **Platform Admin** still works (admin sees shops; non-admin cannot).
 - [ ] **Onboarding** works for a fresh user with no shop (agreement → create shop).
 - [ ] **Tenant isolation** unchanged (a shop only sees its own data).
+- [ ] **Existing user without acceptance** (owner, mechanic, and platform admin) is stopped at the agreement gate; accepting returns them to their existing shop with role/data intact; already-accepted users skip it (25.5/25.6).
 - [ ] **Mechanics cannot edit shop information** (owner-scoped UPDATE policy; a
       mechanic `shops` UPDATE affects 0 rows).
 
