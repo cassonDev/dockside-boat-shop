@@ -1090,6 +1090,32 @@
     </div>
     </sc-if>
 
+    <sc-if value="{{ showRoleReview }}" hint-placeholder-val="{{ false }}">
+    <div class="no-print" style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;margin-bottom:14px;">
+      <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:10px;">ROLE-CHANGE REQUEST</div>
+      <sc-if value="{{ roleRequestsLoading }}" hint-placeholder-val="{{ false }}">
+        <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">Loading requests&hellip;</div>
+      </sc-if>
+      <sc-if value="{{ hasRoleReviewError }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;margin-bottom:10px;">{{ roleReviewErrorMessage }}</div>
+      </sc-if>
+      <sc-if value="{{ hasRoleReviewRequest }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#FFF8E8;border:1px solid #D97706;border-radius:6px;padding:12px 14px;">
+          <div style="font:700 12px 'Public Sans',sans-serif;color:#8A5A00;">Requesting: {{ roleReviewRequestedRole }}</div>
+          <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.78);line-height:1.45;margin-top:4px;">{{ roleReviewReason }}</div>
+          <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);margin-top:6px;">Submitted {{ roleReviewDateLabel }}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <div style="{{ roleReviewApproveStyle }}" onClick="{{ onApproveRoleReview }}">{{ roleReviewApproveLabel }}</div>
+          <div style="{{ roleReviewDenyStyle }}" onClick="{{ onDenyRoleReview }}">Reject</div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ showNoRoleReview }}" hint-placeholder-val="{{ true }}">
+        <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No pending role-change request from this team member.</div>
+      </sc-if>
+    </div>
+    </sc-if>
+
     <sc-if value="{{ canRequestRoleChange }}" hint-placeholder-val="{{ false }}">
     <div class="no-print" style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:8px;padding:16px 18px;">
       <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:10px;">ROLE REQUEST</div>
@@ -1607,8 +1633,14 @@
   <sc-if value="{{ loadErrorMessage }}" hint-placeholder-val="{{ false }}">
   <div style="max-width:480px;margin:60px auto;padding:0 16px;">
     <div style="background:#fff;border:1px solid #C0392B;border-radius:8px;padding:20px;">
-      <div style="font:800 15px 'Archivo',sans-serif;color:#C0392B;margin-bottom:6px;">Couldn&rsquo;t reach Supabase</div>
+      <div style="font:800 15px 'Archivo',sans-serif;color:#C0392B;margin-bottom:6px;">We couldn&rsquo;t load your account</div>
       <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);line-height:1.5;">{{ loadErrorMessage }}</div>
+      <sc-if value="{{ showAuthedErrorActions }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;gap:8px;margin-top:16px;">
+          <div style="flex:1;text-align:center;background:#1F6F78;color:#fff;font:700 12px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ retryLoad }}">TRY AGAIN</div>
+          <div style="text-align:center;background:#fff;border:1px solid rgba(22,40,61,.2);color:#16283D;font:700 12px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ handleSignOut }}">SIGN OUT</div>
+        </div>
+      </sc-if>
     </div>
   </div>
   </sc-if>
@@ -2186,6 +2218,8 @@ class Component extends DCLogic {
     reviewingRequestId: null,
     reviewBusy: false,
     reviewError: '',
+    roleRequestsLoading: false,
+    roleRequestsError: '',
 
     intakeStep: 'dictate',
     intakeRecording: false,
@@ -2618,7 +2652,13 @@ class Component extends DCLogic {
     try {
       const profile = await mod.fetchMyProfile();
       if (!profile || !profile.active) {
-        this.setState({ authChecking: false, loaded: false, profile: null, loadError: profile ? 'Your account has been disabled. Contact your shop owner.' : '' });
+        // A live session with no loadable/active profile must NOT silently bounce
+        // to the login form (the session still exists) — surface a clear state
+        // with Sign Out / Try Again. loaded:true so the error screen is reachable.
+        this.setState({ authChecking: false, loaded: true, profile: null,
+          loadError: profile
+            ? 'Your account has been disabled. Contact your shop owner.'
+            : 'We signed you in, but couldn\u2019t load your account. It may not be set up for this shop yet \u2014 try again, or contact your shop owner.' });
         return;
       }
       // Membership is the sole source of tenant access. An account with zero
@@ -2706,6 +2746,19 @@ class Component extends DCLogic {
       this.setState({ authBusy: false, authPassword: '' });
     } catch (err) {
       this.setState({ authBusy: false, authError: (err && err.message) || 'Something went wrong.' });
+    }
+  };
+
+  // Re-run bootstrap without signing out — for the authenticated-but-load-failed
+  // screen, so a transient profile/roster fetch error is recoverable in place.
+  retryLoad = async () => {
+    this.setState({ authChecking: true, loadError: '' });
+    try {
+      const session = await this._dataMod.getSession();
+      if (session) { this.setState({ authChecking: false }); await this.loadForSession(); }
+      else { this.setState({ authChecking: false }); }
+    } catch (e) {
+      this.setState({ authChecking: false, loaded: true, loadError: (e && e.message) || 'Could not reach Supabase.' });
     }
   };
 
@@ -2942,15 +2995,20 @@ class Component extends DCLogic {
 
   loadRoleChangeRequestsForRoster = async (profileId) => {
     if (!this._dataMod) return;
+    this.setState({ roleRequestsLoading: true, roleRequestsError: '' });
     try {
       const isOwner = this.isShopOwner();
-      const targetProfileId = profileId || (this.state.profile && this.state.profile.id);
-      const reqs = isOwner
-        ? await this._dataMod.fetchRoleChangeRequests({ allPending: !profileId })
-        : await this._dataMod.fetchRoleChangeRequests({ profileId: targetProfileId });
-      this.setState({ roleChangeRequests: reqs });
+      // Viewing a specific member -> that member's requests (owner or self, RLS-scoped).
+      // Roster/global (no profileId) -> owner sees all pending; a member sees their own.
+      const reqs = profileId
+        ? await this._dataMod.fetchRoleChangeRequests({ profileId })
+        : (isOwner
+            ? await this._dataMod.fetchRoleChangeRequests({ allPending: true })
+            : await this._dataMod.fetchRoleChangeRequests({ profileId: (this.state.profile && this.state.profile.id) }));
+      this.setState({ roleChangeRequests: reqs, roleRequestsLoading: false });
     } catch (e) {
       console.error('Failed to load role-change requests', e);
+      this.setState({ roleRequestsLoading: false, roleRequestsError: (e && e.message) || 'Could not load role-change requests.' });
     }
   };
 
@@ -3027,11 +3085,16 @@ class Component extends DCLogic {
     this.setState({ reviewBusy: true, reviewingRequestId: requestId, reviewError: '' });
     try {
       await this._dataMod.reviewRoleChangeRequest(requestId, decision);
-      const [reqs, mechanics] = await Promise.all([
-        this._dataMod.fetchRoleChangeRequests({ allPending: true }),
+      // Refresh the viewed member's requests plus role lists + roster, so the
+      // approved role and cleared request reflect everywhere at once.
+      const pid = this.state.profileMechanicId;
+      const [reqs, mechanics, staffRoster] = await Promise.all([
+        this._dataMod.fetchRoleChangeRequests(pid ? { profileId: pid } : { allPending: true }),
         this._dataMod.fetchMechanics(),
+        this._dataMod.fetchStaffRoster(),
       ]);
-      this.setState({ roleChangeRequests: reqs, mechanics, reviewBusy: false, reviewingRequestId: null });
+      this.setState({ roleChangeRequests: reqs, mechanics, staffRoster, reviewBusy: false, reviewingRequestId: null });
+      this.reloadTeamRoster();
     } catch (e) {
       console.error('Failed to review role request', e);
       this.setState({ reviewBusy: false, reviewingRequestId: null, reviewError: (e && e.message) || 'Could not process this request.' });
@@ -4427,7 +4490,7 @@ class Component extends DCLogic {
     if (s.loadError && !s.session) {
       return { ...blankScreens, isAuthChecking: false, isAuthScreen: false, loadErrorMessage: s.loadError };
     }
-    if (!s.session || !s.profile || s.recoveryMode) {
+    if (!s.session || s.recoveryMode) {
       const view = s.recoveryMode ? 'recovery' : (s.authView || 'login');
       const isForgot = view === 'forgot';
       const isRecovery = view === 'recovery';
@@ -4465,6 +4528,14 @@ class Component extends DCLogic {
         stopPropagation: this.stopPropagation,
       };
     }
+    if (!s.profile && s.loaded) {
+      // Authenticated, but the profile couldn't be loaded (missing row, RLS, or a
+      // fetch error). Never fall through to the login form (session is live) or
+      // the app (which dereferences s.profile) — show a recoverable error state.
+      return { ...blankScreens, isAuthChecking: false, isAuthScreen: false,
+        loadErrorMessage: s.loadError || 'We couldn\u2019t load your account. Try again or sign out.',
+        showAuthedErrorActions: true, retryLoad: this.retryLoad, handleSignOut: this.handleSignOut };
+    }
     if (s.unprovisioned) {
       return {
         ...blankScreens, isAuthChecking: false, isAuthScreen: false,
@@ -4480,6 +4551,7 @@ class Component extends DCLogic {
       return {
         ...blankScreens, isAuthChecking: false, isAuthScreen: false,
         loadErrorMessage: s.loadError,
+        showAuthedErrorActions: !!s.session, retryLoad: this.retryLoad, handleSignOut: this.handleSignOut,
       };
     }
     if (s.jobNotFoundCode) {
@@ -4906,6 +4978,14 @@ class Component extends DCLogic {
         onSelect: () => this.setRoleRequestRole(r),
       }));
     const myPendingRoleRequest = (s.roleChangeRequests || []).find(r => profileMech && r.profileId === profileMech.id && r.status === 'pending');
+
+    // Owner review of the member being viewed: the latest pending request for THIS member.
+    const showRoleReview = !!(isShopOwner && profileMech && !isOwnProfile);
+    const profilePendingRequest = showRoleReview
+      ? (s.roleChangeRequests || []).find(r => r.profileId === profileMech.id && r.status === 'pending')
+      : null;
+    const roleReviewBusy = !!s.reviewBusy;
+    const roleReviewErrMsg = s.roleRequestsError || s.reviewError || '';
 
     const pendingRoleRequestsDisplay = isShopOwner ? (s.roleChangeRequests || []).filter(r => r.status === 'pending').map(r => {
       const reqMech = s.mechanics.find(m => m.id === r.profileId);
@@ -5580,6 +5660,21 @@ class Component extends DCLogic {
       hasPendingRoleRequests: pendingRoleRequestsDisplay.length > 0,
       pendingRoleRequestsCount: pendingRoleRequestsDisplay.length,
       hasReviewError: !!s.reviewError, reviewErrorMessage: s.reviewError,
+
+      showRoleReview,
+      hasRoleReviewRequest: !!profilePendingRequest,
+      roleReviewRequestedRole: profilePendingRequest ? this.roleLabel(profilePendingRequest.requestedRole) : '',
+      roleReviewReason: profilePendingRequest ? (profilePendingRequest.reason || '(no reason given)') : '',
+      roleReviewDateLabel: profilePendingRequest ? new Date(profilePendingRequest.createdAt).toLocaleDateString() : '',
+      roleRequestsLoading: !!s.roleRequestsLoading,
+      hasRoleReviewError: !!roleReviewErrMsg,
+      roleReviewErrorMessage: roleReviewErrMsg,
+      showNoRoleReview: showRoleReview && !s.roleRequestsLoading && !roleReviewErrMsg && !profilePendingRequest,
+      roleReviewApproveStyle: `flex:1;text-align:center;font:700 12.5px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:${roleReviewBusy ? 'wait' : 'pointer'};background:#1F6F78;color:#fff;opacity:${roleReviewBusy ? '.6' : '1'};`,
+      roleReviewApproveLabel: roleReviewBusy ? 'WORKING\u2026' : 'Approve',
+      roleReviewDenyStyle: `text-align:center;font:700 12.5px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:${roleReviewBusy ? 'wait' : 'pointer'};background:#fff;border:1px solid #C0392B;color:#C0392B;opacity:${roleReviewBusy ? '.6' : '1'};`,
+      onApproveRoleReview: () => { if (profilePendingRequest) this.reviewRoleRequest(profilePendingRequest.id, 'approve'); },
+      onDenyRoleReview: () => { if (profilePendingRequest) this.reviewRoleRequest(profilePendingRequest.id, 'deny'); },
 
       profileMech: profileMech || {},
       profileMechInitials: profileMech ? profileMech.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase() : '',
