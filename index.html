@@ -2682,16 +2682,17 @@ class Component extends DCLogic {
         effectiveShopId ? mod.fetchLocations(effectiveShopId).catch(() => []) : Promise.resolve([]),
       ]);
       // Team roster source depends on membership role in the ACTIVE shop:
-      //  - owner  -> full shop_memberships read (active + inactive), needs a shop id
-      //  - member -> get_team_roster() RPC: derives the shop server-side, so it is
-      //              called even when profiles.active_shop_id is NULL (the bug that
-      //              made a mechanic's roster come back empty).
+      //  - owner  -> get_shop_roster_admin() RPC: all members (active + inactive),
+      //              owner-gated + RLS-independent (a direct table read returns only
+      //              the owner's own row in production).
+      //  - member -> get_team_roster() RPC: active coworkers only, whitelisted columns.
+      // Both derive the shop server-side, so neither needs a client shop id.
       // On failure we surface a clear error and leave the roster empty — we NEVER
       // fall back to a broader/unfiltered path that could bypass the intended scope.
       let teamRoster = [], teamRosterError = '';
       try {
         teamRoster = bootIsOwner
-          ? (effectiveShopId ? await mod.fetchShopMembers(effectiveShopId, { includeInactive: true }) : [])
+          ? await mod.fetchShopRosterAdmin()
           : await mod.fetchTeamRosterLimited();
       } catch (rosterErr) {
         teamRosterError = (rosterErr && rosterErr.message) || 'Could not load the team roster.';
@@ -2826,7 +2827,7 @@ class Component extends DCLogic {
     if (!shopId) return;
     try {
       const teamRoster = this.isShopOwner()
-        ? await this._dataMod.fetchShopMembers(shopId, { includeInactive: true })
+        ? await this._dataMod.fetchShopRosterAdmin()
         : await this._dataMod.fetchTeamRosterLimited();
       this.setState({ teamRoster, teamRosterError: '' });
     } catch (e) {
