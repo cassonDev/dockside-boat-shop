@@ -2669,29 +2669,34 @@ class Component extends DCLogic {
         this.setState({ profile, memberships: [], activeShopId: null, unprovisioned: true, loaded: true, authChecking: false, loadError: '' });
         return;
       }
+      // profiles.active_shop_id can legitimately be NULL for an invited member —
+      // the DB resolves the active shop server-side (current_user_shop_id()). Fall
+      // back to the (single) active membership's shop so the client has a shop id
+      // for shop/location reads and owner detection.
+      const activeMem = (memberships || []).find(m => m.shopId === profile.activeShopId) || memberships[0] || null;
+      const effectiveShopId = profile.activeShopId || (activeMem && activeMem.shopId) || null;
+      const bootIsOwner = !!(activeMem && activeMem.role === 'shop_owner');
       const [mechanics, jobs, shopSerialLabels, staffRoster, shop, locations] = await Promise.all([
         mod.fetchMechanics(), mod.fetchJobs(), mod.fetchSerialLabelOptions(), mod.fetchStaffRoster(),
-        profile.activeShopId ? mod.fetchShop(profile.activeShopId).catch(() => null) : Promise.resolve(null),
-        profile.activeShopId ? mod.fetchLocations(profile.activeShopId).catch(() => []) : Promise.resolve([]),
+        effectiveShopId ? mod.fetchShop(effectiveShopId).catch(() => null) : Promise.resolve(null),
+        effectiveShopId ? mod.fetchLocations(effectiveShopId).catch(() => []) : Promise.resolve([]),
       ]);
       // Team roster source depends on membership role in the ACTIVE shop:
-      //  - owner  -> full shop_memberships read (active + inactive) via existing owner-authorized path
-      //  - member -> get_team_roster() RPC: active coworkers only, whitelisted columns
+      //  - owner  -> full shop_memberships read (active + inactive), needs a shop id
+      //  - member -> get_team_roster() RPC: derives the shop server-side, so it is
+      //              called even when profiles.active_shop_id is NULL (the bug that
+      //              made a mechanic's roster come back empty).
       // On failure we surface a clear error and leave the roster empty — we NEVER
       // fall back to a broader/unfiltered path that could bypass the intended scope.
-      const activeMem = (memberships || []).find(m => m.shopId === profile.activeShopId) || memberships[0] || null;
-      const bootIsOwner = !!(activeMem && activeMem.role === 'shop_owner');
       let teamRoster = [], teamRosterError = '';
-      if (profile.activeShopId) {
-        try {
-          teamRoster = bootIsOwner
-            ? await mod.fetchShopMembers(profile.activeShopId, { includeInactive: true })
-            : await mod.fetchTeamRosterLimited();
-        } catch (rosterErr) {
-          teamRosterError = (rosterErr && rosterErr.message) || 'Could not load the team roster.';
-        }
+      try {
+        teamRoster = bootIsOwner
+          ? (effectiveShopId ? await mod.fetchShopMembers(effectiveShopId, { includeInactive: true }) : [])
+          : await mod.fetchTeamRosterLimited();
+      } catch (rosterErr) {
+        teamRosterError = (rosterErr && rosterErr.message) || 'Could not load the team roster.';
       }
-      this.setState({ profile, mechanics, jobs, shopSerialLabels, staffRoster, shop, teamRoster, teamRosterError, locations, memberships, activeShopId: profile.activeShopId || null, unprovisioned: false, loaded: true, authChecking: false, loadError: '' }, () => {
+      this.setState({ profile, mechanics, jobs, shopSerialLabels, staffRoster, shop, teamRoster, teamRosterError, locations, memberships, activeShopId: effectiveShopId, unprovisioned: false, loaded: true, authChecking: false, loadError: '' }, () => {
         this.resolvePendingJob();
       });
     } catch (e) {
