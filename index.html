@@ -2623,11 +2623,16 @@ class Component extends DCLogic {
     this.setState({ screen: 'shopConfig', configTab: 'info', newLabelText: '', newLabelError: '', editingLabelId: null, editingLabelDraft: '', shopInfoMsg: '', brandingMsg: '', featureError: '', locationError: '', locationEditId: null, locationDraft: null, newLocationName: '', locationConfirmId: null });
     const shopId = this.state.activeShopId;
     try {
-      const [shopSerialLabels, shop, shopLocations] = await Promise.all([
-        this._dataMod.fetchSerialLabelOptions(),
-        shopId ? this._dataMod.fetchShop(shopId) : Promise.resolve(null),
-        shopId ? this._dataMod.fetchLocations(shopId) : Promise.resolve([]),
+      // Per-call fallbacks (Section 25.1): a failure loading serial labels or
+      // locations must NOT blank the Shop Info / branding / features fields. If
+      // fetchShop() fails, fall back to the shop already loaded at boot so the
+      // form is never emptier than the header.
+      const [shopSerialLabels, shopFetched, shopLocations] = await Promise.all([
+        this._dataMod.fetchSerialLabelOptions().catch(() => this.state.shopSerialLabels || []),
+        shopId ? this._dataMod.fetchShop(shopId).catch(() => null) : Promise.resolve(null),
+        shopId ? this._dataMod.fetchLocations(shopId).catch(() => this.state.shopLocations || []) : Promise.resolve([]),
       ]);
+      const shop = shopFetched || this.state.shop || null;
       const b = (shop && shop.settings && shop.settings.branding) || {};
       this.setState({
         shopSerialLabels, shop, shopLocations,
