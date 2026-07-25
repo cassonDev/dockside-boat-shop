@@ -1225,3 +1225,113 @@ export async function fetchTeamRosterLimited() {
     profile: { id: r.profile_id, name: r.full_name || '', email: '', role: r.role, active: r.is_active !== false },
   }));
 }
+
+// ===========================================================================
+// Legal agreements + secure owner onboarding (schema section 25)
+//   Acceptance rows are NEVER written directly from the client — the DB has no
+//   client insert policy on legal_acceptances. accept_legal_agreement() and
+//   create_shop_as_owner() are SECURITY DEFINER RPCs bound to auth.uid(); the
+//   canonical agreement text/version is stored server-side, not sent up here.
+// ===========================================================================
+function legalAgreementFromRow(r) {
+  return {
+    id: r.id, kind: r.kind, version: r.version, title: r.title,
+    body: r.body, contentHash: r.content_hash, isCurrent: r.is_current === true,
+    publishedAt: r.published_at ? new Date(r.published_at).getTime() : null,
+  };
+}
+
+// The single current agreement of a kind (default: the pilot agreement the
+// onboarding screen shows). RLS lets any signed-in user read agreements.
+export async function fetchCurrentLegalAgreement(kind = 'pilot_agreement') {
+  const { data, error } = await supabase
+    .from('legal_agreements')
+    .select('*')
+    .eq('kind', kind)
+    .eq('is_current', true)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? legalAgreementFromRow(data) : null;
+}
+
+// Record acceptance of a specific agreement version for the current user. The
+// client sends only WHICH agreement it displayed (kind + version); the RPC
+// copies the canonical text/hash server-side. Idempotent.
+export async function acceptLegalAgreement(kind, version) {
+  const { data, error } = await supabase.rpc('accept_legal_agreement', {
+    p_kind: kind,
+    p_version: version,
+  });
+  if (error) throw error;
+  return data; // agreement id
+}
+
+// Atomic owner onboarding. No profile/owner/shop id is sent — identity is
+// auth.uid() server-side. The RPC verifies the current pilot agreement was
+// accepted, then creates shop + first location + active owner membership, sets
+// the active shop, and writes an audit-log entry, all in one transaction.
+export async function createShopAsOwner(shopName, locationName) {
+  const { data, error } = await supabase.rpc('create_shop_as_owner', {
+    p_shop_name: shopName,
+    p_location_name: locationName,
+  });
+  if (error) throw error;
+  return data; // new shop id
+}
+
+// ===========================================================================
+// Read-only platform administration (schema section 25)
+//   All three reads are SECURITY DEFINER functions gated by is_platform_admin()
+//   inside the DB — a non-admin gets zero rows. There are NO cross-tenant table
+//   queries here; the client only ever calls these whitelisted RPCs.
+// ===========================================================================
+
+// Is the signed-in user a platform admin? Drives whether the Platform Admin
+// nav entry/area is offered. Authorization is still enforced in the DB — the
+// UI flag is convenience only, never the security boundary.
+export async function fetchIsPlatformAdmin() {
+  const { data, error } = await supabase.rpc('is_platform_admin');
+  if (error) throw error;
+  return data === true;
+}
+
+function platformShopFromRow(r) {
+  return {
+    shopId: r.shop_id,
+    name: r.shop_name || '',
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : null,
+    isActive: r.is_active !== false,
+    ownerName: r.owner_name || '',
+    ownerEmail: r.owner_email || '',
+    locationCount: Number(r.location_count || 0),
+    userCount: Number(r.user_count || 0),
+    agreementStatus: r.agreement_status || 'not accepted',
+    lastActivityAt: r.last_activity_at ? new Date(r.last_activity_at).getTime() : null,
+  };
+}
+
+export async function fetchPlatformShops() {
+  const { data, error } = await supabase.rpc('get_platform_shops');
+  if (error) throw error;
+  return (data || []).map(platformShopFromRow);
+}
+
+export async function fetchPlatformShopDetails(shopId) {
+  const { data, error } = await supabase.rpc('get_platform_shop_details', { p_shop_id: shopId });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ? platformShopFromRow(row) : null;
+}
+
+export async function fetchPlatformShopMembers(shopId) {
+  const { data, error } = await supabase.rpc('get_platform_shop_members', { p_shop_id: shopId });
+  if (error) throw error;
+  return (data || []).map(r => ({
+    profileId: r.profile_id,
+    name: r.full_name || '',
+    email: r.email || '',
+    role: r.role,
+    isActive: r.is_active !== false,
+    joinedAt: r.joined_at ? new Date(r.joined_at).getTime() : null,
+  }));
+}

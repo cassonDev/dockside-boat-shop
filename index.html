@@ -86,6 +86,9 @@
         <div style="{{ navAuditStyleFull }}" onClick="{{ navGoAudit }}">AUDIT LOG</div>
         <div style="{{ navConfigStyleFull }}" onClick="{{ navGoShopConfig }}">SHOP CONFIG</div>
         </sc-if>
+        <sc-if value="{{ isPlatformAdmin }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ navPlatformStyleFull }}" onClick="{{ goPlatformAdmin }}">PLATFORM ADMIN</div>
+        </sc-if>
         <sc-if value="{{ showShopSwitcher }}" hint-placeholder-val="{{ false }}">
         <div style="margin-top:4px;padding-top:8px;border-top:1px solid rgba(255,255,255,.12);">
           <div style="font:700 9px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.6px;padding:2px 14px 6px;">SWITCH SHOP</div>
@@ -114,6 +117,9 @@
           <sc-if value="{{ isShopOwner }}" hint-placeholder-val="{{ false }}">
           <div style="{{ navAuditStyleFull }}" onClick="{{ navGoAudit }}">AUDIT LOG</div>
           <div style="{{ navConfigStyleFull }}" onClick="{{ navGoShopConfig }}">SHOP CONFIG</div>
+          </sc-if>
+          <sc-if value="{{ isPlatformAdmin }}" hint-placeholder-val="{{ false }}">
+          <div style="{{ navPlatformStyleFull }}" onClick="{{ goPlatformAdmin }}">PLATFORM ADMIN</div>
           </sc-if>
         </div>
       </div>
@@ -1710,16 +1716,131 @@
   </div>
   </sc-if>
 
-  <!-- ============ ACCOUNT NOT LINKED TO A SHOP (UNPROVISIONED) ============ -->
+  <!-- ============ OWNER ONBOARDING (no active shop membership) ============ -->
   <sc-if value="{{ isUnprovisioned }}" hint-placeholder-val="{{ false }}">
-  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;">
-    <div style="width:100%;max-width:420px;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(22,40,61,.12);overflow:hidden;">
+  <div style="min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:24px 20px 60px;">
+    <div style="width:100%;max-width:560px;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(22,40,61,.12);overflow:hidden;">
       <div style="background:#16283D;padding:22px 24px;">
-        <div style="font:900 15px 'Archivo',sans-serif;color:#F6F1E4;letter-spacing:.3px;">ACCOUNT NOT LINKED</div>
+        <div style="font:900 16px 'Archivo',sans-serif;color:#F6F1E4;letter-spacing:.3px;">SET UP YOUR SHOP</div>
+        <div style="font:600 11px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.5px;margin-top:3px;">{{ unprovisionedEmail }}</div>
       </div>
-      <div style="padding:22px 24px;display:flex;flex-direction:column;gap:14px;">
-        <div style="font:600 14px 'Public Sans',sans-serif;color:#16283D;line-height:1.5;">Your account isn't linked to a shop yet. Ask your shop owner to invite <strong>{{ unprovisionedEmail }}</strong> from their Staff screen, then sign in again.</div>
-        <div style="text-align:center;font:700 12px 'Public Sans',sans-serif;background:#1F6F78;color:#fff;padding:12px;border-radius:4px;cursor:pointer;" onClick="{{ handleSignOut }}">SIGN OUT</div>
+      <form style="padding:22px 24px;display:flex;flex-direction:column;gap:18px;" onSubmit="{{ submitOnboarding }}">
+        <div style="font:600 13.5px 'Public Sans',sans-serif;color:#16283D;line-height:1.5;">Your account isn't linked to a shop yet. Review and accept the pilot agreement, then create your shop below.</div>
+
+        <!-- Pilot agreement -->
+        <div>
+          <div style="font:700 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.6px;margin-bottom:6px;">PILOT AGREEMENT</div>
+          <div style="font:800 13px 'Archivo',sans-serif;color:#16283D;margin-bottom:8px;">{{ onboardAgreementTitle }}</div>
+          <div style="max-height:220px;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:14px 16px;font:500 12.5px 'Public Sans',sans-serif;color:#16283D;line-height:1.6;white-space:pre-wrap;">{{ onboardAgreementBody }}</div>
+        </div>
+
+        <!-- Required I Agree -->
+        <div style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;" onClick="{{ toggleOnboardAgreed }}">
+          <div style="{{ onboardCheckboxStyle }}">{{ onboardCheckMark }}</div>
+          <div style="font:600 13px 'Public Sans',sans-serif;color:#16283D;line-height:1.45;">I have read and agree to the {{ onboardAgreementTitle }}. <span style="color:#C0392B;">*</span></div>
+        </div>
+
+        <!-- Shop setup -->
+        <div style="height:1px;background:rgba(22,40,61,.1);"></div>
+        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">SHOP NAME <span style="color:#C0392B;">*</span></div>
+          <input autocomplete="organization" placeholder="e.g. Harbor Marine Service" style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 15px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ onboardShopName }}" onChange="{{ setOnboardShopName }}"/>
+        </div>
+        <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
+          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">DEFAULT LOCATION <span style="color:#C0392B;">*</span></div>
+          <input placeholder="e.g. Main Location" style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 15px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ onboardLocationName }}" onChange="{{ setOnboardLocationName }}"/>
+        </div>
+
+        <sc-if value="{{ hasOnboardError }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:9px 11px;font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ onboardErrorMessage }}</div>
+        </sc-if>
+
+        <button type="submit" style="{{ onboardSubmitStyle }}">{{ onboardSubmitLabel }}</button>
+
+        <sc-if value="{{ isPlatformAdmin }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center;font:700 11px 'IBM Plex Mono',monospace;color:#1F6F78;letter-spacing:.4px;cursor:pointer;" onClick="{{ goPlatformAdmin }}">GO TO PLATFORM ADMIN &rarr;</div>
+        </sc-if>
+        <div style="text-align:center;font:600 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);cursor:pointer;" onClick="{{ handleSignOut }}">Sign out</div>
+      </form>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ PLATFORM ADMIN (read-only, is_platform_admin only) ============ -->
+  <sc-if value="{{ isPlatformAdminScreen }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100vh;background:#EDE6D6;">
+    <div style="background:#16283D;padding:calc(env(safe-area-inset-top,0px) + 14px) 20px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div>
+        <div style="font:900 15px 'Archivo',sans-serif;color:#F6F1E4;letter-spacing:.3px;">PLATFORM ADMIN</div>
+        <div style="font:600 9.5px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.6px;margin-top:2px;">READ-ONLY &middot; ALL SHOPS</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <div style="background:rgba(255,255,255,.1);color:#F6F1E4;font:700 11px 'IBM Plex Mono',monospace;padding:11px 14px;border-radius:3px;cursor:pointer;letter-spacing:.4px;" onClick="{{ leavePlatformAdmin }}">&larr; BACK</div>
+        <div style="background:rgba(255,255,255,.08);color:#F6F1E4;font:700 11px 'IBM Plex Mono',monospace;padding:11px 14px;border-radius:3px;cursor:pointer;letter-spacing:.4px;" onClick="{{ handleSignOut }}">SIGN OUT</div>
+      </div>
+    </div>
+    <div style="max-width:1080px;margin:0 auto;padding:22px 16px 60px;">
+      <!-- Summary counts -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;">
+        <div style="background:#fff;border:1px solid rgba(22,40,61,.12);border-radius:8px;padding:16px 18px;">
+          <div style="font:700 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.6px;">SHOPS</div>
+          <div style="font:900 30px 'Archivo',sans-serif;color:#16283D;line-height:1.1;margin-top:4px;">{{ platformShopCount }}</div>
+        </div>
+        <div style="background:#fff;border:1px solid rgba(22,40,61,.12);border-radius:8px;padding:16px 18px;">
+          <div style="font:700 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.6px;">ACTIVE SHOPS</div>
+          <div style="font:900 30px 'Archivo',sans-serif;color:#1F6F78;line-height:1.1;margin-top:4px;">{{ platformActiveShopCount }}</div>
+        </div>
+      </div>
+
+      <sc-if value="{{ platformLoading }}" hint-placeholder-val="{{ true }}">
+        <div style="font:600 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);padding:20px 0;">Loading shops&hellip;</div>
+      </sc-if>
+      <sc-if value="{{ hasPlatformError }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#FBEAEA;border:1px solid #C0392B;border-radius:6px;padding:12px 14px;font:600 12.5px 'Public Sans',sans-serif;color:#C0392B;">{{ platformErrorMessage }}</div>
+      </sc-if>
+
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <sc-for list="{{ platformShopsDisplay }}" as="shop" hint-placeholder-count="4">
+          <div style="background:#fff;border:1px solid rgba(22,40,61,.12);border-radius:8px;overflow:hidden;">
+            <div style="padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;cursor:pointer;" onClick="{{ shop.onToggle }}">
+              <div style="flex:1;min-width:160px;">
+                <div style="font:800 15px 'Archivo',sans-serif;color:#16283D;">{{ shop.name }}</div>
+                <div style="font:600 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);margin-top:2px;">Owner: {{ shop.ownerLabel }}</div>
+              </div>
+              <div style="{{ shop.statusStyle }}">{{ shop.statusLabel }}</div>
+              <div style="{{ shop.agreementStyle }}">{{ shop.agreementLabel }}</div>
+              <div style="display:flex;gap:16px;flex-wrap:wrap;">
+                <div style="text-align:center;"><div style="font:800 16px 'Archivo',sans-serif;color:#16283D;">{{ shop.locationCount }}</div><div style="font:700 8px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;">LOCATIONS</div></div>
+                <div style="text-align:center;"><div style="font:800 16px 'Archivo',sans-serif;color:#16283D;">{{ shop.userCount }}</div><div style="font:700 8px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;">USERS</div></div>
+              </div>
+            </div>
+            <div style="padding:0 16px 12px;display:flex;gap:20px;flex-wrap:wrap;font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);">
+              <div>CREATED {{ shop.createdLabel }}</div>
+              <div>LAST ACTIVITY {{ shop.lastActivityLabel }}</div>
+            </div>
+            <sc-if value="{{ shop.isOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="border-top:1px solid rgba(22,40,61,.1);background:#FBF8F0;padding:12px 16px;">
+                <div style="font:700 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.6px;margin-bottom:8px;">MEMBERS</div>
+                <sc-if value="{{ platformMembersLoading }}" hint-placeholder-val="{{ false }}">
+                  <div style="font:600 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">Loading members&hellip;</div>
+                </sc-if>
+                <div style="display:flex;flex-direction:column;gap:5px;">
+                  <sc-for list="{{ platformMembersDisplay }}" as="m" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;font:600 12px 'Public Sans',sans-serif;color:#16283D;">
+                      <div style="flex:1;min-width:120px;">{{ m.name }}</div>
+                      <div style="color:rgba(22,40,61,.55);min-width:150px;">{{ m.email }}</div>
+                      <div style="background:#EDE6D6;padding:3px 8px;border-radius:2px;font:700 9px 'IBM Plex Mono',monospace;letter-spacing:.4px;">{{ m.roleLabel }}</div>
+                      <div style="{{ m.statusStyle }}">{{ m.statusLabel }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+        <sc-if value="{{ noPlatformShops }}" hint-placeholder-val="{{ false }}">
+          <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">No shops yet.</div>
+        </sc-if>
       </div>
     </div>
   </div>
@@ -2138,6 +2259,21 @@ class Component extends DCLogic {
     authView: 'login',   // 'login' | 'forgot' | 'recovery'
     recoveryMode: false,
     unprovisioned: false,
+    // ---------- owner onboarding (section 25) ----------
+    onboardAgreement: null,   // current pilot agreement { kind, version, title, body }
+    onboardAgreed: false,     // required "I Agree" checkbox
+    onboardShopName: '',
+    onboardLocationName: '',
+    onboardBusy: false,
+    onboardError: '',
+    // ---------- read-only platform admin (section 25) ----------
+    isPlatformAdmin: false,
+    platformShops: [],
+    platformLoading: false,
+    platformError: '',
+    platformSelectedShopId: null,
+    platformMembers: [],
+    platformMembersLoading: false,
     authEmail: '',
     authPassword: '',
     authFullName: '',
@@ -2665,8 +2801,17 @@ class Component extends DCLogic {
       // active memberships is explicitly UNPROVISIONED — never infer a shop and
       // never run any tenant-scoped query for it.
       const memberships = await mod.fetchMyMemberships();
+      // Platform-admin status is independent of shop membership; resolve it for
+      // both the provisioned and unprovisioned paths (authorization is enforced
+      // server-side by is_platform_admin() — this flag only offers the UI).
+      const isPlatformAdmin = await mod.fetchIsPlatformAdmin().catch(() => false);
       if (!memberships.length) {
-        this.setState({ profile, memberships: [], activeShopId: null, unprovisioned: true, loaded: true, authChecking: false, loadError: '' });
+        // Unprovisioned = owner-onboarding. Load the current pilot agreement to
+        // show; the user must accept it before create_shop_as_owner() will run.
+        const onboardAgreement = await mod.fetchCurrentLegalAgreement('pilot_agreement').catch(() => null);
+        this.setState({ profile, memberships: [], activeShopId: null, unprovisioned: true,
+          isPlatformAdmin, onboardAgreement, onboardAgreed: false, onboardShopName: '', onboardLocationName: '',
+          loaded: true, authChecking: false, loadError: '' });
         return;
       }
       // profiles.active_shop_id can legitimately be NULL for an invited member —
@@ -2697,11 +2842,67 @@ class Component extends DCLogic {
       } catch (rosterErr) {
         teamRosterError = (rosterErr && rosterErr.message) || 'Could not load the team roster.';
       }
-      this.setState({ profile, mechanics, jobs, shopSerialLabels, staffRoster, shop, teamRoster, teamRosterError, locations, memberships, activeShopId: effectiveShopId, unprovisioned: false, loaded: true, authChecking: false, loadError: '' }, () => {
+      this.setState({ profile, mechanics, jobs, shopSerialLabels, staffRoster, shop, teamRoster, teamRosterError, locations, memberships, activeShopId: effectiveShopId, isPlatformAdmin, unprovisioned: false, loaded: true, authChecking: false, loadError: '' }, () => {
         this.resolvePendingJob();
       });
     } catch (e) {
       this.setState({ authChecking: false, loaded: true, loadError: (e && e.message) || 'Could not reach Supabase.' });
+    }
+  };
+
+  // ---------- owner onboarding (section 25) ----------
+  setOnboardShopName = (e) => this.setState({ onboardShopName: e.target.value, onboardError: '' });
+  setOnboardLocationName = (e) => this.setState({ onboardLocationName: e.target.value, onboardError: '' });
+  toggleOnboardAgreed = () => this.setState(s => ({ onboardAgreed: !s.onboardAgreed, onboardError: '' }));
+  submitOnboarding = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const s = this.state;
+    const agreement = s.onboardAgreement;
+    if (!agreement) { this.setState({ onboardError: 'The pilot agreement could not be loaded. Refresh and try again.' }); return; }
+    if (!s.onboardAgreed) { this.setState({ onboardError: 'You must accept the pilot agreement to continue.' }); return; }
+    const shopName = (s.onboardShopName || '').trim();
+    const locationName = (s.onboardLocationName || '').trim();
+    if (!shopName) { this.setState({ onboardError: 'Enter a shop name.' }); return; }
+    if (!locationName) { this.setState({ onboardError: 'Enter a default location.' }); return; }
+    this.setState({ onboardBusy: true, onboardError: '' });
+    try {
+      // 1) Record acceptance of the canonical current pilot version.
+      await this._dataMod.acceptLegalAgreement(agreement.kind, agreement.version);
+      // 2) Atomically create shop + location + owner membership + active shop.
+      await this._dataMod.createShopAsOwner(shopName, locationName);
+      // 3) Reload so the app boots into the new shop with a clean tenant state.
+      window.location.reload();
+    } catch (err) {
+      this.setState({ onboardBusy: false, onboardError: (err && err.message) || 'Could not create your shop. Please try again.' });
+    }
+  };
+
+  // ---------- read-only platform admin (section 25) ----------
+  goPlatformAdmin = async () => {
+    this.closeNavMenu && this.closeNavMenu();
+    this.setState({ screen: 'platformAdmin', platformLoading: true, platformError: '', platformSelectedShopId: null, platformMembers: [] });
+    try {
+      const platformShops = await this._dataMod.fetchPlatformShops();
+      this.setState({ platformShops, platformLoading: false });
+    } catch (err) {
+      this.setState({ platformLoading: false, platformError: (err && err.message) || 'Could not load platform data.' });
+    }
+  };
+  leavePlatformAdmin = () => {
+    // Back to the app if the admin belongs to a shop, else back to onboarding.
+    this.setState({ screen: 'dashboard' });
+  };
+  openPlatformShop = async (shopId) => {
+    if (this.state.platformSelectedShopId === shopId) {
+      this.setState({ platformSelectedShopId: null, platformMembers: [] });
+      return;
+    }
+    this.setState({ platformSelectedShopId: shopId, platformMembersLoading: true, platformMembers: [] });
+    try {
+      const platformMembers = await this._dataMod.fetchPlatformShopMembers(shopId);
+      this.setState({ platformMembers, platformMembersLoading: false });
+    } catch (err) {
+      this.setState({ platformMembersLoading: false, platformMembers: [] });
     }
   };
 
@@ -2774,7 +2975,7 @@ class Component extends DCLogic {
     // never reuse the prior session's URLs, and drop tenant-scoped photo state.
     if (this._dataMod && this._dataMod.clearPhotoUrlCache) this._dataMod.clearPhotoUrlCache();
     try { await this._dataMod.signOut(); } catch (e) {}
-    this.setState({ screen: 'dashboard', profile: null, jobPhotos: [], serialNumbers: [], selectedJobId: null, memberships: [], unprovisioned: false, recoveryMode: false, authView: 'login' });
+    this.setState({ screen: 'dashboard', profile: null, jobPhotos: [], serialNumbers: [], selectedJobId: null, memberships: [], unprovisioned: false, recoveryMode: false, authView: 'login', isPlatformAdmin: false, platformShops: [], platformSelectedShopId: null, platformMembers: [], onboardAgreement: null, onboardAgreed: false, onboardShopName: '', onboardLocationName: '' });
   };
 
   // ---------- roster / user management (shop_owner) ----------
@@ -4486,9 +4687,60 @@ class Component extends DCLogic {
   };
 
   // ---------- render ----------
+  _fmtDate(ms) {
+    if (!ms) return '\u2014';
+    try { return new Date(ms).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }); }
+    catch (e) { return '\u2014'; }
+  }
+  // Shared read-only platform-admin display values (used by the standalone
+  // platform screen). All data comes from the whitelisted SECURITY DEFINER
+  // RPCs; nothing here queries tenant tables directly.
+  platformAdminRenderVals() {
+    const s = this.state;
+    const shops = s.platformShops || [];
+    const statusPill = (active) => 'font:700 9px \'IBM Plex Mono\',monospace;letter-spacing:.4px;padding:4px 9px;border-radius:3px;'
+      + (active ? 'background:#E3F0EC;color:#1F6F78;' : 'background:#F1E3E3;color:#C0392B;');
+    const agreementPill = (accepted) => 'font:700 9px \'IBM Plex Mono\',monospace;letter-spacing:.4px;padding:4px 9px;border-radius:3px;'
+      + (accepted ? 'background:#E3F0EC;color:#1F6F78;' : 'background:#FBF0DF;color:#B45309;');
+    return {
+      isPlatformAdminScreen: true,
+      platformShopCount: shops.length,
+      platformActiveShopCount: shops.filter(x => x.isActive).length,
+      platformLoading: s.platformLoading,
+      hasPlatformError: !!s.platformError,
+      platformErrorMessage: s.platformError,
+      noPlatformShops: !s.platformLoading && shops.length === 0,
+      platformMembersLoading: s.platformMembersLoading,
+      platformMembersDisplay: (s.platformMembers || []).map(m => ({
+        name: m.name || '\u2014',
+        email: m.email || '\u2014',
+        roleLabel: m.role === 'shop_owner' ? 'OWNER' : 'MECHANIC',
+        statusLabel: m.isActive ? 'ACTIVE' : 'INACTIVE',
+        statusStyle: statusPill(m.isActive),
+      })),
+      platformShopsDisplay: shops.map(sh => ({
+        name: sh.name || '\u2014',
+        ownerLabel: sh.ownerName ? (sh.ownerEmail ? `${sh.ownerName} (${sh.ownerEmail})` : sh.ownerName) : (sh.ownerEmail || 'None'),
+        statusLabel: sh.isActive ? 'ACTIVE' : 'INACTIVE',
+        statusStyle: statusPill(sh.isActive),
+        agreementLabel: sh.agreementStatus === 'accepted' ? 'AGREEMENT OK' : 'NO AGREEMENT',
+        agreementStyle: agreementPill(sh.agreementStatus === 'accepted'),
+        locationCount: sh.locationCount,
+        userCount: sh.userCount,
+        createdLabel: this._fmtDate(sh.createdAt),
+        lastActivityLabel: this._fmtDate(sh.lastActivityAt),
+        isOpen: s.platformSelectedShopId === sh.shopId,
+        onToggle: () => this.openPlatformShop(sh.shopId),
+      })),
+      leavePlatformAdmin: this.leavePlatformAdmin,
+      goPlatformAdmin: this.goPlatformAdmin,
+      handleSignOut: this.handleSignOut,
+    };
+  }
+
   renderVals() {
     const s = this.state;
-    const blankScreens = { navVisible: false, isDashboard: false, isIntake: false, isJobDetail: false, isRoster: false, isTag: false, isInvoice: false, isArchive: false, isAuditLog: false, showScanModal: false };
+    const blankScreens = { navVisible: false, isDashboard: false, isIntake: false, isJobDetail: false, isRoster: false, isTag: false, isInvoice: false, isArchive: false, isAuditLog: false, isPlatformAdminScreen: false, isUnprovisioned: false, showScanModal: false };
 
     if (s.authChecking) {
       return { ...blankScreens, isAuthChecking: true, isAuthScreen: false };
@@ -4542,11 +4794,35 @@ class Component extends DCLogic {
         loadErrorMessage: s.loadError || 'We couldn\u2019t load your account. Try again or sign out.',
         showAuthedErrorActions: true, retryLoad: this.retryLoad, handleSignOut: this.handleSignOut };
     }
+    if (s.screen === 'platformAdmin' && s.isPlatformAdmin) {
+      // Standalone read-only platform area, reachable whether or not the admin
+      // belongs to a shop. Server-side is_platform_admin() is the real gate.
+      return { ...blankScreens, isAuthChecking: false, isAuthScreen: false,
+        ...this.platformAdminRenderVals() };
+    }
     if (s.unprovisioned) {
+      const ag = s.onboardAgreement;
       return {
         ...blankScreens, isAuthChecking: false, isAuthScreen: false,
         isUnprovisioned: true,
         unprovisionedEmail: (s.profile && s.profile.email) || '',
+        onboardAgreementTitle: (ag && ag.title) || 'Pilot Agreement',
+        onboardAgreementBody: (ag && ag.body) || 'The pilot agreement could not be loaded. Please refresh.',
+        onboardShopName: s.onboardShopName,
+        onboardLocationName: s.onboardLocationName,
+        setOnboardShopName: this.setOnboardShopName,
+        setOnboardLocationName: this.setOnboardLocationName,
+        toggleOnboardAgreed: this.toggleOnboardAgreed,
+        onboardCheckMark: s.onboardAgreed ? '\u2713' : '',
+        onboardCheckboxStyle: 'flex:none;width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font:700 14px \'Public Sans\',sans-serif;'
+          + (s.onboardAgreed ? 'background:#1F6F78;color:#fff;border:1px solid #1F6F78;' : 'background:#fff;color:#1F6F78;border:1px solid rgba(22,40,61,.3);'),
+        hasOnboardError: !!s.onboardError,
+        onboardErrorMessage: s.onboardError,
+        onboardSubmitLabel: s.onboardBusy ? 'CREATING SHOP\u2026' : 'CREATE SHOP',
+        onboardSubmitStyle: `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:14px;border-radius:4px;cursor:pointer;border:none;background:${s.onboardBusy ? '#B9C0C4' : '#1F6F78'};color:#fff;`,
+        submitOnboarding: this.submitOnboarding,
+        isPlatformAdmin: s.isPlatformAdmin,
+        goPlatformAdmin: this.goPlatformAdmin,
         handleSignOut: this.handleSignOut,
       };
     }
@@ -5330,6 +5606,9 @@ class Component extends DCLogic {
       scanError: s.scanError,
 
       isShopOwner,
+      isPlatformAdmin: s.isPlatformAdmin,
+      goPlatformAdmin: this.goPlatformAdmin,
+      navPlatformStyleFull: navBtnFull(false),
       canEditJobDetails,
       currentUserName: s.profile ? s.profile.name : '',
       currentUserRoleLabel: s.profile ? (this.activeShopRole() === 'shop_owner' ? 'SHOP OWNER' : 'MECHANIC') : '',
