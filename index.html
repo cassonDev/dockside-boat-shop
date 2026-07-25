@@ -2696,7 +2696,6 @@ class Component extends DCLogic {
       } catch (rosterErr) {
         teamRosterError = (rosterErr && rosterErr.message) || 'Could not load the team roster.';
       }
-      console.log('[team-roster debug] boot roster', { bootIsOwner, activeShopIdFromProfile: profile.activeShopId, effectiveShopId, teamRosterCount: teamRoster.length, teamRosterError });
       this.setState({ profile, mechanics, jobs, shopSerialLabels, staffRoster, shop, teamRoster, teamRosterError, locations, memberships, activeShopId: effectiveShopId, unprovisioned: false, loaded: true, authChecking: false, loadError: '' }, () => {
         this.resolvePendingJob();
       });
