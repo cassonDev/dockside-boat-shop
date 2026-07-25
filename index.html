@@ -2867,7 +2867,33 @@ class Component extends DCLogic {
       // acceptance we reload and boot resumes their existing session. Only
       // applies when a current agreement exists and is unaccepted.
       let gateStatus = { agreement: null, accepted: true };
-      try { gateStatus = await mod.fetchAgreementGateStatus('pilot_agreement'); } catch (e) { gateStatus = { agreement: null, accepted: true }; }
+      // TEMP staging diagnostics for Section 25.5 (remove before production):
+      // set window.__SEC255_DEBUG = false in the console to silence.
+      const DEBUG_255 = (typeof window === 'undefined') || window.__SEC255_DEBUG !== false;
+      try {
+        gateStatus = await mod.fetchAgreementGateStatus('pilot_agreement');
+        if (DEBUG_255) {
+          const a = gateStatus.agreement;
+          console.info('[25.5] gate check', {
+            authProfileId: profile && profile.id,
+            gateUid: gateStatus.uid,
+            agreementId: a && a.id, kind: a && a.kind, version: a && a.version, isCurrent: a && a.isCurrent,
+            acceptanceRows: gateStatus.rows,
+            accepted: gateStatus.accepted,
+            branch: (a && !gateStatus.accepted) ? 'SHOW_GATE' : (a ? 'ALREADY_ACCEPTED' : 'NO_CURRENT_AGREEMENT'),
+          });
+        }
+      } catch (err) {
+        // FAIL CLOSED: an error verifying acceptance must NOT drop the user into
+        // the app. Show a clear agreement-loading error and stop boot.
+        if (DEBUG_255) console.error('[25.5] gate check ERROR (failing closed)', {
+          code: err && err.code, message: err && err.message, details: err && err.details, hint: err && err.hint,
+        });
+        this.setState({ profile, memberships, activeShopId: effectiveShopId, isPlatformAdmin,
+          unprovisioned: false, loaded: true, authChecking: false,
+          loadError: 'We couldn\u2019t verify your agreement acceptance. Please try again or sign out.' });
+        return;
+      }
       if (gateStatus.agreement && !gateStatus.accepted) {
         this.setState({ profile, memberships, activeShopId: effectiveShopId, isPlatformAdmin,
           unprovisioned: false, agreementGate: true, gateAgreement: gateStatus.agreement,
