@@ -1288,14 +1288,25 @@ export async function createShopAsOwner(shopName, locationName) {
 // so a newer published version flips `accepted` back to false and re-gates.
 export async function fetchAgreementGateStatus(kind = 'pilot_agreement') {
   const agreement = await fetchCurrentLegalAgreement(kind);
-  if (!agreement) return { agreement: null, accepted: true }; // nothing to gate on
+  if (!agreement) return { agreement: null, accepted: true, rows: [], uid: null }; // nothing to gate on
+  // Resolve the CURRENT user from the authenticated session (auth.uid()), and
+  // scope the acceptance lookup to that user explicitly. This is required for
+  // correctness, not just tidiness: the legal_acceptances self-read RLS is
+  // `profile_id = auth.uid() OR is_platform_admin()`, so a PLATFORM ADMIN would
+  // otherwise read EVERY user's acceptance rows and a single other user's
+  // acceptance of the current version would make `accepted` wrongly true —
+  // hiding the gate. Filtering by the caller's own id makes the check per-user.
+  const { data: sess } = await supabase.auth.getSession();
+  const uid = sess && sess.session && sess.session.user && sess.session.user.id;
+  if (!uid) throw new Error('No authenticated user for agreement check');
   const { data, error } = await supabase
     .from('legal_acceptances')
-    .select('id')
+    .select('id, profile_id, agreement_id, version')
     .eq('agreement_id', agreement.id)
+    .eq('profile_id', uid)
     .limit(1);
   if (error) throw error;
-  return { agreement, accepted: (data || []).length > 0 };
+  return { agreement, accepted: (data || []).length > 0, rows: data || [], uid };
 }
 
 // ===========================================================================
