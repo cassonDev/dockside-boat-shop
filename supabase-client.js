@@ -1279,6 +1279,36 @@ export async function createShopAsOwner(shopName, locationName) {
   return data; // new shop id
 }
 
+// Section 25.5 — existing-user agreement gate. Read-only: returns the current
+// agreement of a kind and whether the CURRENT authenticated user has already
+// accepted THAT version. Identity is resolved server-side (RLS on
+// legal_acceptances only exposes the caller's own rows via profile_id =
+// auth.uid()); no profile id is sent from the client. `accepted` is true only
+// when a current agreement exists AND the caller has an acceptance row for it,
+// so a newer published version flips `accepted` back to false and re-gates.
+export async function fetchAgreementGateStatus(kind = 'pilot_agreement') {
+  const agreement = await fetchCurrentLegalAgreement(kind);
+  if (!agreement) return { agreement: null, accepted: true, rows: [], uid: null }; // nothing to gate on
+  // Resolve the CURRENT user from the authenticated session (auth.uid()), and
+  // scope the acceptance lookup to that user explicitly. This is required for
+  // correctness, not just tidiness: the legal_acceptances self-read RLS is
+  // `profile_id = auth.uid() OR is_platform_admin()`, so a PLATFORM ADMIN would
+  // otherwise read EVERY user's acceptance rows and a single other user's
+  // acceptance of the current version would make `accepted` wrongly true —
+  // hiding the gate. Filtering by the caller's own id makes the check per-user.
+  const { data: sess } = await supabase.auth.getSession();
+  const uid = sess && sess.session && sess.session.user && sess.session.user.id;
+  if (!uid) throw new Error('No authenticated user for agreement check');
+  const { data, error } = await supabase
+    .from('legal_acceptances')
+    .select('id, profile_id, agreement_id, version')
+    .eq('agreement_id', agreement.id)
+    .eq('profile_id', uid)
+    .limit(1);
+  if (error) throw error;
+  return { agreement, accepted: (data || []).length > 0, rows: data || [], uid };
+}
+
 // ===========================================================================
 // Read-only platform administration (schema section 25)
 //   All three reads are SECURITY DEFINER functions gated by is_platform_admin()

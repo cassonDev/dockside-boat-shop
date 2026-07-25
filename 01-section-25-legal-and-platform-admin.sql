@@ -147,6 +147,12 @@ grant select on public.legal_agreements to authenticated;
 drop policy if exists "legal_acceptances: self or admin read" on public.legal_acceptances;
 create policy "legal_acceptances: self or admin read" on public.legal_acceptances
   for select using (profile_id = auth.uid() or public.is_platform_admin());
+-- Table-level SELECT grant so the self-read policy above is reachable (RLS only
+-- narrows an existing privilege; without the grant, a signed-in user's SELECT
+-- raises permission-denied → PostgREST 403, not an empty result). Read-only:
+-- NO insert/update/delete grant, so acceptances still cannot be written directly
+-- from the client — only accept_legal_agreement()/create path (SECURITY DEFINER).
+grant select on public.legal_acceptances to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 25D. Seed the current pilot agreement (idempotent). The text below is the
