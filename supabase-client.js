@@ -999,6 +999,21 @@ export async function inviteMechanic(email, fullName) {
 export async function setUserActive(userId, active) {
   return callManageUsers('set_active', { userId, active });
 }
+// Shop-level enable/disable: flips shop_memberships.is_active for ONE member in
+// ONE shop, via the set_membership_active() SECURITY DEFINER RPC (section-23).
+// The RPC derives the shop from current_user_shop_id(), requires the caller be
+// an owner of that shop, protects the last active owner, and writes ONLY
+// is_active — never profiles.active. No shop_id param, so it can't be pointed
+// at another tenant. (Direct table UPDATE is intentionally NOT used: staging has
+// no owner UPDATE policy on shop_memberships, so it would be RLS-blocked.)
+export async function setMembershipActive({ profileId, active }) {
+  const { data, error } = await supabase.rpc('set_membership_active', {
+    p_profile_id: profileId,
+    p_active: active,
+  });
+  if (error) throw error;
+  return data;
+}
 export async function setUserRole(userId, role) {
   return callManageUsers('set_role', { userId, role });
 }

@@ -2776,14 +2776,23 @@ class Component extends DCLogic {
       this.setState({ teamRosterError: (e && e.message) || 'Could not reload the team roster.' });
     }
   };
-  toggleMechanicActive = async (mech) => {
+  // Shop-level disable/reactivate: flips shop_memberships.is_active for the
+  // member in the CURRENT shop only. Deliberately NOT profiles.active — staff
+  // status is tenant-scoped, so the owner roster and get_team_roster() stay
+  // consistent. Owner-only (enforced by RLS); scoped to activeShopId.
+  toggleMemberActive = async (profileId, makeActive) => {
+    const shopId = this.state.activeShopId;
+    if (!profileId || !shopId) return;
     try {
-      await this._dataMod.setUserActive(mech.id, !mech.active);
-      const flip = (list) => (list || []).map(m => m.id === mech.id ? { ...m, active: !mech.active } : m);
-      this.setState({ mechanics: flip(this.state.mechanics), staffRoster: flip(this.state.staffRoster) });
+      await this._dataMod.setMembershipActive({ profileId, active: makeActive });
+      this.setState(st => ({
+        teamRoster: (st.teamRoster || []).map(m => m.profileId === profileId ? { ...m, isActive: makeActive } : m),
+        teamRosterError: '',
+      }));
       this.reloadTeamRoster();
     } catch (e) {
-      console.error('Failed to toggle mechanic access', e);
+      console.error('Failed to change staff shop access', e);
+      this.setState({ teamRosterError: (e && e.message) || 'Could not update staff status.' });
     }
   };
 
@@ -4808,6 +4817,11 @@ class Component extends DCLogic {
       ? (((s.locations || []).find(x => x.id === profileRosterEntry.defaultLocationId) || {}).name || '')
       : '';
     const isOwnProfile = !!(profileMech && s.profile && profileMech.id === s.profile.id);
+    // Staff status shown on the profile derives from membership activity in the
+    // CURRENT shop (consistent with the roster), not profiles.active.
+    const profileMemberActive = profileRosterEntry
+      ? (profileRosterEntry.isActive !== false)
+      : (profileMech ? profileMech.active !== false : true);
     const canEditAvailability = isShopOwner || isOwnProfile;
     const ROLE_DESCRIPTIONS = {
       mechanic: 'Can access and work with all jobs in this shop, including customer details, activity, photos, assignments, statuses, and Customer Preview. Cannot manage staff, roles, shop configuration, or account administration.',
@@ -5091,9 +5105,10 @@ class Component extends DCLogic {
     const teamMembers = (s.teamRoster || []).map(mem => {
       const p = liveProfile(mem.profileId);
       const prof = p || mem.profile || {};
-      const accountActive = prof.active !== false;   // profiles.active (account-level)
-      const memberActive = mem.isActive !== false;   // shop_memberships.is_active (tenant-level)
-      const status = (!memberActive || !accountActive) ? 'inactive' : 'active';
+      // Staff status is the TENANT flag (shop_memberships.is_active), NOT the
+      // account flag (profiles.active) — keeps owner + RPC views consistent.
+      const memberActive = mem.isActive !== false;
+      const status = memberActive ? 'active' : 'inactive';
       const location = locName(mem.defaultLocationId);
       return {
         profileId: mem.profileId,
@@ -5106,9 +5121,8 @@ class Component extends DCLogic {
         shopName: teamShopName,
         hasLocation: !!location,
         locationLabel: location || 'No location assigned',
-        accountActive,
+        memberActive,
         isSelf: !!(s.profile && s.profile.id === mem.profileId),
-        _live: p,
       };
     }).sort((a, b) => {
       if ((a.role === 'shop_owner') !== (b.role === 'shop_owner')) return a.role === 'shop_owner' ? -1 : 1;
@@ -5138,16 +5152,16 @@ class Component extends DCLogic {
     const teamDisplay = teamMembers
       .filter(m => teamFilter === 'all' ? true : m.status === teamFilter)
       .map(m => {
-        const isLastOwner = m.role === 'shop_owner' && m.accountActive && teamActiveOwnerCount <= 1;
+        const isLastOwner = m.role === 'shop_owner' && m.memberActive && teamActiveOwnerCount <= 1;
         return {
           ...m,
           statusPillStyle: teamStatusPill(m.status),
           locationLabelStyle: `font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,${m.hasLocation ? '.5' : '.38'});font-style:${m.hasLocation ? 'normal' : 'italic'};margin-top:1px;`,
           onOpenProfile: () => this.goMechanicProfile(m.profileId),
-          showOwnerControls: isShopOwner && !m.isSelf && !!m._live && !isLastOwner,
-          disableButtonStyle: `font:700 10px 'IBM Plex Mono',monospace;padding:7px 11px;border-radius:4px;cursor:pointer;background:${m.accountActive ? '#FBEAEA' : '#EFF6F5'};color:${m.accountActive ? '#C0392B' : '#1F6F78'};`,
-          disableButtonLabel: m.accountActive ? 'DISABLE' : 'REACTIVATE',
-          onToggleActive: (e) => { e && e.stopPropagation && e.stopPropagation(); if (m._live) this.toggleMechanicActive(m._live); },
+          showOwnerControls: isShopOwner && !m.isSelf && !isLastOwner,
+          disableButtonStyle: `font:700 10px 'IBM Plex Mono',monospace;padding:7px 11px;border-radius:4px;cursor:pointer;background:${m.memberActive ? '#FBEAEA' : '#EFF6F5'};color:${m.memberActive ? '#C0392B' : '#1F6F78'};`,
+          disableButtonLabel: m.memberActive ? 'DISABLE' : 'REACTIVATE',
+          onToggleActive: (e) => { e && e.stopPropagation && e.stopPropagation(); this.toggleMemberActive(m.profileId, !m.memberActive); },
         };
       });
     const noTeam = teamDisplay.length === 0 && !s.teamRosterError;
@@ -5570,8 +5584,8 @@ class Component extends DCLogic {
       profileMech: profileMech || {},
       profileMechInitials: profileMech ? profileMech.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase() : '',
       profileMechRoleLabel: profileMech ? (profileMech.role === 'shop_owner' ? 'SHOP OWNER' : 'MECHANIC') : '',
-      profileMechActiveLabel: profileMech && profileMech.active ? 'Active' : 'Disabled',
-      profileMechActiveDotStyle: `width:9px;height:9px;border-radius:50%;background:${profileMech && profileMech.active ? '#1F6F78' : '#C0392B'};`,
+      profileMechActiveLabel: profileMemberActive ? 'Active' : 'Inactive',
+      profileMechActiveDotStyle: `width:9px;height:9px;border-radius:50%;background:${profileMemberActive ? '#1F6F78' : '#C0392B'};`,
       profileRoleDescription: profileMech ? (ROLE_DESCRIPTIONS[profileMech.role] || '') : '',
       backToRoster: this.backToRoster,
       canEditAvailability,
@@ -5597,7 +5611,7 @@ class Component extends DCLogic {
       canManageRole: isShopOwner && !!profileMech,
       hasManageRoleDraftDescription: !!(s.manageRoleDraft && ROLE_DESCRIPTIONS[s.manageRoleDraft]),
       manageRoleDraftDescription: ROLE_DESCRIPTIONS[s.manageRoleDraft] || '',
-      profileMechDisabled: !!(profileMech && !profileMech.active),
+      profileMechDisabled: !!(profileMech && !profileMemberActive),
       manageRoleOptions,
       manageRoleCurrentLabel: profileMech ? this.roleLabel(profileMech.role) : '',
       isLastActiveOwner: isTargetLastActiveOwner,
