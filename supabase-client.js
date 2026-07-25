@@ -1177,7 +1177,8 @@ export async function fetchShopMembers(shopId, { includeInactive = false } = {})
   let q = supabase.from('shop_memberships').select('*, profiles(*)').eq('shop_id', shopId);
   if (!includeInactive) q = q.eq('is_active', true);
   const { data, error } = await q;
-  if (error) throw error;
+  if (error) { console.error('[team-roster debug] fetchShopMembers ERROR', { shopId, includeInactive, error }); throw error; }
+  console.log('[team-roster debug] fetchShopMembers', { shopId, includeInactive, rowCount: (data || []).length, rawRows: data });
   return (data || []).map(r => ({ ...membershipFromRow(r), profile: r.profiles ? profileFromRow(r.profiles) : null }));
 }
 
