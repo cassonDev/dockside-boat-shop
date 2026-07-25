@@ -104,9 +104,9 @@ export async function fetchMyProfile() {
   const { data: sessionData } = await supabase.auth.getSession();
   const user = sessionData.session && sessionData.session.user;
   if (!user) return null;
-  const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
   if (error) throw error;
-  return profileFromRow(data);
+  return data ? profileFromRow(data) : null;
 }
 
 // ---------- mappers: db row (snake_case) <-> app shape (camelCase) ----------
