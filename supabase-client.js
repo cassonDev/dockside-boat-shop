@@ -1184,6 +1184,27 @@ export async function fetchShopMembers(shopId, { includeInactive = false } = {})
   return (data || []).map(r => ({ ...membershipFromRow(r), profile: r.profiles ? profileFromRow(r.profiles) : null }));
 }
 
+// Owner team roster. Backed by the get_shop_roster_admin() SECURITY DEFINER
+// function (section-24), owner-gated and RLS-independent — the owner reading
+// shop_memberships DIRECTLY under RLS returns only their own row in production
+// (the is_shop_owner(shop_id) branch of the SELECT policy isn't granting).
+// Returns ALL members (active + inactive) so the Inactive filter / reactivate
+// keep working. Shaped to match fetchShopMembers() so the roster UI is
+// source-agnostic. Non-owners get zero rows from the function.
+export async function fetchShopRosterAdmin() {
+  const { data, error } = await supabase.rpc('get_shop_roster_admin');
+  if (error) throw error;
+  return (data || []).map(r => ({
+    id: r.profile_id,
+    profileId: r.profile_id,
+    role: r.role,
+    isActive: r.is_active !== false,
+    defaultLocationId: r.default_location_id || null,
+    shop: null,
+    profile: { id: r.profile_id, name: r.full_name || '', email: r.email || '', role: r.role, active: r.is_active !== false },
+  }));
+}
+
 // Non-owner (mechanic) team-directory read. Backed by the get_team_roster()
 // SECURITY DEFINER function (section-22), which returns ONLY the whitelisted
 // roster columns for the caller's current shop and ACTIVE coworkers — no
