@@ -1138,7 +1138,10 @@ export async function updateShop(shopId, patch) {
 export async function fetchLocations(shopId) {
   let q = supabase.from('shop_locations').select('*').eq('is_active', true);
   if (shopId) q = q.eq('shop_id', shopId);
-  const { data, error } = await q.order('is_primary', { ascending: false }).order('name');
+  // NOTE: do NOT order by is_primary — that column is not in the live schema
+  // (schema drift, see SCHEMA-RECONCILIATION.md), and ordering by it returns
+  // HTTP 400. Order by name only.
+  const { data, error } = await q.order('name');
   if (error) throw error;
   return (data || []).map(locationFromRow);
 }
