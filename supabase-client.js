@@ -1,5 +1,8 @@
 // Supabase connection + data + auth access for the Dockside job tracker.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// Shared role/mechanic-capability predicates (single source of truth; also
+// covered by tests/roles.test.mjs). Mirrors section-26 SQL.
+import { isAssignableMechanic } from './roles.js';
 
 // Config comes from window.__SUPABASE_CONFIG__, which is generated at BUILD
 // TIME (see scripts/generate-config.js + netlify.toml) from the Netlify
@@ -200,13 +203,41 @@ function commentFromRow(row) {
 }
 
 // ---------- reads ----------
-// "mechanics" for the roster/filters/assignment UI = active profiles with role='mechanic'.
-// shop_owner accounts are excluded from the assignable-mechanic list but the
-// shop_owner themself can still see everything via the work_orders queries below.
+// One row of the assignable-mechanic set (get_assignable_mechanics RPC) mapped
+// to the app's mechanic shape. email/phone are intentionally absent — the
+// assignable list is availability + identity only; the owner-authorized
+// staffRoster (fetchStaffRoster) supplies contact fields for the profile page.
+function assignableMechanicFromRow(r) {
+  return {
+    id: r.profile_id,
+    name: r.full_name || '',
+    email: '',
+    phone: '',
+    role: r.role,
+    actsAsMechanic: r.acts_as_mechanic === true,
+    active: true, // the RPC returns active members only
+    outOfOffice: !!r.out_of_office,
+    availabilityStatus: r.availability_status || 'available',
+    oooStart: r.out_of_office_start || '',
+    oooEnd: r.out_of_office_end || '',
+    availabilityNote: r.availability_note || '',
+    defaultLocationId: r.default_location_id || null,
+  };
+}
+
+// "mechanics" = the assignable set for the caller's active shop: active members
+// whose membership role is 'mechanic' OR who are a shop_owner that has opted
+// into mechanic work (acts_as_mechanic). Backed by the get_assignable_mechanics
+// SECURITY DEFINER RPC (section-26) so EVERY active member — owner or mechanic —
+// sees the same assignable list (a plain profiles read only returns the
+// caller's own row for a non-owner under RLS). This is what makes an
+// opted-in owner appear in every assignment picker, filter, and schedule.
 export async function fetchMechanics() {
-  const { data, error } = await supabase.from('profiles').select('*').eq('role', 'mechanic').order('full_name');
+  const { data, error } = await supabase.rpc('get_assignable_mechanics');
   if (error) throw error;
-  return (data || []).map(profileFromRow);
+  // isAssignableMechanic is a redundant client-side guard; the RPC already
+  // filters, but this keeps the frontend contract explicit and test-covered.
+  return (data || []).map(assignableMechanicFromRow).filter(isAssignableMechanic);
 }
 
 // Every staff profile regardless of role — used for the Mechanic Profile
@@ -1014,6 +1045,20 @@ export async function setMembershipActive({ profileId, active }) {
   if (error) throw error;
   return data;
 }
+
+// Owner-as-mechanic toggle. Enables/disables acts_as_mechanic on an OWNER
+// membership in the caller's active shop, via the set_owner_mechanic_status()
+// SECURITY DEFINER RPC (section-26). Owner-only, shop derived server-side (no
+// shop_id param), writes ONLY acts_as_mechanic \u2014 never role or is_active. When
+// enabled, that owner immediately appears in the assignable-mechanic list.
+export async function setOwnerMechanicStatus({ profileId, enabled }) {
+  const { data, error } = await supabase.rpc('set_owner_mechanic_status', {
+    p_profile_id: profileId,
+    p_enabled: !!enabled,
+  });
+  if (error) throw error;
+  return data;
+}
 export async function setUserRole(userId, role) {
   return callManageUsers('set_role', { userId, role });
 }
@@ -1081,6 +1126,7 @@ function locationFromRow(r) {
 function membershipFromRow(r) {
   return {
     id: r.id, profileId: r.profile_id, shopId: r.shop_id, role: r.role,
+    actsAsMechanic: r.acts_as_mechanic === true,
     isActive: r.is_active !== false, defaultLocationId: r.default_location_id || null,
     shop: r.shops ? shopFromRow(r.shops) : null,
   };
@@ -1198,6 +1244,7 @@ export async function fetchShopRosterAdmin() {
     id: r.profile_id,
     profileId: r.profile_id,
     role: r.role,
+    actsAsMechanic: r.acts_as_mechanic === true,
     isActive: r.is_active !== false,
     defaultLocationId: r.default_location_id || null,
     shop: null,
@@ -1218,6 +1265,7 @@ export async function fetchTeamRosterLimited() {
     id: r.profile_id,
     profileId: r.profile_id,
     role: r.role,
+    actsAsMechanic: r.acts_as_mechanic === true,
     isActive: r.is_active !== false,
     defaultLocationId: r.default_location_id || null,
     shop: null,

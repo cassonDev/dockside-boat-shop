@@ -987,6 +987,17 @@
       <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.5px;margin-bottom:8px;">ROLE &amp; PERMISSIONS</div>
       <div style="font:700 14px 'Public Sans',sans-serif;color:#16283D;">{{ profileMechRoleLabel }}</div>
       <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);line-height:1.5;margin-top:4px;">{{ profileRoleDescription }}</div>
+      <sc-if value="{{ ownerMechToggleVisible }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(22,40,61,.1);">
+        <div style="min-width:0;">
+          <div style="font:700 13px 'Public Sans',sans-serif;color:#16283D;">Also works as a mechanic</div>
+          <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);line-height:1.4;margin-top:2px;">Keeps full owner access and adds this owner to mechanic assignment, filters, and schedules. {{ ownerMechStatusLabel }}.</div>
+        </div>
+        <div style="{{ ownerMechTrackStyle }}" onClick="{{ onToggleOwnerMech }}">
+          <div style="{{ ownerMechKnobStyle }}"></div>
+        </div>
+      </div>
+      </sc-if>
     </div>
 
     <sc-if value="{{ profileIsLimited }}" hint-placeholder-val="{{ false }}">
@@ -2374,6 +2385,7 @@ class Component extends DCLogic {
     manageRoleSaving: false,
     manageRoleError: '',
     manageRoleSuccess: '',
+    ownerMechBusy: false,   // owner-as-mechanic toggle in flight
     showRoleConfirm: false,
     availabilityDraft: null,
     availabilitySaving: false,
@@ -4644,6 +4656,35 @@ class Component extends DCLogic {
     return active ? active.role : null;
   }
   isShopOwner() { return this.activeShopRole() === 'shop_owner'; }
+  activeMembership() {
+    const s = this.state;
+    return (s.memberships || []).find(m => m.shopId === s.activeShopId) || null;
+  }
+  // Mechanic-capable = a mechanic, OR a shop owner who has opted into mechanic
+  // work (acts_as_mechanic). Such an identity reaches the mechanic-specific
+  // screens/actions and is assignable, WITHOUT losing any owner/admin access.
+  isMechanicCapable() {
+    const m = this.activeMembership();
+    return !!m && (m.role === 'mechanic' || (m.role === 'shop_owner' && m.actsAsMechanic === true));
+  }
+  // Owner-only: enable/disable an owner's mechanic capability, then refresh the
+  // assignable list, the roster, and the caller's own membership so every UI
+  // state (pickers, filters, labels, capability gating) reflects the change.
+  toggleOwnerMech = async (profileId, enabled) => {
+    if (this.state.ownerMechBusy) return;
+    this.setState({ ownerMechBusy: true, manageRoleError: '' });
+    try {
+      await this._dataMod.setOwnerMechanicStatus({ profileId, enabled });
+      const [mechanics, memberships] = await Promise.all([
+        this._dataMod.fetchMechanics(),
+        this._dataMod.fetchMyMemberships(),
+      ]);
+      this.setState({ mechanics, memberships, ownerMechBusy: false });
+      this.reloadTeamRoster();
+    } catch (e) {
+      this.setState({ ownerMechBusy: false, manageRoleError: (e && e.message) || 'Could not update mechanic status.' });
+    }
+  };
   // Two-role model: every non-owner is a mechanic. Mechanics are full shop
   // staff — they work with ALL jobs in the shop; only account administration
   // (staff, roles, Shop Config, Audit Log) is shop_owner-only.
@@ -5278,6 +5319,17 @@ class Component extends DCLogic {
       ? (profileRosterEntry.isActive !== false)
       : (profileMech ? profileMech.active !== false : true);
     const canEditAvailability = isShopOwner || isOwnProfile;
+    // Owner-as-mechanic capability for the profile being VIEWED (from the
+    // roster, which carries acts_as_mechanic). The toggle is owner-only and
+    // only meaningful for an owner membership.
+    const viewedActsAsMechanic = !!(profileRosterEntry && profileRosterEntry.actsAsMechanic);
+    const ownerMechToggleVisible = !!(isShopOwner && profileMech && profileMech.role === 'shop_owner');
+    const ownerMechEnabled = viewedActsAsMechanic;
+    const ownerMechInFlight = !!s.ownerMechBusy;
+    const ownerMechTrackStyle = `width:42px;height:24px;border-radius:12px;cursor:${ownerMechInFlight ? 'wait' : 'pointer'};flex:none;background:${ownerMechEnabled ? '#1F6F78' : 'rgba(22,40,61,.25)'};position:relative;opacity:${ownerMechInFlight ? '.6' : '1'};`;
+    const ownerMechKnobStyle = `position:absolute;top:3px;left:${ownerMechEnabled ? '21px' : '3px'};width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);`;
+    const ownerMechStatusLabel = ownerMechEnabled ? 'Currently enabled' : 'Currently disabled';
+    const onToggleOwnerMech = ownerMechInFlight ? () => {} : () => this.toggleOwnerMech(profileMech.id, !ownerMechEnabled);
     const ROLE_DESCRIPTIONS = {
       mechanic: 'Can access and work with all jobs in this shop, including customer details, activity, photos, assignments, statuses, and Customer Preview. Cannot manage staff, roles, shop configuration, or account administration.',
       shop_owner: 'Has full shop access, including all job functions, staff management, role changes, Shop Config, and Audit Log access.',
@@ -5578,7 +5630,8 @@ class Component extends DCLogic {
         name: prof.name || prof.email || 'Unknown',
         email: prof.email || '',
         role: mem.role,                              // membership role = authoritative
-        roleLabel: mem.role === 'shop_owner' ? 'Shop Owner' : 'Mechanic',
+        actsAsMechanic: mem.actsAsMechanic === true,
+        roleLabel: mem.role === 'shop_owner' ? (mem.actsAsMechanic === true ? 'Owner \u00b7 Mechanic' : 'Shop Owner') : 'Mechanic',
         status,
         statusLabel: status === 'active' ? 'ACTIVE' : 'INACTIVE',
         shopName: teamShopName,
@@ -5631,7 +5684,7 @@ class Component extends DCLogic {
 
     const configTeamDisplay = teamMembers.map(m => ({
       name: m.name, email: m.email || '',
-      roleLabel: m.role === 'shop_owner' ? 'OWNER' : 'MECHANIC',
+      roleLabel: m.role === 'shop_owner' ? (m.actsAsMechanic ? 'OWNER \u00b7 MECH' : 'OWNER') : 'MECHANIC',
       roleBadgeStyle: `font:700 8px 'IBM Plex Mono',monospace;letter-spacing:.5px;padding:4px 8px;border-radius:2px;flex:none;background:${m.role === 'shop_owner' ? '#16283D' : '#EAF3F1'};color:${m.role === 'shop_owner' ? '#fff' : '#1F6F78'};`,
       statusLabel: m.statusLabel,
       statusBadgeStyle: `font:700 8px 'IBM Plex Mono',monospace;letter-spacing:.5px;padding:4px 8px;border-radius:2px;flex:none;background:${m.status === 'active' ? '#EAF3F1' : '#FBEAEA'};color:${m.status === 'active' ? '#16A34A' : '#C0392B'};`,
@@ -6064,10 +6117,16 @@ class Component extends DCLogic {
 
       profileMech: profileMech || {},
       profileMechInitials: profileMech ? profileMech.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase() : '',
-      profileMechRoleLabel: profileMech ? (profileMech.role === 'shop_owner' ? 'SHOP OWNER' : 'MECHANIC') : '',
+      profileMechRoleLabel: profileMech ? (profileMech.role === 'shop_owner' ? (viewedActsAsMechanic ? 'OWNER \u00b7 MECHANIC' : 'SHOP OWNER') : 'MECHANIC') : '',
+      ownerMechToggleVisible,
+      ownerMechEnabled,
+      ownerMechTrackStyle,
+      ownerMechKnobStyle,
+      ownerMechStatusLabel,
+      onToggleOwnerMech,
       profileMechActiveLabel: profileMemberActive ? 'Active' : 'Inactive',
       profileMechActiveDotStyle: `width:9px;height:9px;border-radius:50%;background:${profileMemberActive ? '#1F6F78' : '#C0392B'};`,
-      profileRoleDescription: profileMech ? (ROLE_DESCRIPTIONS[profileMech.role] || '') : '',
+      profileRoleDescription: profileMech ? ((ROLE_DESCRIPTIONS[profileMech.role] || '') + (viewedActsAsMechanic ? ' Also works as a mechanic \u2014 assignable to jobs and shown wherever mechanics are selected.' : '')) : '',
       backToRoster: this.backToRoster,
       canEditAvailability,
       isOwnProfile,
