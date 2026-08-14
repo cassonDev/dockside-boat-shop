@@ -151,6 +151,9 @@ grant execute on function public.set_owner_mechanic_status(uuid, boolean) to aut
 
 -- 4) Roster functions re-created to surface acts_as_mechanic -----------------
 --    (owner roster: all members incl. inactive; mechanic roster: active only)
+--    Their return type (OUT columns) changes, so CREATE OR REPLACE is not
+--    allowed by Postgres — drop first, then create.
+drop function if exists public.get_shop_roster_admin();
 create or replace function public.get_shop_roster_admin()
 returns table (
   profile_id          uuid,
@@ -183,6 +186,7 @@ revoke all on function public.get_shop_roster_admin() from public;
 revoke all on function public.get_shop_roster_admin() from anon;
 grant execute on function public.get_shop_roster_admin() to authenticated;
 
+drop function if exists public.get_team_roster();
 create or replace function public.get_team_roster()
 returns table (
   profile_id          uuid,

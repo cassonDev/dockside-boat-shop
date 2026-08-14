@@ -17,6 +17,8 @@ drop function if exists public.get_assignable_mechanics();
 drop function if exists public.set_owner_mechanic_status(uuid, boolean);
 
 -- Restore get_shop_roster_admin() to its section-24 signature (no acts_as_mechanic).
+-- Return type changes, so drop before create.
+drop function if exists public.get_shop_roster_admin();
 create or replace function public.get_shop_roster_admin()
 returns table (
   profile_id          uuid,
@@ -43,6 +45,8 @@ revoke all on function public.get_shop_roster_admin() from anon;
 grant execute on function public.get_shop_roster_admin() to authenticated;
 
 -- Restore get_team_roster() to its section-22 signature (no acts_as_mechanic).
+-- Return type changes, so drop before create.
+drop function if exists public.get_team_roster();
 create or replace function public.get_team_roster()
 returns table (
   profile_id          uuid,
