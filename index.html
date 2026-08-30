@@ -501,6 +501,16 @@
           <div style="background:#D97706;color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:11px;border-radius:4px;cursor:pointer;width:fit-content;" onClick="{{ openSerialScan }}">&#128247; SCAN SERIAL NUMBER</div>
         </div>
         </sc-if>
+        <!-- Section 27: default OFF, so the placeholder is false. -->
+        <sc-if value="{{ featureDocumentTranscription }}" hint-placeholder-val="{{ false }}">
+        <div class="no-print" style="padding:0 20px 14px;">
+          <div style="border-top:1px solid rgba(22,40,61,.1);padding-top:14px;">
+            <div style="font:800 12px 'Archivo',sans-serif;color:#16283D;letter-spacing:.4px;margin-bottom:2px;">DOCUMENT TO COMMENTS</div>
+            <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);margin-bottom:10px;text-wrap:pretty;">Photograph a handwritten or printed document and turn it into reviewed notes on this job.</div>
+            <div style="background:#1F6F78;color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:0 18px;border-radius:4px;cursor:pointer;width:fit-content;min-height:44px;display:flex;align-items:center;" onClick="{{ openDocCapture }}">ADD A DOCUMENT</div>
+          </div>
+        </div>
+        </sc-if>
       </div>
     </div>
 
@@ -524,6 +534,23 @@
         </sc-for>
       </div>
       <div style="padding:12px 20px 18px;">
+        <!-- Section 27 (5D): document pages grouped by capture. Staff only by
+             TYPE — these never appear in a customer or printed list. -->
+        <sc-if value="{{ hasDocumentCaptureGroups }}" hint-placeholder-val="{{ false }}">
+          <sc-for list="{{ documentCaptureGroups }}" as="grp" hint-placeholder-count="0">
+            <div style="border:1px solid rgba(22,40,61,.12);border-radius:6px;padding:10px;margin-bottom:10px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <div style="font:700 10px 'IBM Plex Mono',monospace;color:#1F6F78;background:#EFF6F5;padding:3px 7px;border-radius:3px;">DOCUMENT</div>
+                <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">{{ grp.pageCountLabel }} &middot; staff only</div>
+              </div>
+              <div style="display:flex;gap:8px;overflow-x:auto;">
+                <sc-for list="{{ grp.pages }}" as="pg" hint-placeholder-count="2">
+                  <img src="{{ pg.thumbUrl }}" loading="lazy" style="width:64px;height:64px;object-fit:cover;border-radius:4px;background:#EDE6D6;cursor:pointer;" onClick="{{ pg.open }}"/>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </sc-if>
         <sc-if value="{{ hasJobPhotos }}" hint-placeholder-val="{{ false }}">
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;">
           <sc-for list="{{ jobPhotosDisplay }}" as="photo" hint-placeholder-count="4">
@@ -756,6 +783,21 @@
                         <sc-for list="{{ act.photos }}" as="p" hint-placeholder-count="0">
                           <img src="{{ p.thumbUrl }}" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1px solid rgba(22,40,61,.15);cursor:pointer;" onClick="{{ p.onOpen }}"/>
                         </sc-for>
+                      </div>
+                    </sc-if>
+
+                    <!-- Section 27 (5D): staff-only source pages of a document
+                         transcription. The shared AI-GENERATED badge above is
+                         unchanged and still reads the row's own flag. -->
+                    <sc-if value="{{ act.hasDocumentPages }}" hint-placeholder-val="{{ false }}">
+                      <div class="no-print" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+                        <sc-for list="{{ act.documentPages }}" as="dp" hint-placeholder-count="1">
+                          <div style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;" onClick="{{ dp.open }}">
+                            <img src="{{ dp.thumbUrl }}" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:3px;background:#EDE6D6;"/>
+                            <div style="font:700 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);">{{ dp.label }}</div>
+                          </div>
+                        </sc-for>
+                        <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);align-self:center;">STAFF ONLY</div>
                       </div>
                     </sc-if>
 
@@ -2162,6 +2204,327 @@
   </div>
   </sc-if>
 
+  <!-- ============ DOCUMENT CAPTURE / READING / REVIEW (Section 27) ============ -->
+  <sc-if value="{{ showDocCapture }}" hint-placeholder-val="{{ false }}">
+  <div class="no-print" style="position:fixed;inset:0;background:rgba(22,40,61,.7);display:flex;align-items:flex-end;justify-content:center;z-index:300;">
+    <div style="background:#fff;border-radius:10px 10px 0 0;width:100%;max-width:520px;max-height:92vh;overflow:auto;padding-bottom:env(safe-area-inset-bottom);">
+      <div style="background:#16283D;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;">
+        <div style="font:800 14px 'Archivo',sans-serif;color:#fff;">DOCUMENT PAGES</div>
+        <div style="color:#8FBFAE;font:700 22px 'Public Sans',sans-serif;cursor:pointer;min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;" onClick="{{ closeDocCapture }}">&times;</div>
+      </div>
+
+      <div style="padding:14px 18px;display:flex;flex-direction:column;gap:12px;">
+        <sc-if value="{{ docCaptureBusy }}" hint-placeholder-val="{{ false }}">
+          <div style="font:600 12px 'IBM Plex Mono',monospace;color:#1F6F78;">{{ docCaptureProcessingLabel }}</div>
+        </sc-if>
+        <sc-if value="{{ hasDocCaptureError }}" hint-placeholder-val="{{ false }}">
+          <div style="font:600 12px 'Public Sans',sans-serif;background:#FBEAEA;border:1px solid #C0463C;color:#8A2D26;padding:9px 11px;border-radius:4px;">{{ docCaptureError }}</div>
+        </sc-if>
+        <sc-if value="{{ hasDocReviewBlocked }}" hint-placeholder-val="{{ false }}">
+          <div style="font:600 12px 'Public Sans',sans-serif;background:#FBF6E8;border:1px solid #B08A2E;color:#8A6A1E;padding:9px 11px;border-radius:4px;">{{ docReviewBlocked }}</div>
+        </sc-if>
+
+        <!-- Resume or discard, offered on entry. The panel renders for EVERY
+             recovered key, usable or not — a malformed or expired draft the
+             mechanic cannot see is a key they cannot clear. -->
+        <sc-if value="{{ docHasDraft }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FBF6E8;border:1px solid #B08A2E;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:10px;">
+            <div style="font:700 11px 'IBM Plex Mono',monospace;color:#8A6A1E;">{{ docDraftTitle }}</div>
+            <div style="font:500 13px 'Public Sans',sans-serif;color:#5C4A1A;text-wrap:pretty;">{{ docDraftSummary }}</div>
+            <sc-if value="{{ docDraftUsable }}" hint-placeholder-val="{{ true }}">
+              <div style="font:500 12px 'Public Sans',sans-serif;color:#5C4A1A;text-wrap:pretty;">The photos are not saved on this device. You'll add each page again and match it to the page it replaces.</div>
+              <div style="display:flex;gap:8px;">
+                <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ resumeDocDraft }}">RESUME REVIEW</div>
+                <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ discardDocDraft }}">DISCARD</div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ docDraftUnusable }}" hint-placeholder-val="{{ false }}">
+              <div style="min-height:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ discardDocDraft }}">DISCARD SAVED DRAFT</div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <!-- On the PAGES step with a restored review waiting: always a way back. -->
+        <sc-if value="{{ docCanReturnToReview }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);text-wrap:pretty;">{{ docReturnHint }}</div>
+            <div style="min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ returnToDocReview }}">RETURN TO REVIEW</div>
+          </div>
+        </sc-if>
+
+        <!-- Reattachment: one row per ORIGINAL page identity the review still
+             refers to, mapped by an explicit tap onto a live page. Nothing is
+             inferred from filename, position or page number. -->
+        <sc-if value="{{ docNeedsReattach }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FBEAEA;border:1px solid #C0463C;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:10px;">
+            <div style="font:700 11px 'IBM Plex Mono',monospace;color:#8A2D26;">MATCH THE MISSING PAGES</div>
+            <div style="font:500 12px 'Public Sans',sans-serif;color:#8A2D26;text-wrap:pretty;">{{ docReattachMessage }}</div>
+            <sc-for list="{{ docMissingPages }}" as="mp" hint-placeholder-count="1">
+              <div style="display:flex;flex-direction:column;gap:8px;border-top:1px solid rgba(192,70,60,.25);padding-top:9px;">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <div style="font:700 11px 'IBM Plex Mono',monospace;color:#8A2D26;">{{ mp.label }}</div>
+                  <div style="{{ docActionStyle }}" onClick="{{ mp.choose }}">{{ mp.buttonLabel }}</div>
+                </div>
+                <sc-if value="{{ mp.picking }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;gap:8px;overflow-x:auto;">
+                    <sc-for list="{{ docReattachCandidates }}" as="cand" hint-placeholder-count="2">
+                      <div style="min-height:44px;min-width:44px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px;border:2px solid #1F6F78;border-radius:6px;cursor:pointer;background:#EFF6F5;" onClick="{{ cand.pick }}">
+                        <img src="{{ cand.thumbUrl }}" style="width:44px;height:44px;object-fit:cover;border-radius:3px;background:#EDE6D6;"/>
+                        <div style="font:700 10px 'IBM Plex Mono',monospace;color:#1F6F78;">{{ cand.label }}</div>
+                      </div>
+                    </sc-for>
+                    <sc-if value="{{ docNoReattachCandidates }}" hint-placeholder-val="{{ false }}">
+                      <div style="font:500 12px 'Public Sans',sans-serif;color:#8A2D26;">Add a page first, then match it here.</div>
+                    </sc-if>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ docSharedPagePrompt }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FBF6E8;border:1px solid #B08A2E;border-radius:6px;padding:11px;display:flex;flex-direction:column;gap:9px;">
+            <div style="font:600 12px 'Public Sans',sans-serif;color:#5C4A1A;text-wrap:pretty;">{{ docSharedPagePrompt }}</div>
+            <div style="display:flex;gap:8px;">
+              <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ approveSharedDocPage }}">USE THE SAME PHOTO</div>
+              <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ cancelDocReattach }}">CHOOSE ANOTHER</div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ---------- PAGES step (5A) ---------- -->
+        <sc-if value="{{ isDocCaptureStep }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <sc-for list="{{ docCapturePages }}" as="page" hint-placeholder-count="2">
+              <div style="display:flex;gap:10px;align-items:center;border:1px solid rgba(22,40,61,.12);border-radius:6px;padding:8px;">
+                <img src="{{ page.thumbUrl }}" style="width:56px;height:56px;object-fit:cover;border-radius:4px;flex:none;background:#EDE6D6;"/>
+                <div style="flex:1;min-width:0;">
+                  <div style="font:700 11px 'IBM Plex Mono',monospace;color:#16283D;">PAGE {{ page.label }}</div>
+                  <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">{{ page.sizeLabel }}</div>
+                </div>
+                <div style="display:flex;gap:4px;flex:none;{{ docPageControlsStyle }}">
+                  <div style="min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;border-radius:4px;font:700 14px 'IBM Plex Mono',monospace;color:#16283D;cursor:pointer;" onClick="{{ page.moveUp }}">&uarr;</div>
+                  <div style="min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;border-radius:4px;font:700 14px 'IBM Plex Mono',monospace;color:#16283D;cursor:pointer;" onClick="{{ page.moveDown }}">&darr;</div>
+                  <div style="min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;color:#16283D;cursor:pointer;" onClick="{{ page.rotate }}">&#8635;</div>
+                  <div style="min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;color:#16283D;cursor:pointer;" onClick="{{ page.enhance }}">&#9788;</div>
+                  <div style="min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;background:#FBEAEA;border-radius:4px;font:700 14px 'Public Sans',sans-serif;color:#8A2D26;cursor:pointer;" onClick="{{ page.remove }}">&times;</div>
+                </div>
+              </div>
+            </sc-for>
+
+            <!-- The whole picker row disappears while busy or at the limit
+                 (docCaptureCanAddPages is false then), so a second pick is
+                 impossible by construction as well as refused by the controller.
+                 Two inputs on purpose: on iOS `capture` and `multiple` are
+                 mutually exclusive. -->
+            <sc-if value="{{ docCaptureCanAddPages }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;gap:8px;">
+                <label style="flex:1;background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'IBM Plex Mono',monospace;border-radius:6px;cursor:pointer;min-height:44px;display:flex;align-items:center;justify-content:center;">
+                  {{ docCaptureCameraLabel }}
+                  <input type="file" accept="image/*" capture="environment" style="display:none;" onChange="{{ pickDocPages }}"/>
+                </label>
+                <label style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;border-radius:6px;cursor:pointer;min-height:44px;display:flex;align-items:center;justify-content:center;">
+                  LIBRARY
+                  <input type="file" accept="image/*" multiple="{{ true }}" style="display:none;" onChange="{{ pickDocPages }}"/>
+                </label>
+              </div>
+            </sc-if>
+            <sc-if value="{{ docCaptureAtLimit }}" hint-placeholder-val="{{ false }}">
+              <div style="font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);text-align:center;">MAXIMUM 5 PAGES</div>
+            </sc-if>
+
+            <sc-if value="{{ docCanStartReading }}" hint-placeholder-val="{{ false }}">
+              <div style="min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ startDocReading }}">READ THESE PAGES</div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <!-- ---------- READING step (5B) ---------- -->
+        <sc-if value="{{ isDocReadingStep }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="font:700 11px 'IBM Plex Mono',monospace;color:#1F6F78;">{{ docReadingProgress }}</div>
+
+            <sc-if value="{{ docReadingHalted }}" hint-placeholder-val="{{ false }}">
+              <div style="font:600 12px 'Public Sans',sans-serif;background:#FBF6E8;border:1px solid #B08A2E;color:#8A6A1E;padding:9px 11px;border-radius:4px;">{{ docReadingHaltedMessage }}</div>
+            </sc-if>
+
+            <!-- The ONLY control that resumes the remainder. TRY AGAIN and READ
+                 PAGE AGAIN deliberately send one page each; without this button a
+                 mechanic could be left with pages stuck in "waiting" after a 429
+                 and a targeted retry. Hidden while the queue is moving, so
+                 repeated taps cannot double-queue. -->
+            <sc-if value="{{ docCanResumeReading }}" hint-placeholder-val="{{ false }}">
+              <div style="min-height:44px;padding:0 16px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ resumeDocReading }}">CONTINUE REMAINING PAGES</div>
+            </sc-if>
+
+            <sc-for list="{{ docReadingPages }}" as="rp" hint-placeholder-count="2">
+              <div style="border:1px solid rgba(22,40,61,.12);border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:6px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="font:700 10px 'IBM Plex Mono',monospace;color:#16283D;">PAGE {{ rp.pageNumber }}</div>
+                  <div style="{{ rp.stateBadgeStyle }}">{{ rp.stateLabel }}</div>
+                </div>
+
+                <sc-if value="{{ rp.hasError }}" hint-placeholder-val="{{ false }}">
+                  <div style="font:500 12px 'Public Sans',sans-serif;color:#8A2D26;text-wrap:pretty;">{{ rp.error }}</div>
+                </sc-if>
+
+                <sc-if value="{{ rp.hasChoice }}" hint-placeholder-val="{{ false }}">
+                  <div style="background:#FBF6E8;border:1px dashed #B08A2E;border-radius:4px;padding:9px 11px;display:flex;flex-direction:column;gap:8px;">
+                    <div style="font:600 12px 'Public Sans',sans-serif;color:#5C4A1A;text-wrap:pretty;">A stronger reading is ready. Your edits are still here &mdash; choose which to keep.</div>
+                    <div style="display:flex;gap:8px;">
+                      <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ rp.keepEdits }}">KEEP MY EDITS</div>
+                      <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ rp.useStronger }}">USE STRONGER READING</div>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <sc-if value="{{ rp.canRetry }}" hint-placeholder-val="{{ false }}">
+                    <div style="min-height:44px;padding:0 14px;display:flex;align-items:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ rp.retry }}">{{ rp.retryLabel }}</div>
+                  </sc-if>
+                  <sc-if value="{{ rp.canTryStronger }}" hint-placeholder-val="{{ true }}">
+                    <div style="{{ rp.strongerStyle }}" onClick="{{ rp.tryStronger }}">TRY STRONGER READING</div>
+                  </sc-if>
+                </div>
+                <sc-if value="{{ rp.showStrongerHint }}" hint-placeholder-val="{{ false }}">
+                  <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">Doesn&rsquo;t match the photo? Try a stronger reading for this page. This may take longer.</div>
+                </sc-if>
+              </div>
+            </sc-for>
+
+            <div style="display:flex;gap:8px;">
+              <div style="{{ docActionStyle }}" onClick="{{ backToDocPages }}">PAGES</div>
+              <sc-if value="{{ docReadingSettled }}" hint-placeholder-val="{{ false }}">
+                <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ startDocReview }}">REVIEW THE TEXT</div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ---------- REVIEW step (5C) ---------- -->
+        <sc-if value="{{ isDocReviewStep }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:14px;padding-bottom:96px;{{ docReviewLockStyle }}">
+
+            <sc-if value="{{ docStorageWarning }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:10px;font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);text-wrap:pretty;">{{ docStorageWarning }}</div>
+            </sc-if>
+
+            <sc-for list="{{ docReviewComments }}" as="rc" hint-placeholder-count="2">
+              <div data-comment="{{ rc.commentId }}" style="border:1px solid rgba(22,40,61,.12);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px;background:#fff;">
+
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="font:800 11px 'Archivo',sans-serif;color:#16283D;letter-spacing:.4px;">COMMENT {{ rc.sequence }}</div>
+                  <div style="{{ rc.provenanceStyle }}">{{ rc.provenanceLabel }}</div>
+                </div>
+
+                <!-- Selected page preview above the editable text. Thumbnails come
+                     from the 5A thumbnail blobs; no full-resolution copy is held. -->
+                <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;">
+                  <sc-for list="{{ rc.pages }}" as="pg" hint-placeholder-count="2">
+                    <div style="{{ pg.chipStyle }}" onClick="{{ pg.toggle }}">
+                      <img src="{{ pg.thumbUrl }}" style="width:44px;height:44px;object-fit:cover;border-radius:3px;background:#EDE6D6;"/>
+                      <div style="font:700 10px 'IBM Plex Mono',monospace;">{{ pg.label }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">{{ rc.pagesLabel }}</div>
+
+                <textarea value="{{ rc.body }}" onInput="{{ rc.onEdit }}" rows="4" style="width:100%;box-sizing:border-box;min-height:120px;height:auto;resize:none;overflow:hidden;border:1px solid rgba(22,40,61,.2);border-radius:6px;padding:11px;font:500 15px/1.45 'Public Sans',sans-serif;color:#16283D;background:#FCFBF7;"></textarea>
+
+                <sc-if value="{{ rc.lowConfidence }}" hint-placeholder-val="{{ false }}">
+                  <div style="font:600 11px 'Public Sans',sans-serif;color:#8A6A1E;text-wrap:pretty;">The reading was uncertain on this page. Check it against the photo before saving.</div>
+                </sc-if>
+                <sc-for list="{{ rc.uncertain }}" as="u" hint-placeholder-count="0">
+                  <div style="font:500 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.55);">PAGE {{ u.pageNumber }} &middot; {{ u.reason }}</div>
+                </sc-for>
+                <sc-if value="{{ rc.hasIssue }}" hint-placeholder-val="{{ false }}">
+                  <div style="font:600 12px 'Public Sans',sans-serif;color:#8A2D26;text-wrap:pretty;">{{ rc.issueMessage }}</div>
+                </sc-if>
+
+                <div style="display:flex;gap:8px;">
+                  <div style="{{ rc.privateStyle }}" onClick="{{ rc.setPrivate }}">STAFF ONLY</div>
+                  <div style="{{ rc.publicStyle }}" onClick="{{ rc.setPublic }}">CUSTOMER VISIBLE</div>
+                </div>
+
+                <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                  <div style="{{ docActionStyle }}" onClick="{{ rc.split }}">SPLIT HERE</div>
+                  <sc-if value="{{ rc.canMergeUp }}" hint-placeholder-val="{{ false }}">
+                    <div style="{{ docActionStyle }}" onClick="{{ rc.merge }}">MERGE UP</div>
+                  </sc-if>
+                  <sc-if value="{{ rc.canMoveUp }}" hint-placeholder-val="{{ false }}">
+                    <div style="{{ docActionStyle }}" onClick="{{ rc.moveUp }}">MOVE UP</div>
+                  </sc-if>
+                  <sc-if value="{{ rc.canMoveDown }}" hint-placeholder-val="{{ false }}">
+                    <div style="{{ docActionStyle }}" onClick="{{ rc.moveDown }}">MOVE DOWN</div>
+                  </sc-if>
+                  <div style="min-height:44px;padding:0 14px;display:flex;align-items:center;background:#FBEAEA;color:#8A2D26;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ rc.remove }}">DELETE</div>
+                </div>
+              </div>
+            </sc-for>
+
+            <div style="min-height:44px;display:flex;align-items:center;justify-content:center;background:#F6F1E4;color:#16283D;border:1px dashed rgba(22,40,61,.25);border-radius:6px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ addDocComment }}">ADD A COMMENT</div>
+          </div>
+
+          <!-- Sticky inside the sheet's own scroller: iOS keeps it above the
+               keyboard, which position:fixed does not. -->
+          <div style="position:sticky;bottom:0;background:#fff;border-top:1px solid rgba(22,40,61,.12);padding:10px 0 calc(10px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;gap:8px;">
+              <div style="{{ docPagesButtonStyle }}" onClick="{{ backToDocPages }}">PAGES</div>
+              <!-- SAVE is OMITTED, not merely disabled, while the feature is off:
+                   the approved state contract says the control is absent. PAGES
+                   and the sheet's close control stay reachable. -->
+              <sc-if value="{{ docShowSave }}" hint-placeholder-val="{{ true }}">
+                <div style="{{ docConfirmStyle }}" onClick="{{ confirmDocCapture }}">{{ docConfirmLabel }}</div>
+              </sc-if>
+            </div>
+            <sc-if value="{{ docSaveProgress }}" hint-placeholder-val="{{ false }}">
+              <div style="font:700 11px 'IBM Plex Mono',monospace;color:#1F6F78;text-align:center;">{{ docSaveProgress }}</div>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{ docFeatureDisabled }}" hint-placeholder-val="{{ false }}">
+            <!-- No SAVE (canConfirm is false) and deliberately NO retry button:
+                 retrying would be refused identically until an owner acts. -->
+            <div style="background:#FBF6E8;border:1px solid #B08A2E;border-radius:6px;padding:11px;display:flex;flex-direction:column;gap:9px;">
+              <div style="font:700 11px 'IBM Plex Mono',monospace;color:#8A6A1E;">TRANSCRIPTION TURNED OFF</div>
+              <div style="font:600 12px 'Public Sans',sans-serif;color:#5C4A1A;text-wrap:pretty;">{{ docFeatureDisabledMessage }}</div>
+              <div style="min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ returnAfterDocFeatureDisabled }}">RETURN TO REVIEW</div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ docConfirmFailed }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#FBEAEA;border:1px solid #C0463C;border-radius:6px;padding:11px;display:flex;flex-direction:column;gap:9px;">
+              <div style="font:600 12px 'Public Sans',sans-serif;color:#8A2D26;text-wrap:pretty;">{{ docConfirmError }}</div>
+              <div style="min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ retryDocConfirm }}">TRY SAVING AGAIN</div>
+            </div>
+          </sc-if>
+        </sc-if>
+
+        <!-- two-tap warnings: deleting the last comment, discarding a draft -->
+        <sc-if value="{{ hasDocDeleteWarning }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FBEAEA;border:1px solid #C0463C;border-radius:6px;padding:11px;display:flex;flex-direction:column;gap:9px;">
+            <div style="font:600 12px 'Public Sans',sans-serif;color:#8A2D26;text-wrap:pretty;">{{ docDeleteWarning }}</div>
+            <div style="display:flex;gap:8px;">
+              <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#FBEAEA;color:#8A2D26;border:1px solid #C0463C;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ confirmDeleteDocComment }}">DELETE ANYWAY</div>
+              <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ cancelDeleteDocComment }}">KEEP IT</div>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ hasDocDiscardWarning }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FBEAEA;border:1px solid #C0463C;border-radius:6px;padding:11px;display:flex;flex-direction:column;gap:9px;">
+            <div style="font:600 12px 'Public Sans',sans-serif;color:#8A2D26;text-wrap:pretty;">{{ docDiscardWarning }}</div>
+            <div style="display:flex;gap:8px;">
+              <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#FBEAEA;color:#8A2D26;border:1px solid #C0463C;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ confirmDiscardDocDraft }}">DISCARD THE DRAFT</div>
+              <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ cancelDiscardDocDraft }}">KEEP IT</div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
   <!-- ============ PHOTO ENHANCEMENT EDITOR ============ -->
   <sc-if value="{{ showPhotoEditor }}" hint-placeholder-val="{{ false }}">
   <div class="no-print" style="position:fixed;inset:0;background:rgba(22,40,61,.7);display:flex;align-items:center;justify-content:center;z-index:300;padding:16px;overflow:auto;">
@@ -2469,6 +2832,20 @@ class Component extends DCLogic {
     activityHistory: {},
     failedInvoicePhotoIds: [],
 
+    // ---------- document photo transcription (Section 27) ----------
+    // 5A capture: pages hold compressed blobs and ONE object URL each; no
+    // decoded canvas and no OCR data URL ever lives in state.
+    docCapture: null,      // { captureId, pages: [], busy, processingLabel, error }
+    docStep: 'capture',    // 'capture' | 'reading' | 'review'
+    docReading: null,      // 5B scheduler snapshot
+    // 5C review: text and small metadata only. No blob, object URL or data URL.
+    docReview: null,
+    docReviewBlocked: '',
+    docConfirmDelete: null,
+    docConfirmDiscard: null,
+    docReattachFor: null,
+    docSharedPagePrompt: null,
+
     // ---------- serial number capture (multi-record) ----------
     serialScan: null, // { step, file, previewUrl, draftValue, confidence, alternates, needsReview, error, saving, labelChoice, customLabel, showToCustomer, replaceRecordId }
     serialNumbers: [], // records for the open job
@@ -2521,6 +2898,12 @@ class Component extends DCLogic {
     if (typeof window !== 'undefined') window.addEventListener('popstate', this._onPopState);
     const mod = await import('./supabase-client.js');
     this._dataMod = mod;
+    // Section 27 document photo transcription. Same dynamic style as the data
+    // layer above; each module is pure (no imports, no module-scope effects).
+    this._docPages = await import('./document-page-pipeline.js');
+    this._docScheduler = await import('./document-transcription-scheduler.js');
+    this._docReview = await import('./document-review-draft.js');
+    this._docDisplay = await import('./document-display.js');
 
     if (mod.configError) {
       this.setState({ authChecking: false, loaded: false, loadError: mod.configError });
@@ -2615,6 +2998,11 @@ class Component extends DCLogic {
     if (this._onPopState && typeof window !== 'undefined') window.removeEventListener('popstate', this._onPopState);
     this.unsubscribeComments();
     this.unsubscribeActivities();
+    // Section 27 teardown, in dependency order: the reading session ends before
+    // the capture is reset, so no in-flight job observes a half-torn capture.
+    if (this.__transcriber) this.__transcriber.endSession();
+    if (this.__reviewer) this.__reviewer.closeReview();
+    if (this.__captureController) this.__captureController.close();
   }
   _parseJobCodeFromLocation() {
     if (typeof window === 'undefined') return null;
@@ -3706,7 +4094,7 @@ class Component extends DCLogic {
   // constant here so the UI renders instantly before the data module import
   // resolves (categories are just labels; the module is the source of truth
   // for what actually gets validated/stored).
-  static PHOTO_CATEGORIES = ['Intake', 'Before Repair', 'During Repair', 'After Repair', 'Damage', 'Parts', 'Warranty', 'Serial Number', 'Other'];
+  static PHOTO_CATEGORIES = ['Intake', 'Before Repair', 'During Repair', 'After Repair', 'Damage', 'Parts', 'Warranty', 'Serial Number', 'Document', 'Other'];
 
   // Every activity type in the unified timeline: display label, filter
   // category, and whether it renders as a full card (content-bearing) or a
@@ -3727,6 +4115,13 @@ class Component extends DCLogic {
     payment_received:  { label: 'PAYMENT',         category: 'financial', compact: true },
     part_ordered:      { label: 'PART ORDERED',    category: 'financial', compact: true },
     part_received:     { label: 'PART RECEIVED',   category: 'financial', compact: true },
+    // Section 27 (5D): additive. Unknown types render as a raw uppercase badge
+    // and are dropped from the filter counts, so both entries are required.
+    // `serial_number_captured` is a pre-existing omission, corrected here.
+    // Shape follows this map's own contract (label/category/compact), not the
+    // module's label/color/icon shape — see document-display.js ACTIVITY_META_ADDITIONS.
+    document_transcription: { label: 'DOCUMENT',      category: 'notes',  compact: false },
+    serial_number_captured: { label: 'SERIAL NUMBER', category: 'photos', compact: true },
   };
   static ACTIVITY_FILTERS = [
     { key: 'all', label: 'ALL' },
@@ -3948,6 +4343,361 @@ class Component extends DCLogic {
   // and its extracted text must never drift apart, so this always goes
   // through supabase-client's per-record functions.
   activeSerialLabels = () => (this.state.shopSerialLabels || []).filter(l => l.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+
+  // ================= document photo transcription (Section 27) =================
+  // Feature-gated in the UI by `featureDocumentTranscription` (=== true) and
+  // enforced independently by the database. No AI call is made from the browser:
+  // every reading goes through the protected Netlify Function via the approved
+  // data layer.
+
+  // ---------- 5A: capture ----------
+  _pagePipeline() {
+    if (!this.__pagePipeline) {
+      this.__pagePipeline = this._docPages.createPagePipeline({
+        decodeImage: async (file) => {
+          // createImageBitmap throws on HEIC and anything else the browser
+          // cannot decode, which is exactly the per-page failure we want.
+          const bitmap = await createImageBitmap(file);
+          return { bitmap, width: bitmap.width, height: bitmap.height };
+        },
+        createCanvas: (w, h) => {
+          const c = document.createElement('canvas');
+          c.width = w; c.height = h;
+          return c;
+        },
+        canvasToBlob: (canvas, mime, quality) =>
+          new Promise((resolve, reject) =>
+            canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), mime, quality)),
+        createObjectURL: (b) => URL.createObjectURL(b),
+        revokeObjectURL: (u) => URL.revokeObjectURL(u),
+      });
+    }
+    return this.__pagePipeline;
+  }
+
+  _captureController() {
+    if (!this.__captureController) {
+      this.__captureController = this._docPages.createCaptureController({
+        pipeline: this._pagePipeline(),
+        revokeObjectURL: (u) => URL.revokeObjectURL(u),
+        onChange: (docCapture) => {
+          this.setState({ docCapture: docCapture.open ? docCapture : null });
+          // 5B: targeted sync. Matches on pageId AND OCR blob identity, so a
+          // busy-state emission or another page's rotation cannot clear this
+          // page's text, edits, confidence or pending choice — and cannot
+          // trigger a paid reread.
+          if (this.__transcriber && docCapture.open) this.__transcriber.syncPages(docCapture.pages);
+          // 5C: identity-based; a reordered or rotated page never disturbs
+          // reviewed text, and a removed page shows up as a reattachment task.
+          // Refused while a confirmation is in flight (returns in_flight).
+          if (this.__reviewer && docCapture.open) this.__reviewer.syncCapture(docCapture.pages);
+        },
+      });
+    }
+    return this.__captureController;
+  }
+
+  openDocCapture = () => {
+    const mod = this._dataMod;
+    // A reopen invalidates any prior reading session: queued jobs settle as
+    // cancelled, in-flight responses are discarded on arrival.
+    if (this.__transcriber) this.__transcriber.endSession();
+    this.setState({ docStep: 'capture', docReading: null });
+    // Provisional identity. If a draft is recovered, resumeDocDraft() reopens
+    // the capture under the DRAFT's id and this one is never used again.
+    this._captureController().open(mod ? mod.newDocumentCaptureId() : null);
+    this.checkDocDraft();
+  };
+
+  closeDocCapture = () => {
+    // The review module is authoritative: it refuses teardown while a
+    // confirmation is in flight, and so must this handler. Closing mid-save
+    // would null the session between awaits and throw away the draft the
+    // confirmation is protecting.
+    if (this.__reviewer && this.__reviewer.closeReview().reason === 'in_flight') return;
+    if (this.__transcriber) this.__transcriber.endSession();
+    this._captureController().close();
+    this.setState({ docStep: 'capture', docReading: null, docReview: null,
+                    docReattachFor: null, docSharedPagePrompt: null });
+  };
+
+  // Camera and library share this. Files are processed ONE AT A TIME via the
+  // controller, which owns the cancellation generation, the busy guard and the
+  // per-page operation tokens. The input is cleared immediately so picking the
+  // same file twice still fires a change.
+  pickDocPages = async (e) => {
+    const files = Array.from((e.target && e.target.files) || []);
+    e.target.value = '';
+    if (!files.length) return;
+    await this._captureController().addFiles(files);
+  };
+
+  removeDocPage = (pageId) => this._captureController().remove(pageId);
+  moveDocPage = (index, delta) => this._captureController().move(index, delta);
+  rotateDocPage = (pageId) => this._captureController().rotatePage(pageId);
+  enhanceDocPage = (pageId, values) => this._captureController().enhancePage(pageId, values);
+
+  // ---------- 5B: reading ----------
+  _transcriber() {
+    if (!this.__transcriber) {
+      this.__transcriber = this._docScheduler.createTranscriptionScheduler({
+        newRequestId: () => this._dataMod.newTranscriptionRequestId(),
+        // Minted here, one page at a time, and dropped by the scheduler as soon
+        // as the request settles.
+        blobToDataUrl: (blob) => new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.onerror = () => reject(new Error('Could not read the page image.'));
+          r.readAsDataURL(blob);
+        }),
+        // The only transcription route: the approved data layer's call to the
+        // protected Function endpoint. No browser OpenAI call, no fallback.
+        transcribe: (req) => this._dataMod.transcribeDocumentPage(req),
+        onChange: (docReading) => this.setState({ docReading }),
+      });
+    }
+    return this.__transcriber;
+  }
+
+  startDocReading = async () => {
+    const dc = this.state.docCapture;
+    if (!dc || !dc.pages.length) return;
+    // Identity is fixed HERE and travels with every request. It is never
+    // re-read from component state after scheduling.
+    this._transcriber().startSession({
+      workOrderId: this.state.selectedJobId,
+      documentCaptureId: dc.captureId,
+      pages: dc.pages,
+    });
+    this.setState({ docStep: 'reading' });
+    await this._transcriber().start();
+  };
+
+  resumeDocReading = () => this._transcriber().resumeQueue();
+  retryDocPage = (pageId) => this._transcriber().retryPage(pageId);
+  readDocPageAgain = (pageId) => this._transcriber().readPageAgain(pageId);
+  tryStrongerDocReading = (pageId) => this._transcriber().tryStrongerReading(pageId);
+  keepMyDocEdits = (pageId) => this._transcriber().resolveStrongerChoice(pageId, 'keep');
+  useStrongerDocReading = (pageId) => this._transcriber().resolveStrongerChoice(pageId, 'use');
+
+  // ---------- 5C: review, recovery and confirmation ----------
+  _reviewer() {
+    if (!this.__reviewer) {
+      this.__reviewer = this._docReview.createReviewController({
+        storage: (() => { try { return window.localStorage; } catch (e) { return null; } })(),
+        // The APPROVED Step 4 finalization. No storage or database logic is
+        // duplicated in the review module.
+        finalize: (payload) => this._dataMod.finalizeDocumentCapture(payload),
+        // Staging one page's already-generated blobs. IDENTITY IS HANDED IN from
+        // the module's frozen confirmation plan — this adapter must never read
+        // this.state.selectedJobId or this.state.docCapture.captureId, or a job
+        // switch mid-save would retarget the write.
+        uploadPage: ({ pageId, pageNumber, workOrderId, documentCaptureId }) => {
+          const dc = this.state.docCapture;
+          // The live capture must BE the plan's capture. Page ids are client ids
+          // and can repeat across captures, so a page-id lookup alone would
+          // happily upload another capture's photo into this capture's
+          // deterministic path. Throwing here fails the confirmation before any
+          // byte is written and keeps the draft.
+          if (!dc || dc.captureId !== documentCaptureId) {
+            throw new Error('The active document capture changed before upload.');
+          }
+          const page = dc.pages.find((p) => p.pageId === pageId);
+          if (!page) throw new Error(`Page ${pageNumber} is no longer available.`);
+          return this._dataMod.uploadDocumentPage({
+            workOrderId, documentCaptureId, pageNumber,   // handed in, never re-derived
+            blobOrig: page.archival.blob,
+            blobThumb: page.thumb.blob,
+          });
+        },
+        newId: () => (window.crypto && crypto.randomUUID ? crypto.randomUUID()
+          : `c-${Date.now()}-${Math.random().toString(16).slice(2)}`),
+        onChange: (docReview) => this.setState({ docReview }),
+      });
+    }
+    return this.__reviewer;
+  }
+
+  startDocReview = () => {
+    const dc = this.state.docCapture;
+    const dr = this.state.docReading;
+    if (!dc) return;
+    const r = this._reviewer().beginReview({
+      workOrderId: this.state.selectedJobId,
+      documentCaptureId: dc.captureId,
+      capturePages: dc.pages,
+      readingPages: dr ? dr.pages : [],
+    });
+    if (!r.ok) { this.setState({ docStep: 'reading', docReviewBlocked: r.message }); return; }
+    this.setState({ docStep: 'review', docReviewBlocked: '' });
+  };
+
+  // Coming back from the page picker to the EXISTING review. Never beginReview()
+  // — that would re-derive comments from reading state and discard restored or
+  // edited text.
+  returnToDocReview = () => {
+    const r = this._reviewer().returnToReview();
+    if (r.applied) this.setState({ docStep: 'review' });
+  };
+
+  backToDocPages = () => {
+    const r = this._reviewer().backToCapture();
+    if (r.applied) this.setState({ docStep: 'capture' });
+  };
+
+  editDocComment = (commentId, e) => {
+    const el = e && e.target;
+    if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; }  // auto-grow
+    this._reviewer().editComment(commentId, el ? el.value : '');
+  };
+
+  splitDocComment = (commentId, e) => {
+    const card = e && e.target && e.target.closest ? e.target.closest('[data-comment]') : null;
+    const ta = card ? card.querySelector('textarea') : null;
+    this._reviewer().splitComment(commentId, ta ? ta.selectionStart : null);
+  };
+
+  mergeDocComment = (commentId) => this._reviewer().mergeCommentUp(commentId);
+  moveDocComment = (commentId, delta) => this._reviewer().moveComment(commentId, delta);
+  addDocComment = () => this._reviewer().addComment();
+  setDocCommentVisibility = (commentId, v) => this._reviewer().setVisibility(commentId, v);
+  toggleDocCommentPage = (commentId, pageId) => this._reviewer().toggleCommentPage(commentId, pageId);
+
+  deleteDocComment = (commentId) => {
+    const r = this._reviewer().deleteComment(commentId);
+    if (r.requiresConfirm) this.setState({ docConfirmDelete: { commentId, warning: r.warning } });
+  };
+  confirmDeleteDocComment = () => {
+    const p = this.state.docConfirmDelete;
+    if (!p) return;
+    this._reviewer().deleteComment(p.commentId, { force: true });
+    this.setState({ docConfirmDelete: null });
+  };
+  cancelDeleteDocComment = () => this.setState({ docConfirmDelete: null });
+
+  // Reattachment: explicit, two-step, never inferred from filename, position or
+  // page number.
+  startDocReattach = (oldPageId) => this.setState({ docReattachFor: oldPageId });
+  cancelDocReattach = () => this.setState({ docReattachFor: null, docSharedPagePrompt: null });
+
+  chooseDocReattachTarget = (newPageId) => {
+    const oldPageId = this.state.docReattachFor;
+    if (!oldPageId) return;
+    const r = this._reviewer().reattachPage(oldPageId, newPageId);
+    if (r.requiresApproval) {
+      // Many-to-one mapping is a separate, explicit approval.
+      this.setState({ docSharedPagePrompt: { oldPageId, newPageId, message: r.message } });
+      return;
+    }
+    this.setState({ docReattachFor: null, docSharedPagePrompt: null });
+  };
+
+  approveSharedDocPage = () => {
+    const p = this.state.docSharedPagePrompt;
+    if (!p) return;
+    this._reviewer().reattachPage(p.oldPageId, p.newPageId, { allowShared: true });
+    this.setState({ docReattachFor: null, docSharedPagePrompt: null });
+  };
+
+  checkDocDraft = () => this._reviewer().detectDraft(this.state.selectedJobId);
+
+  // RESUME REVIEW adopts the RECOVERED capture id and reopens the 5A capture
+  // under it, so the capture controller, the upload adapter and finalization all
+  // share one identity. A provisional id minted on open is discarded here.
+  resumeDocDraft = () => {
+    const rv = this.state.docReview;
+    const rec = rv && rv.recovery;
+    if (!rec || !rec.usable) return;
+    this._captureController().open(rec.documentCaptureId);   // the identity switch
+    const r = this._reviewer().resumeDraft({
+      workOrderId: this.state.selectedJobId,
+      documentCaptureId: rec.documentCaptureId,
+      capturePages: [],                                      // photos never survive a reload
+    });
+    if (!r.ok) { this.setState({ docReviewBlocked: 'That saved draft belongs to a different job or capture.' }); return; }
+    // The module itself lands in its "away at pages" state when photos are
+    // missing, so RETURN TO REVIEW is offered and beginReview() is never called
+    // on this path. The step below only follows it.
+    this.setState({ docStep: r.needsReattach ? 'capture' : 'review', docReviewBlocked: '' });
+  };
+
+  discardDocDraft = () => {
+    const r = this._reviewer().discardDraft();
+    if (r.requiresConfirm) this.setState({ docConfirmDiscard: r.warning });
+  };
+  confirmDiscardDocDraft = () => {
+    this._reviewer().discardDraft({ force: true });
+    this.setState({ docConfirmDiscard: null, docStep: 'capture' });
+  };
+  cancelDiscardDocDraft = () => this.setState({ docConfirmDiscard: null });
+
+  confirmDocCapture = async () => {
+    const jobId = this.state.selectedJobId;
+    const r = await this._reviewer().confirm({
+      author: {
+        id: this.state.profile && this.state.profile.id,
+        // The author is the reviewing human — never the model, never a tier.
+        name: this.state.profile && this.state.profile.name,
+        role: this.activeShopRole(),
+      },
+    });
+    if (!r.ok) return;                     // the failed state owns the retry action
+    // Only now is the capture torn down; the draft was cleared by the controller
+    // after verified success.
+    this._transcriber().endSession();
+    this._reviewer().closeReview();
+    this._captureController().close();
+    this.setState({ docStep: 'capture', docReading: null, docReview: null });
+    // The approved controller returns verified COUNTS (r.activities is a number),
+    // not rows, so there is nothing to append optimistically here. The reload
+    // below is the authoritative refresh; realtime inserts that arrive in the
+    // meantime are de-duplicated by id in subscribeActivities via
+    // _activityStream().applyRealtime, which is where the five-comment race
+    // actually shows up.
+    await this.loadActivities(jobId);
+    await this.loadJobPhotos(jobId);
+  };
+
+  retryDocConfirm = () => this.confirmDocCapture();
+
+  // Section 27 A2 refused the save because the owner switched the feature off.
+  // A pure state transition: no request, no flag check, and no claim to have
+  // checked. It re-exposes SAVE deliberately.
+  returnAfterDocFeatureDisabled = () => {
+    const r = this._reviewer().returnToReview();
+    if (r.applied) this.setState({ docStep: 'review' });
+  };
+
+  // ---------- 5D: activity stream and the owner's switch ----------
+  _activityStream() {
+    if (!this.__activityStream) {
+      this.__activityStream = this._docDisplay.createActivityStream({
+        merge: this._dataMod.mergeActivityById,
+        mergeMany: this._dataMod.mergeActivitiesById,
+      });
+    }
+    return this.__activityStream;
+  }
+
+  toggleDocumentTranscription = async () => {
+    const shopId = this.state.activeShopId;
+    if (!shopId || this.state.featureSaving) return;
+    const shop = this.state.shop;
+    const next = !this._docDisplay.isDocumentTranscriptionEnabled(shop);
+    // Owner-only, enforced in code as well as in the UI.
+    const payload = this._docDisplay.buildFeatureTogglePayload(shop, next, this.activeShopRole());
+    if (!payload.allowed) return;
+    // The existing settings + updateShop pattern. `_mergeShopSettings` keeps
+    // unrelated features and branding intact; no schema column, no data rewrite.
+    const settings = this._mergeShopSettings({ features: { document_transcription: next } });
+    this.setState({ featureSaving: 'document_transcription', featureError: '' });
+    try {
+      const updated = await this._dataMod.updateShop(shopId, { settings });
+      this.setState({ shop: updated, featureSaving: '' });
+    } catch (e) {
+      this.setState({ featureSaving: '', featureError: (e && e.message) || 'Could not update feature.' });
+    }
+  };
 
   openSerialScan = () => {
     const first = this.activeSerialLabels()[0];
@@ -4562,7 +5312,13 @@ class Component extends DCLogic {
     this.unsubscribeActivities();
     if (!this._dataMod) return;
     this._activitiesChannel = this._dataMod.subscribeToActivities(jobId, (act) => {
-      this.setState(s => s.jobActivities.some(a => a.id === act.id) ? s : { jobActivities: [...s.jobActivities, act] });
+      // 5D: one activity per id whichever path delivered it. With one activity
+      // per save the race was invisible; five split comments make it routine.
+      // subscribeToActivities already converts the row, so `act` is
+      // converter-shaped exactly like the optimistic append.
+      this.setState(s => ({
+        jobActivities: this._activityStream().applyRealtime(s.jobActivities, act),
+      }));
     });
   };
   unsubscribeActivities = () => {
@@ -5056,7 +5812,13 @@ class Component extends DCLogic {
         const n = parseFloat(a.meta && a.meta.laborTime);
         return sum + (isNaN(n) ? 0 : n);
       }, 0);
-      const invoicePhotos = s.jobPhotos.filter(p => p.customerVisible !== false);
+      // 5D: document photos are staff-only by TYPE, not by flag, so the gate is
+      // explicit and testable rather than incidental. Ordinary photos keep the
+      // converter's `customerVisible !== false` convention.
+      const invoicePhotos = this._docDisplay
+        ? this._docDisplay.printablePhotos(s.jobPhotos)
+        : s.jobPhotos.filter(p => p.customerVisible !== false);
+      if (this._docDisplay) this._docDisplay.assertNoDocumentPhotos(invoicePhotos, 'Print/invoice view');
       selectedJob = {
         id: sj.id,
         customerName: sj.customerName,
@@ -5109,6 +5871,9 @@ class Component extends DCLogic {
     const ACT_META = this.constructor.ACTIVITY_META;
     const jobPhotosById = {};
     s.jobPhotos.forEach(p => { jobPhotosById[p.id] = p; });
+    // 5D's audience gate takes a Map; the object above is kept for the existing
+    // attachment mapping so no current behaviour changes.
+    const docPhotosById = new Map(s.jobPhotos.map(p => [p.id, p]));
 
     const fmtTime = (ts) => new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
     const fmtDay = (ts) => new Date(ts).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
@@ -5160,9 +5925,21 @@ class Component extends DCLogic {
         changeReason: h.changeReason,
       }));
       const photos = (a.attachments || []).map(id => jobPhotosById[id]).filter(Boolean).map(p => ({ id: p.id, thumbUrl: p.thumbUrl, onOpen: () => this.openLightbox(p.id) }));
+      // 5D: source pages of a document transcription, staff audience only.
+      const docPageAttachments = this._docDisplay && this._docDisplay.isDocumentActivity(a)
+        ? this._docDisplay.attachmentsForAudience(a, docPhotosById, 'staff')
+        : [];
 
       return {
         id: a.id,
+        // 5D: staff-only source pages for a document transcription. The shared
+        // AI-GENERATED badge is untouched — it still reads the row's own flag.
+        hasDocumentPages: docPageAttachments.length > 0,
+        documentPages: docPageAttachments.map(p => ({
+          thumbUrl: this._docDisplay.photoThumbUrlOf(p),
+          label: `P${this._docDisplay.photoPageNumberOf(p)}`,
+          open: () => this.openLightbox(p.id),
+        })),
         isCompact: meta.compact,
         isCard: !meta.compact,
         typeLabel: meta.label,
@@ -5477,6 +6254,114 @@ class Component extends DCLogic {
       onOpen: () => this.openLightbox(p.id),
     }));
 
+    // ---------- document photo transcription render data (Section 27) ----------
+    const dc = s.docCapture;
+    const docCapturePages = (dc ? dc.pages : []).map((p, i, arr) => ({
+      thumbUrl: p.thumb.url,
+      label: `${i + 1} OF ${arr.length}`,
+      sizeLabel: `${p.archival.width}\u00d7${p.archival.height}`,
+      moveUp: () => this.moveDocPage(i, -1),
+      moveDown: () => this.moveDocPage(i, 1),
+      rotate: () => this.rotateDocPage(p.pageId),
+      // Auto-enhance, matching the existing photo editor's one-tap values.
+      // Toggles back to neutral so it is reversible.
+      enhance: () => this.enhanceDocPage(p.pageId, p.brightness === 100
+        ? { brightness: 108, contrast: 118, saturation: 114 }
+        : { brightness: 100, contrast: 100, saturation: 100 }),
+      remove: () => this.removeDocPage(p.pageId),
+    }));
+
+    const dr = s.docReading;
+    const docReadingPages = (dr ? dr.pages : []).map((p) => ({
+      pageNumber: p.pageNumber,
+      stateLabel: { waiting: 'WAITING', reading: 'READING\u2026', ready: 'READY',
+                    needs_review: 'NEEDS REVIEW', failed: 'FAILED' }[p.state],
+      stateBadgeStyle: `font:700 9px 'IBM Plex Mono',monospace;padding:3px 7px;border-radius:3px;letter-spacing:.3px;background:${
+        p.state === 'ready' ? '#EFF6F5' : p.state === 'failed' ? '#FBEAEA' : '#EDE6D6'};color:${
+        p.state === 'failed' ? '#8A2D26' : '#16283D'};`,
+      hasError: !!p.error,
+      error: p.error,
+      hasChoice: !!p.pendingStrong,
+      keepEdits: () => this.keepMyDocEdits(p.pageId),
+      useStronger: () => this.useStrongerDocReading(p.pageId),
+      canRetry: p.state === 'failed',
+      retryLabel: this._docScheduler && p.error === this._docScheduler.RESULT_LOST_MESSAGE ? 'READ PAGE AGAIN' : 'TRY AGAIN',
+      retry: () => this.retryDocPage(p.pageId),
+      canTryStronger: p.canTryStronger,
+      // Always available; prominence is the only thing confidence changes.
+      strongerStyle: `min-height:44px;padding:0 14px;display:flex;align-items:center;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;${
+        p.prominentStronger ? 'background:#D97706;color:#fff;' : 'background:#F6F1E4;color:rgba(22,40,61,.7);'}`,
+      showStrongerHint: p.prominentStronger,
+      tryStronger: () => this.tryStrongerDocReading(p.pageId),
+    }));
+
+    const rv = s.docReview;
+    const docLocked = !!(rv && rv.locked);
+    const docThumbFor = (pageId) => {
+      const p = (s.docCapture ? s.docCapture.pages : []).find((x) => x.pageId === pageId);
+      return p && p.thumb ? p.thumb.url : '';
+    };
+    const docChip = (on) => `min-height:44px;min-width:44px;display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;cursor:pointer;border:2px solid ${on ? '#1F6F78' : 'rgba(22,40,61,.15)'};background:${on ? '#EFF6F5' : '#fff'};color:${on ? '#1F6F78' : 'rgba(22,40,61,.55)'};`;
+    const docPill = (on, tone) => `min-height:44px;flex:1;display:flex;align-items:center;justify-content:center;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;background:${on ? tone : '#F6F1E4'};color:${on ? '#fff' : 'rgba(22,40,61,.6)'};`;
+
+    const docReviewComments = (rv ? rv.comments : []).map((c) => ({
+      commentId: c.commentId,
+      sequence: c.sequence,
+      body: c.body,
+      onEdit: (e) => this.editDocComment(c.commentId, e),
+      provenanceLabel: c.manualEntry ? 'TYPED BY HAND' : (c.humanEdited ? 'AI READING \u00b7 EDITED' : 'AI READING'),
+      provenanceStyle: `font:700 9px 'IBM Plex Mono',monospace;padding:3px 7px;border-radius:3px;letter-spacing:.3px;background:${c.manualEntry ? '#EDE6D6' : '#EFF6F5'};color:${c.manualEntry ? '#16283D' : '#1F6F78'};`,
+      pages: (rv ? rv.pages : []).map((p) => ({
+        label: `P${p.pageNumber}`,
+        thumbUrl: docThumbFor(p.pageId),
+        chipStyle: docChip(c.pageIds.includes(p.pageId)),
+        toggle: () => this.toggleDocCommentPage(c.commentId, p.pageId),
+      })),
+      pagesLabel: c.missingPageIds.length
+        ? `${c.missingPageIds.length} page(s) need matching`
+        : (c.pageNumbers.length === (rv ? rv.pages.length : 0) ? 'All pages' : `Pages ${c.pageNumbers.join(', ')}`),
+      lowConfidence: c.lowConfidence,
+      uncertain: c.lowConfidenceRegions,
+      hasIssue: !c.ok,
+      issueMessage: c.ok ? '' : c.issues[0].message,
+      privateStyle: docPill(c.visibility === 'private', '#16283D'),
+      publicStyle: docPill(c.visibility === 'public', '#1F6F78'),
+      setPrivate: () => this.setDocCommentVisibility(c.commentId, 'private'),
+      setPublic: () => this.setDocCommentVisibility(c.commentId, 'public'),
+      split: (e) => this.splitDocComment(c.commentId, e),
+      merge: () => this.mergeDocComment(c.commentId),
+      canMergeUp: c.canMergeUp,
+      canMoveUp: c.canMoveUp,
+      canMoveDown: c.canMoveDown,
+      moveUp: () => this.moveDocComment(c.commentId, -1),
+      moveDown: () => this.moveDocComment(c.commentId, 1),
+      remove: () => this.deleteDocComment(c.commentId),
+    }));
+
+    // One row per ORIGINAL page identity that still needs a live photo.
+    const docMissingPages = (rv ? rv.missingPageIds : []).map((pageId, i) => ({
+      label: `MISSING PAGE ${i + 1}`,
+      picking: s.docReattachFor === pageId,
+      buttonLabel: s.docReattachFor === pageId ? 'CHOOSING\u2026' : 'MATCH A PAGE',
+      choose: () => this.startDocReattach(pageId),
+    }));
+    const docReattachCandidates = (rv ? rv.reattachCandidates : []).map((p) => ({
+      label: `P${p.pageNumber}`,
+      thumbUrl: docThumbFor(p.pageId),
+      pick: () => this.chooseDocReattachTarget(p.pageId),
+    }));
+
+    // Staff gallery: document pages grouped by capture, staff-only by type.
+    const documentCaptureGroups = this._docDisplay
+      ? this._docDisplay.groupDocumentPages(s.jobPhotos || []).map((g) => ({
+          pageCountLabel: `${g.pages.length} page${g.pages.length === 1 ? '' : 's'}`,
+          pages: g.pages.map((p) => ({
+            thumbUrl: this._docDisplay.photoThumbUrlOf(p),
+            open: () => this.openLightbox(p.id),
+          })),
+        }))
+      : [];
+
     // ---------- serial number capture render data ----------
     const scScan = s.serialScan;
     const canEditThisJobSerials = this.isActiveStaff(); // all staff manage serials on any job
@@ -5567,6 +6452,12 @@ class Component extends DCLogic {
     const shopFeatures = shopSettings.features || {};
     const featureQrEnabled = shopFeatures.qr_labels !== false;
     const featureSerialEnabled = shopFeatures.serial_scanning !== false;
+    // Section 27: `=== true`, NOT the `!== false` default-on convention above.
+    // Absent settings, an absent features object, and any non-true value all
+    // mean OFF. The database enforces the same state independently.
+    const featureDocumentTranscription = this._docDisplay
+      ? this._docDisplay.isDocumentTranscriptionEnabled(s.shop)
+      : shopFeatures.document_transcription === true;
 
     const configTabDefs = [
       { key: 'info', label: 'INFO' }, { key: 'locations', label: 'LOCATIONS' },
@@ -5698,6 +6589,7 @@ class Component extends DCLogic {
     });
     const qrTog = featureToggleStyles(featureQrEnabled, s.featureSaving === 'qr_labels');
     const snTog = featureToggleStyles(featureSerialEnabled, s.featureSaving === 'serial_scanning');
+    const docTog = featureToggleStyles(featureDocumentTranscription, s.featureSaving === 'document_transcription');
     const stateLabelStyle = (on) => `font:700 9px 'IBM Plex Mono',monospace;letter-spacing:.5px;color:${on ? '#16A34A' : 'rgba(22,40,61,.45)'};`;
     const availableFeatures = [
       { title: 'Multi-Location', desc: 'Run multiple branches under one shop. Jobs are tagged to a location.',
@@ -5713,6 +6605,14 @@ class Component extends DCLogic {
         showToggle: true, showStatus: false, onToggle: () => this.toggleFeature('serial_scanning'),
         trackStyle: snTog.track, knobStyle: snTog.knob,
         stateLabel: featureSerialEnabled ? 'ENABLED' : 'DISABLED', stateLabelStyle: stateLabelStyle(featureSerialEnabled) },
+      // Section 27 (5D). Owner-only, and default OFF: its own handler is used
+      // rather than toggleFeature(), whose `!== false` default would treat an
+      // absent setting as enabled. This card is the owner's switch, not the
+      // enforcement — the database enforces the same state independently.
+      { title: 'Document Photo Transcription', desc: 'Photograph handwritten or printed documents and turn them into reviewed work-order notes.',
+        showToggle: true, showStatus: false, onToggle: () => this.toggleDocumentTranscription(),
+        trackStyle: docTog.track, knobStyle: docTog.knob,
+        stateLabel: featureDocumentTranscription ? 'ENABLED' : 'DISABLED', stateLabelStyle: stateLabelStyle(featureDocumentTranscription) },
     ];
     const comingSoonFeatures = ['Customer Portal', 'SMS & Email Notifications', 'Advanced Reporting', 'Inventory', 'Online Booking', 'Invoicing', 'AI Service Advisor'].map(t => ({ title: t }));
 
@@ -5992,6 +6892,105 @@ class Component extends DCLogic {
 
       serialLabelsConfigDisplay,
       noSerialLabelsConfig: serialLabelsConfigDisplay.length === 0,
+
+      // ---------- document photo transcription (Section 27) ----------
+      featureDocumentTranscription,
+      openDocCapture: this.openDocCapture,
+      closeDocCapture: this.closeDocCapture,
+      pickDocPages: this.pickDocPages,
+      showDocCapture: !!dc,
+      isDocCaptureStep: s.docStep === 'capture',
+      docCapturePages,
+      docCaptureBusy: !!(dc && dc.busy),
+      docCaptureProcessingLabel: dc ? dc.processingLabel : '',
+      hasDocCaptureError: !!(dc && dc.error),
+      docCaptureError: dc ? dc.error : '',
+      docCaptureCanAddPages: !!dc && s.docStep === 'capture' && dc.pages.length < 5 && !dc.busy,
+      // Visibly disabled AS WELL AS refused in the controller. The controller is
+      // the guard; this is so the mechanic can see why a tap did nothing.
+      docPageControlsStyle: dc && dc.busy ? 'pointer-events:none;opacity:.45;' : '',
+      docCaptureAtLimit: !!dc && dc.pages.length >= 5,
+      docCaptureCameraLabel: dc && dc.pages.length ? 'ADD ANOTHER PAGE' : 'CAMERA',
+      docCanStartReading: !!dc && s.docStep === 'capture' && dc.pages.length > 0 && !dc.busy,
+      startDocReading: this.startDocReading,
+
+      isDocReadingStep: s.docStep === 'reading',
+      docReadingPages,
+      docReadingProgress: dr ? dr.progressLabel : '',
+      docReadingHalted: !!(dr && dr.halted),
+      docReadingHaltedMessage: dr && dr.halted ? dr.halted.message : '',
+      docCanResumeReading: !!(dr && dr.canResumeQueue),
+      resumeDocReading: this.resumeDocReading,
+      docReadingSettled: !!(dr && dr.allSettled),
+      startDocReview: this.startDocReview,
+
+      isDocReviewStep: s.docStep === 'review',
+      docReviewComments,
+      docActionStyle: "min-height:44px;padding:0 14px;display:flex;align-items:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;",
+      // Visibly disabled as well as refused in the module. The module is the guard.
+      docReviewLockStyle: docLocked ? 'pointer-events:none;opacity:.55;' : '',
+      docNeedsReattach: !!(rv && rv.needsReattach),
+      docReattachMessage: rv ? rv.reattachMessage : '',
+      docMissingPages,
+      docReattachCandidates,
+      docNoReattachCandidates: !!(rv && rv.needsReattach && rv.reattachCandidates.length === 0),
+      docSharedPagePrompt: s.docSharedPagePrompt ? s.docSharedPagePrompt.message : '',
+      approveSharedDocPage: this.approveSharedDocPage,
+      cancelDocReattach: this.cancelDocReattach,
+      docStorageWarning: rv ? rv.storageMessage : '',
+      docHasDraft: !!(rv && rv.recovery),
+      docDraftUsable: !!(rv && rv.recovery && rv.recovery.usable),
+      docDraftUnusable: !!(rv && rv.recovery && !rv.recovery.usable),
+      docDraftTitle: rv && rv.recovery && rv.recovery.usable
+        ? 'UNFINISHED REVIEW FOUND' : 'SAVED DRAFT CAN\u2019T BE OPENED',
+      docDraftSummary: rv && rv.recovery
+        ? (rv.recovery.usable
+            ? `${rv.recovery.comments} reviewed comment(s) from an earlier session on this device.`
+            : {
+                malformed: 'A saved draft for this job is damaged and can\u2019t be restored.',
+                expired: 'A saved draft for this job is too old to restore.',
+                schema_version: 'A saved draft for this job was written by an older version of the app.',
+              }[rv.recovery.reason] || 'A saved draft for this job can\u2019t be restored.')
+        : '',
+      docCanReturnToReview: !!(rv && rv.canReturnToReview),
+      docReturnHint: rv && rv.needsReattach
+        ? 'Add the pages this review refers to, then match them above.'
+        : 'Your reviewed comments are waiting.',
+      returnToDocReview: this.returnToDocReview,
+      docConfirmLabel: rv && rv.confirmInFlight ? 'SAVING\u2026' : `SAVE ${rv ? rv.comments.length : 0} COMMENT(S)`,
+      docConfirmStyle: `flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;${
+        rv && rv.canConfirm ? 'background:#1F6F78;color:#fff;cursor:pointer;'
+                            : 'background:#EDE6D6;color:rgba(22,40,61,.4);pointer-events:none;'}`,
+      docPagesButtonStyle: `min-height:44px;padding:0 16px;display:flex;align-items:center;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;background:#EDE6D6;color:#16283D;${
+        docLocked ? 'opacity:.5;pointer-events:none;' : 'cursor:pointer;'}`,
+      docSaveProgress: rv ? rv.progress : '',
+      docConfirmFailed: !!(rv && rv.status === 'failed'),
+      // The A2 feature-off state. PAGES and close stay reachable; SAVE and the
+      // generic retry are both absent by construction.
+      docFeatureDisabled: !!(rv && rv.featureDisabled),
+      // Absent, not disabled: no SAVE control is rendered at all in that state.
+      docShowSave: !(rv && rv.featureDisabled),
+      docFeatureDisabledMessage: rv ? rv.featureDisabledMessage : '',
+      returnAfterDocFeatureDisabled: this.returnAfterDocFeatureDisabled,
+      docConfirmError: rv ? rv.error : '',
+      docDeleteWarning: s.docConfirmDelete ? s.docConfirmDelete.warning : '',
+      hasDocDeleteWarning: !!s.docConfirmDelete,
+      docDiscardWarning: s.docConfirmDiscard || '',
+      hasDocDiscardWarning: !!s.docConfirmDiscard,
+      docReviewBlocked: s.docReviewBlocked,
+      hasDocReviewBlocked: !!s.docReviewBlocked,
+      addDocComment: this.addDocComment,
+      confirmDocCapture: this.confirmDocCapture,
+      retryDocConfirm: this.retryDocConfirm,
+      backToDocPages: this.backToDocPages,
+      resumeDocDraft: this.resumeDocDraft,
+      discardDocDraft: this.discardDocDraft,
+      confirmDeleteDocComment: this.confirmDeleteDocComment,
+      cancelDeleteDocComment: this.cancelDeleteDocComment,
+      confirmDiscardDocDraft: this.confirmDiscardDocDraft,
+      cancelDiscardDocDraft: this.cancelDiscardDocDraft,
+      documentCaptureGroups,
+      hasDocumentCaptureGroups: documentCaptureGroups.length > 0,
 
       // ---------- Shop Configuration ----------
       featureQrEnabled, featureSerialEnabled,
