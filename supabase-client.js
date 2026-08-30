@@ -421,9 +421,11 @@ export const ACTIVITY_TYPES = [
   'work_log', 'inspection', 'ai_summary', 'mechanic_note', 'customer_note',
   'status_change', 'photo_added', 'quote_sent', 'approval_received',
   'invoice_generated', 'payment_received', 'part_ordered', 'part_received',
+  'job_edited', 'serial_number_captured', 'document_transcription',
 ];
 // Types whose body/meta may be edited in place after creation (audit-trailed).
-export const EDITABLE_ACTIVITY_TYPES = ['customer_note', 'work_log'];
+// A reviewed document transcription is an ordinary editable note afterwards.
+export const EDITABLE_ACTIVITY_TYPES = ['customer_note', 'work_log', 'document_transcription'];
 
 function activityFromRow(row) {
   return {
@@ -439,6 +441,12 @@ function activityFromRow(row) {
     authorName: row.author_name || '',
     authorRole: row.author_role || '',
     parentActivityId: row.parent_activity_id || null,
+    // Section 27: identity of the document capture this comment came from, and
+    // its position within that capture. For the UI only — the data layer reads
+    // identity from raw rows, so a converter that dropped these cannot break
+    // finalization.
+    documentCaptureId: row.document_capture_id || null,
+    commentSequence: row.comment_sequence != null ? row.comment_sequence : null,
     version: row.version || 1,
     editedBy: row.edited_by || null,
     editedByName: row.edited_by_name || '',
@@ -621,7 +629,7 @@ export async function fetchAuditLog(limit) {
 // Only metadata + storage paths are ever kept in Postgres/JSON; image bytes
 // live in Storage, so this scales to hundreds of photos per job without
 // bloating rows, and thumb/full-res are separate objects for lazy loading.
-export const PHOTO_CATEGORIES = ['Intake', 'Before Repair', 'During Repair', 'After Repair', 'Damage', 'Parts', 'Warranty', 'Serial Number', 'Other'];
+export const PHOTO_CATEGORIES = ['Intake', 'Before Repair', 'During Repair', 'After Repair', 'Damage', 'Parts', 'Warranty', 'Serial Number', 'Document', 'Other'];
 const PHOTO_BUCKET = 'work-order-photos';
 
 // ---------- signed-URL layer (private-bucket conversion, Phase B) ----------
@@ -705,6 +713,9 @@ function photoFromRow(row) {
     photoType: row.photo_type || 'general',
     extractedText: row.extracted_text || '',
     extractionConfidence: row.extraction_confidence != null ? Number(row.extraction_confidence) : null,
+    // Section 27: which capture this page belongs to and which page it is.
+    documentCaptureId: row.document_capture_id || null,
+    documentPageNumber: row.document_page_number != null ? row.document_page_number : null,
     createdAt: new Date(row.created_at).getTime(),
     createdBy: row.created_by,
     // Soft-delete + retention/purge lifecycle (Phase C). These describe WHY an
@@ -963,6 +974,39 @@ export async function deleteSerialNumberRecord(id) {
   const { error } = await supabase.from('work_order_serial_numbers').update({ active: false, updated_at: new Date().toISOString() }).eq('id', id);
   if (error) throw error;
 }
+
+// ---------- document photo transcription (Section 27) ----------
+// Logic lives in ./document-capture.js as a pure factory so it is testable
+// without a Supabase client; this is the only place the real client is wired in.
+// ES module imports hoist, so this mid-file import is legal.
+import { createDocumentCaptureApi, mergeActivityById, mergeActivitiesById } from './document-capture.js';
+
+const _documentCaptureApi = createDocumentCaptureApi({
+  supabase,
+  fetchImpl: (...args) => fetch(...args),
+  getSession,
+  photoBucket: PHOTO_BUCKET,
+  signPhotos,
+  photoFromRow,
+  activityFromRow,
+});
+
+export {
+  DOCUMENT_TRANSCRIBE_ENDPOINT, DOCUMENT_PHOTO_TYPE, DOCUMENT_PHOTO_CATEGORY,
+  DOCUMENT_MAX_PAGES, DOCUMENT_QUALITY_TIERS, DocumentCaptureIntegrityError,
+} from './document-capture.js';
+export { mergeActivityById, mergeActivitiesById };
+
+export const newDocumentCaptureId = _documentCaptureApi.newDocumentCaptureId;
+export const newTranscriptionRequestId = _documentCaptureApi.newTranscriptionRequestId;
+export const documentPagePaths = _documentCaptureApi.documentPagePaths;
+export const transcribeDocumentPage = _documentCaptureApi.transcribeDocumentPage;
+export const uploadDocumentPage = _documentCaptureApi.uploadDocumentPage;
+export const saveDocumentCapturePhotos = _documentCaptureApi.saveDocumentCapturePhotos;
+export const saveDocumentCaptureActivities = _documentCaptureApi.saveDocumentCaptureActivities;
+export const fetchDocumentCapturePhotos = _documentCaptureApi.fetchDocumentCapturePhotos;
+export const fetchDocumentCaptureActivities = _documentCaptureApi.fetchDocumentCaptureActivities;
+export const finalizeDocumentCapture = _documentCaptureApi.finalizeDocumentCapture;
 
 // ---------- one-time shop-owner bootstrap (no session required) ----------
 export async function checkBootstrapStatus() {

@@ -2,7 +2,7 @@
   "name": "dockside-functions",
   "private": true,
   "scripts": {
-    "test": "node --test tests/"
+    "test": "node --test tests/*.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0"
