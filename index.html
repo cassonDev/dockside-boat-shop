@@ -2349,6 +2349,14 @@
               <div style="font:600 12px 'Public Sans',sans-serif;background:#FBF6E8;border:1px solid #B08A2E;color:#8A6A1E;padding:9px 11px;border-radius:4px;">{{ docReadingHaltedMessage }}</div>
             </sc-if>
 
+            <sc-if value="{{ hasDocReviewBlocked }}" hint-placeholder-val="{{ false }}">
+              <div style="font:600 12px 'Public Sans',sans-serif;background:#FBF6E8;border:1px solid #B08A2E;color:#8A6A1E;padding:9px 11px;border-radius:4px;text-wrap:pretty;">{{ docReviewBlocked }}</div>
+            </sc-if>
+
+            <sc-if value="{{ docReadingNoText }}" hint-placeholder-val="{{ false }}">
+              <div style="font:600 12px 'Public Sans',sans-serif;background:#FBEAEA;border:1px solid #C0463C;color:#8A2D26;padding:9px 11px;border-radius:4px;text-wrap:pretty;">No text came back from any page. Your photos are still here. Try again, or try a stronger reading, before reviewing.</div>
+            </sc-if>
+
             <!-- The ONLY control that resumes the remainder. TRY AGAIN and READ
                  PAGE AGAIN deliberately send one page each; without this button a
                  mechanic could be left with pages stuck in "waiting" after a 429
@@ -6921,7 +6929,13 @@ class Component extends DCLogic {
       docReadingHaltedMessage: dr && dr.halted ? dr.halted.message : '',
       docCanResumeReading: !!(dr && dr.canResumeQueue),
       resumeDocReading: this.resumeDocReading,
-      docReadingSettled: !!(dr && dr.allSettled),
+      // Settled is not enough: every page can settle as 'failed'. REVIEW THE
+      // TEXT appears only once at least one page has actually returned text,
+      // which is the same condition beginReview() enforces.
+      docReadingSettled: !!(dr && dr.allSettled
+        && dr.pages.some((p) => typeof p.text === 'string' && p.text.trim() !== '')),
+      docReadingNoText: !!(dr && dr.pages.length && dr.allSettled
+        && !dr.pages.some((p) => typeof p.text === 'string' && p.text.trim() !== '')),
       startDocReview: this.startDocReview,
 
       isDocReviewStep: s.docStep === 'review',

@@ -62,6 +62,8 @@ export const MESSAGES = {
   deleteLast: 'This is the only comment. Deleting it leaves nothing to save.',
   discardDraft: 'Discarding removes the restored text from this device. This can’t be undone.',
   pendingStronger: 'A page still has a stronger reading waiting for your choice. Resolve it before reviewing.',
+  noTranscribedText:
+    'No page has been read yet. Use TRY AGAIN, or TRY STRONGER READING, before reviewing the text.',
   sharedPage:
     'That page is already the source for another part of this review. Confirm again to use one photo for both.',
   offline:
@@ -385,6 +387,16 @@ export function createReviewController(deps) {
       return { ok: false, reason: 'pending_stronger_choice', pageIds: pending, message: MESSAGES.pendingStronger };
     }
 
+    // No page produced text: transcription failed for every page. Review is
+    // REFUSED and no state is mutated, so the mechanic stays on the reading
+    // screen with each page's error and retry controls intact. Fabricating an
+    // empty comment here is what produced a review the mechanic could neither
+    // fill from the photo nor save.
+    const anyText = (readingPages || []).some((p) => typeof p.text === 'string' && p.text.trim() !== '');
+    if (!anyText) {
+      return { ok: false, reason: 'no_transcribed_text', message: MESSAGES.noTranscribedText };
+    }
+
     session = { workOrderId, documentCaptureId };
     adoptPages(capturePages);
     restoredFromDraft = false;
@@ -412,9 +424,13 @@ export function createReviewController(deps) {
         source: 'document_photo_transcription',
       }));
     }
-    // Complete AI failure: the reviewer types the note, and it stays manual
-    // provenance for good.
-    if (!comments.length) comments.push(makeComment({ body: '' }));
+    // Unreachable: beginReview() refuses above unless at least one page carries
+    // text, so there is always a transcribed comment to review. Kept as a fail-
+    // closed assertion rather than an empty-comment fallback.
+    if (!comments.length) {
+      session = null; pages = []; comments = [];
+      return { ok: false, reason: 'no_transcribed_text', message: MESSAGES.noTranscribedText };
+    }
 
     status = 'review';
     persistAndEmit();

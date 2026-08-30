@@ -130,7 +130,27 @@ function build({ db = fakeDb(), session = { access_token: 'jwt-abc' }, fetchResu
   return { api, db, calls };
 }
 
-const jsonRes = (status, payload) => ({ status, json: async () => payload });
+// Models a real Fetch Response: the body is available through text(), which is
+// what document-capture.js reads before parsing. json() is provided too so the
+// double stays honest, but production never calls it.
+const jsonRes = (status, payload) => {
+  const body = JSON.stringify(payload);
+  return {
+    status,
+    ok: status >= 200 && status < 300,
+    text: async () => body,
+    json: async () => JSON.parse(body),
+  };
+};
+
+// A response whose body is not JSON at all — an HTML error page from the CDN, or
+// an empty body from a Function that was never deployed.
+const rawRes = (status, body) => ({
+  status,
+  ok: status >= 200 && status < 300,
+  text: async () => body,
+  json: async () => { throw new SyntaxError('Unexpected token < in JSON at position 0'); },
+});
 
 const PAGES = [
   { pageNumber: 2, origPath: `${WO}/${CAP}-p2-orig.jpg`, thumbPath: `${WO}/${CAP}-p2-thumb.jpg` },
@@ -794,4 +814,71 @@ test('no test in this file opens a network connection', () => {
   // Every api is built through createDocumentCaptureApi with an injected
   // fetchImpl and supabase double; the app binding is never constructed here.
   assert.equal(typeof createDocumentCaptureApi, 'function');
+});
+
+// ---------------------------------------------------------------------------
+// Revision 133: non-JSON error responses. The production path reads text()
+// first precisely so these are reportable instead of throwing inside json().
+// ---------------------------------------------------------------------------
+
+const TX = { requestId: REQ, workOrderId: WO, documentCaptureId: CAP, pageNumber: 1, imageDataUrl: 'data:image/jpeg;base64,AAAA', qualityTier: 'standard' };
+
+test('a 404 with an HTML body reports SERVER_CONFIG and the status, not a parse crash', async () => {
+  const { api } = build({ fetchResult: rawRes(404, '<!DOCTYPE html><html><body>Not Found</body></html>') });
+  const out = await api.transcribeDocumentPage({ ...TX });
+  assert.equal(out.ok, false);
+  assert.equal(out.status, 404);
+  assert.equal(out.code, 'SERVER_CONFIG');
+  assert.equal(out.retryable, false);
+  assert.ok(typeof out.error === 'string' && out.error.length > 0, 'the mechanic still gets a message');
+});
+
+test('a 502 with an empty body reports SERVER_CONFIG and the status', async () => {
+  const { api } = build({ fetchResult: rawRes(502, '') });
+  const out = await api.transcribeDocumentPage({ ...TX });
+  assert.equal(out.ok, false);
+  assert.equal(out.status, 502);
+  assert.equal(out.code, 'SERVER_CONFIG');
+});
+
+test('a non-JSON 429 is still classified RATE_LIMITED from the status alone', async () => {
+  const { api } = build({ fetchResult: rawRes(429, 'Too Many Requests') });
+  const out = await api.transcribeDocumentPage({ ...TX });
+  assert.equal(out.ok, false);
+  assert.equal(out.status, 429);
+  assert.equal(out.code, 'RATE_LIMITED');
+});
+
+test('a 200 whose body is not JSON does not pass as a successful reading', async () => {
+  const { api } = build({ fetchResult: rawRes(200, 'OK but not JSON') });
+  const out = await api.transcribeDocumentPage({ ...TX });
+  assert.equal(out.ok, false, 'ok===true must come from the parsed payload, never from the status');
+  assert.equal(out.status, 200);
+});
+
+test('text() is the parse source, not json()', async () => {
+  let jsonCalls = 0;
+  const payload = { ok: true, text: 'read from text()', pageNumber: 1, qualityTier: 'standard', confidenceScore: 0.91, lowConfidenceRegions: [], needsReview: false };
+  const { api } = build({
+    fetchResult: {
+      status: 200,
+      ok: true,
+      text: async () => JSON.stringify(payload),
+      json: async () => { jsonCalls += 1; throw new Error('json() must not be the parse source'); },
+    },
+  });
+  const out = await api.transcribeDocumentPage({ ...TX });
+  assert.equal(out.ok, true);
+  assert.equal(out.text, 'read from text()');
+  assert.equal(jsonCalls, 0);
+});
+
+test('a failing text() is contained: SERVER_CONFIG, not a thrown read', async () => {
+  const { api } = build({
+    fetchResult: { status: 500, ok: false, text: async () => { throw new TypeError('body stream already read'); } },
+  });
+  const out = await api.transcribeDocumentPage({ ...TX });
+  assert.equal(out.ok, false);
+  assert.equal(out.status, 500);
+  assert.equal(out.code, 'SERVER_CONFIG');
 });

@@ -420,7 +420,10 @@ function createHandler(deps) {
     //    means the reservation state machine cannot be operated safely, so no paid call.
     const config = readConfig(env);
     if (!config.ok) {
-      log({ event: 'config_invalid', missingOrInvalid: config.problems });
+      // Names only — never values. This is the line that identifies a missing
+      // OPENAI_API_KEY / SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in the
+      // Netlify log instead of leaving a bare 500 to guess at.
+      log({ event: 'config_invalid', missingOrInvalid: config.problems, hint: 'set these in the Netlify environment for this deploy context' });
       return fail(500, 'SERVER_CONFIG', 'Document transcription is temporarily unavailable.');
     }
 
@@ -482,7 +485,15 @@ function createHandler(deps) {
       if (error) throw new Error(error.message || 'reservation failed');
       reservation = data;
     } catch (e) {
-      log({ event: 'reservation_unavailable', requestId, workOrderId, qualityTier: requestedTier, errorCategory: 'reservation_error' });
+      // The RPC error text is the difference between "A2 was never installed",
+      // "service_role has no EXECUTE grant", and "the network hiccupped". It is
+      // logged, not returned: the caller still sees the generic message.
+      log({
+        event: 'reservation_unavailable', requestId, workOrderId, qualityTier: requestedTier,
+        errorCategory: 'reservation_error',
+        rpc: RESERVE_RPC,
+        rpcError: (e && e.message) ? String(e.message).slice(0, 400) : 'unknown',
+      });
       return fail(500, 'SERVER_CONFIG', 'Document transcription is temporarily unavailable.');
     }
 

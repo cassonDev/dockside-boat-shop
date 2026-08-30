@@ -101,14 +101,50 @@ test('a page that produced no text contributes no comment, and the others surviv
   assert.equal(s.pages.length, 3, 'the failed page is still a source page');
 });
 
-test('complete AI failure opens an empty manual comment with manual provenance', () => {
+test('complete AI failure REFUSES review instead of opening an empty comment', () => {
   const h = harness();
-  h.begin(['', '']);
+  const r = h.ctl.beginReview({
+    workOrderId: WO, documentCaptureId: CAP,
+    capturePages: capturePages(2),
+    readingPages: [
+      { pageId: 'p1', text: '', state: 'failed' },
+      { pageId: 'p2', text: null, state: 'failed' },
+    ],
+  });
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'no_transcribed_text');
+  assert.equal(r.message, MESSAGES.noTranscribedText);
   const s = h.ctl.getState();
-  assert.equal(s.comments.length, 1);
-  assert.equal(s.comments[0].aiGenerated, false);
-  assert.equal(s.comments[0].manualEntry, true);
-  assert.equal(s.canConfirm, false, 'an empty body cannot be confirmed');
+  assert.equal(s.status, 'idle', 'the reviewer never opened, so the mechanic stays on the pages/reading screen');
+  assert.equal(s.comments.length, 0, 'no fabricated empty comment');
+});
+
+test('one page of text is enough to open review; failed pages contribute no comment', () => {
+  const h = harness();
+  const r = h.ctl.beginReview({
+    workOrderId: WO, documentCaptureId: CAP,
+    capturePages: capturePages(2),
+    readingPages: [
+      { pageId: 'p1', text: '', state: 'failed' },
+      { pageId: 'p2', text: 'page two read fine', state: 'ready', qualityTier: 'standard', confidenceScore: 0.9 },
+    ],
+  });
+  assert.equal(r.ok, true);
+  const s = h.ctl.getState();
+  assert.deepEqual(s.comments.map((c) => c.body), ['page two read fine']);
+  assert.equal(s.comments[0].aiGenerated, true);
+  assert.equal(s.pages.length, 2, 'the failed page is still a source page');
+});
+
+test('whitespace-only transcription counts as no text', () => {
+  const h = harness();
+  const r = h.ctl.beginReview({
+    workOrderId: WO, documentCaptureId: CAP,
+    capturePages: capturePages(1),
+    readingPages: [{ pageId: 'p1', text: '   \n\t  ', state: 'ready' }],
+  });
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'no_transcribed_text');
 });
 
 test('an unresolved stronger-reading choice blocks review instead of silently resolving it', () => {
@@ -953,15 +989,40 @@ test('AI-derived text stays AI-attributed after human review, with the reviewed 
   assert.equal(c.body, 'human corrected reading');
 });
 
-test('manual entry after complete AI failure is saved with manual provenance and no tier', async () => {
+// Replaces 'manual entry after complete AI failure ...'. A total no-text result
+// now refuses beginReview() and mutates no state, so there is no review to type
+// into on that path. Manual provenance is still covered — through the ordinary
+// added-comment workflow, which is where manual typing lives.
+test('a manually added comment is saved with manual provenance and no tier', async () => {
   const h = harness();
-  h.begin(['', '']);
-  h.ctl.editComment(h.ctl.getState().comments[0].commentId, 'typed from the paper');
+  h.begin(['a page that read fine']);
+  const manual = h.ctl.addComment().commentId;
+  h.ctl.editComment(manual, 'typed from the paper');
   await h.ctl.confirm({ author: AUTHOR });
-  const c = h.calls[0].comments[0];
+  const c = h.calls[0].comments.find((x) => x.body === 'typed from the paper');
+  assert.ok(c, 'the manual comment was submitted');
   assert.equal(c.aiGenerated, false);
   assert.equal(c.qualityTier, null);
   assert.equal(c.originalConfidence, 0);
+});
+
+test('no test path can open a review from zero transcribed pages', () => {
+  const h = harness();
+  for (const readingPages of [
+    [],
+    [{ pageId: 'p1', text: '', state: 'failed' }],
+    [{ pageId: 'p1', text: null, state: 'failed' }, { pageId: 'p2', text: '  ', state: 'ready' }],
+  ]) {
+    const r = h.ctl.beginReview({
+      workOrderId: WO, documentCaptureId: CAP,
+      capturePages: capturePages(readingPages.length || 1),
+      readingPages,
+    });
+    assert.equal(r.ok, false, JSON.stringify(readingPages));
+    assert.equal(r.reason, 'no_transcribed_text');
+    assert.equal(h.ctl.getState().status, 'idle');
+    assert.equal(h.ctl.getState().comments.length, 0);
+  }
 });
 
 test('a strong-tier page keeps its tier through review and confirmation', async () => {

@@ -101,12 +101,36 @@ export function createDocumentCaptureApi(deps) {
                error: 'Document transcription and saving need an internet connection. Your reviewed text is still on this device; reconnect and try again.' };
     }
 
+    // The body is read as text first so a non-JSON response (an HTML 502 page,
+    // an empty 404 from a Function that was never deployed) is still reportable
+    // instead of collapsing into a bare "temporarily unavailable".
+    let raw = '';
+    try { raw = await res.text(); } catch (e) { raw = ''; }
     let payload = null;
-    try { payload = await res.json(); } catch (e) { payload = null; }
+    try { payload = raw ? JSON.parse(raw) : null; } catch (e) { payload = null; }
     if (payload && payload.ok === true) return { ...payload, status: res.status };
+
+    const code = (payload && payload.code) || (res.status === 429 ? 'RATE_LIMITED' : 'SERVER_CONFIG');
+    // Diagnostic only, and deliberately never shown to the mechanic. The image
+    // data URL and the bearer token are not part of this — only the request
+    // identity, the HTTP status, the server's error code, and a truncated body.
+    try {
+      if (typeof console !== 'undefined' && console.error) {
+        console.error('[document-transcription] request failed', {
+          requestId, workOrderId, documentCaptureId, pageNumber, qualityTier,
+          httpStatus: res.status,
+          code,
+          serverError: payload && payload.error,
+          requestIdEcho: payload && payload.requestId,
+          bodyPreview: payload ? undefined : String(raw).slice(0, 300),
+          endpoint: DOCUMENT_TRANSCRIBE_ENDPOINT,
+        });
+      }
+    } catch (e) { /* logging must never break the read */ }
+
     return {
       ok: false,
-      code: (payload && payload.code) || (res.status === 429 ? 'RATE_LIMITED' : 'SERVER_CONFIG'),
+      code,
       status: res.status,
       error: (payload && payload.error) || 'Document transcription is temporarily unavailable.',
       retryable: false,
