@@ -49,6 +49,9 @@ function harness(opts = {}) {
     storage = makeStorage(),
     clock = { t: 1_700_000_000_000 },
     uploadPage,
+    uploadTimeoutMs,
+    finalizeTimeoutMs,
+    timers,
     finalize = async (payload) => ({
       photos: payload.pages.map((p, i) => ({ id: `ph-${i + 1}`, documentCaptureId: payload.documentCaptureId, documentPageNumber: p.pageNumber })),
       activities: payload.comments.map((c, i) => ({ id: `ac-${i + 1}`, body: c.body, documentCaptureId: payload.documentCaptureId })),
@@ -66,6 +69,11 @@ function harness(opts = {}) {
     uploadPage: async (page) => { uploads.push(page.pageNumber); if (uploadPage) return uploadPage(page, uploads.length); },
     finalize: async (payload) => { calls.push(payload); return finalize(payload, calls.length); },
     onChange: (s) => emissions.push(s),
+    // Only supplied when a test is exercising the bounds, so every existing
+    // test keeps the production defaults and the real setTimeout.
+    ...(uploadTimeoutMs != null ? { uploadTimeoutMs } : {}),
+    ...(finalizeTimeoutMs != null ? { finalizeTimeoutMs } : {}),
+    ...(timers ? { setTimeoutFn: timers.set, clearTimeoutFn: timers.clear } : {}),
   });
   const begin = (texts = ['Page one text', 'Page two text'], pageCount = texts.length) =>
     ctl.beginReview({
@@ -2002,4 +2010,142 @@ test('the integrated feature_disabled panel offers RETURN TO REVIEW and no retry
   assert.equal(/confirmDocCapture/.test(panel), false, 'no SAVE control in this state');
   // and the close control is the sheet's own, always rendered
   assert.match(doc, /closeDocCapture/);
+});
+
+// ===========================================================================
+// Bounded upload and finalization.
+//
+// This is the defect that produced a sheet with a disabled SAVE and no exit:
+// uploadPage() was awaited with no bound, so a Storage upload that never
+// settled left confirmInFlight true forever — SAVE gone because canConfirm
+// needs status 'review', TRY SAVING AGAIN gone because canRetryConfirm needs
+// status 'failed', and closeReview() refusing because locked() was true.
+// ===========================================================================
+
+// A controllable timer. `fire()` runs every pending callback, which is how a
+// timeout is driven without waiting in real time.
+function fakeTimers() {
+  let next = 1;
+  const pending = new Map();
+  return {
+    set: (fn, ms) => { const id = next++; pending.set(id, { fn, ms }); return id; },
+    clear: (id) => { pending.delete(id); },
+    pendingCount: () => pending.size,
+    fire: () => { const all = [...pending.values()]; pending.clear(); for (const p of all) p.fn(); },
+  };
+}
+
+const hang = () => new Promise(() => {});          // never settles, like the real defect
+const tick = () => new Promise((r) => setTimeout(r, 0));
+
+test('a hung page upload times out into the recoverable failed state', async () => {
+  const timers = fakeTimers();
+  const h = harness({ timers, uploadTimeoutMs: 1000, uploadPage: () => hang() });
+  h.begin(['one']);
+  const p = h.ctl.confirm({ author: AUTHOR });
+  await tick();
+  assert.equal(h.ctl.getState().locked, true, 'in flight while waiting');
+  timers.fire();
+  const r = await p;
+
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'upload_timeout');
+  assert.equal(r.timedOut, true);
+  assert.equal(r.pageNumber, 1);
+  assert.equal(r.retryable, true);
+
+  const s = h.ctl.getState();
+  assert.equal(s.locked, false, 'the lock is cleared');
+  assert.equal(s.confirmInFlight, false);
+  assert.equal(s.canRetryConfirm, true, 'TRY SAVING AGAIN is offered');
+  assert.match(s.error, /took too long/i);
+  assert.equal(s.comments.length, 1, 'the review survives');
+  assert.equal(h.calls.length, 0, 'finalization was never reached');
+  assert.ok(h.stored(), 'the draft is retained');
+});
+
+test('the timed-out sheet can be closed, which the hang made impossible', async () => {
+  const timers = fakeTimers();
+  const h = harness({ timers, uploadTimeoutMs: 1000, uploadPage: () => hang() });
+  h.begin(['one']);
+  const p = h.ctl.confirm({ author: AUTHOR });
+  await tick();
+  const refused = h.ctl.closeReview();
+  assert.equal(refused.applied, false, 'closing is refused while genuinely in flight');
+  assert.equal(refused.reason, 'in_flight');
+  timers.fire();
+  await p;
+  assert.equal(h.ctl.closeReview().applied, true, 'and allowed once the bound has fired');
+});
+
+test('a hung finalization times out as AMBIGUOUS, because the write may still land', async () => {
+  const timers = fakeTimers();
+  const h = harness({ timers, finalizeTimeoutMs: 1000, finalize: () => hang() });
+  h.begin(['one']);
+  const p = h.ctl.confirm({ author: AUTHOR });
+  await tick();
+  timers.fire();
+  const r = await p;
+
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'finalize_timeout');
+  assert.equal(r.timedOut, true);
+  assert.equal(r.ambiguous, true);
+  const s = h.ctl.getState();
+  assert.equal(s.locked, false);
+  assert.equal(s.canRetryConfirm, true);
+  assert.match(s.error, /cannot create duplicates/i);
+  assert.ok(h.stored(), 'the draft is retained so the idempotent retry has its plan');
+});
+
+test('a retry after a timeout reuses the SAME capture id, so it cannot duplicate', async () => {
+  const timers = fakeTimers();
+  let attempt = 0;
+  const h = harness({
+    timers, uploadTimeoutMs: 1000,
+    uploadPage: () => (++attempt === 1 ? hang() : Promise.resolve()),
+  });
+  h.begin(['one']);
+  const first = h.ctl.confirm({ author: AUTHOR });
+  await tick();
+  timers.fire();
+  await first;
+
+  const second = await h.ctl.retryConfirm({ author: AUTHOR });
+  assert.equal(second.ok, true);
+  assert.equal(h.calls.length, 1, 'exactly one finalization');
+  assert.equal(h.calls[0].documentCaptureId, CAP, 'the same capture id, so the server reconciles');
+  assert.equal(h.ctl.getState().status, 'confirmed');
+});
+
+test('a successful save leaves no pending timer behind', async () => {
+  const timers = fakeTimers();
+  const h = harness({ timers, uploadTimeoutMs: 1000, finalizeTimeoutMs: 1000 });
+  h.begin(['one']);
+  const r = await h.ctl.confirm({ author: AUTHOR });
+  assert.equal(r.ok, true);
+  assert.equal(timers.pendingCount(), 0, 'every bound was cleared on the success path too');
+});
+
+test('an upload that fails fast still reports upload_failed, not a timeout', async () => {
+  const timers = fakeTimers();
+  const h = harness({
+    timers, uploadTimeoutMs: 1000,
+    uploadPage: () => Promise.reject(new Error('bucket not found')),
+  });
+  h.begin(['one']);
+  const r = await h.ctl.confirm({ author: AUTHOR });
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'upload_failed');
+  assert.equal(r.timedOut, undefined);
+  assert.equal(timers.pendingCount(), 0, 'the bound was cleared when the request settled');
+});
+
+test('a bound of zero or less disables the timeout rather than firing immediately', async () => {
+  const timers = fakeTimers();
+  const h = harness({ timers, uploadTimeoutMs: 0 });
+  h.begin(['one']);
+  const r = await h.ctl.confirm({ author: AUTHOR });
+  assert.equal(r.ok, true);
+  assert.equal(timers.pendingCount(), 0);
 });

@@ -534,23 +534,60 @@
         </sc-for>
       </div>
       <div style="padding:12px 20px 18px;">
-        <!-- Section 27 (5D): document pages grouped by capture. Staff only by
-             TYPE — these never appear in a customer or printed list. -->
-        <sc-if value="{{ hasDocumentCaptureGroups }}" hint-placeholder-val="{{ false }}">
-          <sc-for list="{{ documentCaptureGroups }}" as="grp" hint-placeholder-count="0">
-            <div style="border:1px solid rgba(22,40,61,.12);border-radius:6px;padding:10px;margin-bottom:10px;">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                <div style="font:700 10px 'IBM Plex Mono',monospace;color:#1F6F78;background:#EFF6F5;padding:3px 7px;border-radius:3px;">DOCUMENT</div>
-                <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">{{ grp.pageCountLabel }} &middot; staff only</div>
-              </div>
-              <div style="display:flex;gap:8px;overflow-x:auto;">
-                <sc-for list="{{ grp.pages }}" as="pg" hint-placeholder-count="2">
-                  <img src="{{ pg.thumbUrl }}" loading="lazy" style="width:64px;height:64px;object-fit:cover;border-radius:4px;background:#EDE6D6;cursor:pointer;" onClick="{{ pg.open }}"/>
-                </sc-for>
-              </div>
+        <!-- ============ DOCUMENTS ============
+             Saved documents, separate from ordinary job photos. Staff-only by
+             photo TYPE, not by a visibility flag. Opening one shows its pages
+             and the human-reviewed source transcription saved by the scan
+             workflow. That transcription is the source record: a future
+             customer-friendly version is written as its own comment and never
+             overwrites it. -->
+        <sc-if value="{{ hasSavedDocuments }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;">
+              <div style="font:800 11px 'Archivo',sans-serif;color:#16283D;letter-spacing:.4px;">{{ savedDocumentCountLabel }}</div>
+              <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);background:rgba(22,40,61,.06);padding:3px 6px;border-radius:2px;">STAFF ONLY</div>
             </div>
-          </sc-for>
+            <sc-for list="{{ savedDocuments }}" as="doc" hint-placeholder-count="1">
+              <div style="{{ doc.rowStyle }}">
+                <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onClick="{{ doc.toggle }}">
+                  <div style="flex:1;min-width:0;">
+                    <div style="font:700 11px 'IBM Plex Mono',monospace;color:#16283D;">{{ doc.title }}</div>
+                    <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">{{ doc.pageCountLabel }} &middot; {{ doc.transcriptCountLabel }}</div>
+                  </div>
+                  <div style="min-height:44px;padding:0 13px;display:flex;align-items:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 10px 'IBM Plex Mono',monospace;">{{ doc.toggleLabel }}</div>
+                </div>
+
+                <div style="display:flex;gap:8px;overflow-x:auto;margin-top:9px;">
+                  <sc-for list="{{ doc.thumbs }}" as="th" hint-placeholder-count="2">
+                    <div style="flex:0 0 auto;cursor:pointer;" onClick="{{ th.open }}">
+                      <img src="{{ th.thumbUrl }}" loading="lazy" style="width:64px;height:64px;object-fit:cover;border-radius:4px;background:#EDE6D6;display:block;"/>
+                      <div style="font:700 8px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);text-align:center;margin-top:3px;">{{ th.pageLabel }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <sc-if value="{{ doc.isOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin-top:11px;border-top:1px solid rgba(22,40,61,.12);padding-top:11px;display:flex;flex-direction:column;gap:9px;">
+                    <div style="font:700 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);letter-spacing:.05em;">REVIEWED SOURCE TRANSCRIPTION</div>
+                    <sc-if value="{{ doc.missingTranscript }}" hint-placeholder-val="{{ false }}">
+                      <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);text-wrap:pretty;">No reviewed text was saved with this document.</div>
+                    </sc-if>
+                    <sc-for list="{{ doc.comments }}" as="tc" hint-placeholder-count="1">
+                      <div style="background:#F6F1E4;border-radius:4px;padding:9px 11px;">
+                        <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;">
+                          <div style="font:700 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);">{{ tc.sequence }}</div>
+                          <div style="{{ tc.visibilityStyle }}">{{ tc.visibilityLabel }}</div>
+                        </div>
+                        <div style="font:500 13px 'Public Sans',sans-serif;color:#16283D;white-space:pre-wrap;text-wrap:pretty;">{{ tc.body }}</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
         </sc-if>
+
         <sc-if value="{{ hasJobPhotos }}" hint-placeholder-val="{{ false }}">
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;">
           <sc-for list="{{ jobPhotosDisplay }}" as="photo" hint-placeholder-count="4">
@@ -2208,10 +2245,42 @@
   <sc-if value="{{ showDocCapture }}" hint-placeholder-val="{{ false }}">
   <div class="no-print" style="position:fixed;inset:0;background:rgba(22,40,61,.7);display:flex;align-items:flex-end;justify-content:center;z-index:300;">
     <div style="background:#fff;border-radius:10px 10px 0 0;width:100%;max-width:520px;max-height:92vh;overflow:auto;padding-bottom:env(safe-area-inset-bottom);">
-      <div style="background:#16283D;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;">
-        <div style="font:800 14px 'Archivo',sans-serif;color:#fff;">DOCUMENT PAGES</div>
-        <div style="color:#8FBFAE;font:700 22px 'Public Sans',sans-serif;cursor:pointer;min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;" onClick="{{ closeDocCapture }}">&times;</div>
+      <div style="background:#16283D;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:2;">
+        <div style="font:800 14px 'Archivo',sans-serif;color:#fff;">{{ docSheetTitle }}</div>
+        <div style="display:flex;align-items:center;gap:7px;min-height:44px;padding:0 10px;border:1px solid rgba(255,255,255,.35);border-radius:4px;cursor:pointer;" onClick="{{ closeDocCapture }}">
+          <div style="font:700 19px 'Public Sans',sans-serif;color:#fff;line-height:1;">&times;</div>
+          <div style="font:700 10px 'IBM Plex Mono',monospace;color:#fff;letter-spacing:.06em;">CLOSE</div>
+        </div>
       </div>
+
+      <!-- Refused because a write is in progress. Says so instead of doing nothing. -->
+      <sc-if value="{{ hasDocCloseBlocked }}" hint-placeholder-val="{{ false }}">
+        <div style="margin:14px 18px 0;background:#EFF6F5;border:1px solid #1F6F78;border-radius:6px;padding:10px 12px;font:600 12px 'Public Sans',sans-serif;color:#16283D;text-wrap:pretty;">{{ docCloseBlockedMessage }}</div>
+      </sc-if>
+
+      <!-- Close guard. Nothing has been torn down while this is showing. -->
+      <sc-if value="{{ hasDocConfirmClose }}" hint-placeholder-val="{{ false }}">
+        <div style="margin:14px 18px 0;background:#FBF6E8;border:1px solid #B08A2E;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:10px;">
+          <div style="font:700 13px 'Public Sans',sans-serif;color:#5C4A1A;">{{ docConfirmCloseMessage }}</div>
+          <div style="font:500 12px 'Public Sans',sans-serif;color:#5C4A1A;text-wrap:pretty;">Your pages and any text you have reviewed will be lost.</div>
+          <div style="display:flex;gap:8px;">
+            <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ cancelCloseDocCapture }}">STAY</div>
+            <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#C0463C;color:#fff;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ confirmCloseDocCapture }}">DISCARD &amp; CLOSE</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- Completion. The capture is already torn down; this is the exit. -->
+      <sc-if value="{{ isDocSavedStep }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:22px 18px;display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center;">
+          <div style="font:800 17px 'Archivo',sans-serif;color:#16283D;">Saved to the job</div>
+          <sc-if value="{{ hasDocSavedSummary }}" hint-placeholder-val="{{ false }}">
+            <div style="font:700 11px 'IBM Plex Mono',monospace;color:#1F6F78;background:#EFF6F5;padding:6px 11px;border-radius:3px;">{{ docSavedSummary }}</div>
+          </sc-if>
+          <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);text-wrap:pretty;max-width:34ch;">The comments are on the job timeline and the document pages are in the staff-only gallery.</div>
+          <div style="width:100%;min-height:52px;display:flex;align-items:center;justify-content:center;background:#D97706;color:#fff;border-radius:6px;font:800 14px 'IBM Plex Mono',monospace;letter-spacing:.06em;cursor:pointer;" onClick="{{ finishDocCapture }}">DONE</div>
+        </div>
+      </sc-if>
 
       <div style="padding:14px 18px;display:flex;flex-direction:column;gap:12px;">
         <sc-if value="{{ docCaptureBusy }}" hint-placeholder-val="{{ false }}">
@@ -2851,6 +2920,14 @@ class Component extends DCLogic {
     docReviewBlocked: '',
     docConfirmDelete: null,
     docConfirmDiscard: null,
+    // Close guard and the post-save completion step. docSaved keeps the sheet
+    // on screen after the capture itself has been torn down, so a successful
+    // save ends on a visible DONE instead of the sheet vanishing.
+    docConfirmClose: null,
+    docSaved: null,
+    docCloseBlocked: '',
+    // Which saved document is expanded in the DOCUMENTS section, by capture id.
+    openDocumentCaptureId: null,
     docReattachFor: null,
     docSharedPagePrompt: null,
 
@@ -3605,6 +3682,7 @@ class Component extends DCLogic {
     this._commentsChannel = null;
   };
   setNewComment = (e) => this.setState({ newComment: e.target.value });
+
   submitComment = async () => {
     console.log('Comment POST clicked');
     if (this.state.commentBusy) return;
@@ -4417,6 +4495,39 @@ class Component extends DCLogic {
     this.checkDocDraft();
   };
 
+  // The one escape hatch. Everything that can lose work routes through here
+  // rather than calling closeDocCapture() directly.
+  requestCloseDocCapture = () => {
+    // A database write is in progress. Refusing silently is what made the sheet
+    // feel broken, so the refusal says so and names the way out.
+    if (this.__reviewer && this.__reviewer.getState().locked) {
+      this.setState({ docCloseBlocked: 'Saving right now. This closes on its own when the save finishes or fails.' });
+      return;
+    }
+    if (this.state.docCloseBlocked) this.setState({ docCloseBlocked: '' });
+    if (this.state.docSaved) { this.finishDocCapture(); return; }       // nothing left to lose
+    const dc = this.state.docCapture;
+    const rv = this.state.docReview;
+    const hasPages = !!(dc && dc.pages && dc.pages.length);
+    const hasReview = !!(rv && rv.comments && rv.comments.length);
+    if (!hasPages && !hasReview) { this.closeDocCapture(); return; }
+    this.setState({ docConfirmClose: 'Discard unsaved changes?' });
+  };
+  cancelCloseDocCapture = () => this.setState({ docConfirmClose: null });
+  confirmCloseDocCapture = () => {
+    this.setState({ docConfirmClose: null });
+    this.closeDocCapture();
+  };
+  // Leaves the completion step. The capture and review were already torn down
+  // by confirmDocCapture(); this only dismisses the sheet.
+  finishDocCapture = () => this.setState({ docSaved: null, docConfirmClose: null, docCloseBlocked: '' });
+
+  // DOCUMENTS section: one document expanded at a time.
+  toggleSavedDocument = (captureId) => {
+    if (!captureId) return;
+    this.setState((st) => ({ openDocumentCaptureId: st.openDocumentCaptureId === captureId ? null : captureId }));
+  };
+
   closeDocCapture = () => {
     // The review module is authoritative: it refuses teardown while a
     // confirmation is in flight, and so must this handler. Closing mid-save
@@ -4426,7 +4537,8 @@ class Component extends DCLogic {
     if (this.__transcriber) this.__transcriber.endSession();
     this._captureController().close();
     this.setState({ docStep: 'capture', docReading: null, docReview: null,
-                    docReattachFor: null, docSharedPagePrompt: null });
+                    docReattachFor: null, docSharedPagePrompt: null,
+                    docConfirmClose: null, docSaved: null, docCloseBlocked: '' });
   };
 
   // Camera and library share this. Files are processed ONE AT A TIME via the
@@ -4655,7 +4767,13 @@ class Component extends DCLogic {
     this._transcriber().endSession();
     this._reviewer().closeReview();
     this._captureController().close();
-    this.setState({ docStep: 'capture', docReading: null, docReview: null });
+    // Teardown is unchanged — blobs and object URLs are released exactly as
+    // before. docSaved is what keeps the sheet on screen for the DONE button.
+    const n = (v) => (typeof v === 'number' ? v : null);
+    this.setState({
+      docStep: 'saved', docReading: null, docReview: null,
+      docSaved: { comments: n(r.activities), photos: n(r.photos) },
+    });
     // The approved controller returns verified COUNTS (r.activities is a number),
     // not rows, so there is nothing to append optimistically here. The reload
     // below is the authoritative refresh; realtime inserts that arrive in the
@@ -6024,6 +6142,8 @@ class Component extends DCLogic {
     const postActivityButtonLabel = s.activityComposerBusy ? 'POSTING\u2026' : 'POST';
     const hasActivityComposerError = !!s.activityComposerError;
 
+
+
     const statusChoiceOptions = ['open', 'in progress', 'done'].map(st => ({
       label: st.toUpperCase(),
       style: `flex:1;text-align:center;font:700 10.5px 'IBM Plex Mono',monospace;padding:9px 6px;border-radius:3px;cursor:pointer;background:${sj && sj.status === st ? '#16283D' : '#EDE6D6'};color:${sj && sj.status === st ? '#fff' : '#16283D'};`,
@@ -6297,8 +6417,14 @@ class Component extends DCLogic {
       retry: () => this.retryDocPage(p.pageId),
       canTryStronger: p.canTryStronger,
       // Always available; prominence is the only thing confidence changes.
+      // Both variants are now the existing cream secondary. prominentStronger
+      // still decides prominence — unchanged behavior — but it does so with a
+      // border and full-strength navy text instead of the bright orange, which
+      // read as a primary action on a failed page.
       strongerStyle: `min-height:44px;padding:0 14px;display:flex;align-items:center;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;${
-        p.prominentStronger ? 'background:#D97706;color:#fff;' : 'background:#F6F1E4;color:rgba(22,40,61,.7);'}`,
+        p.prominentStronger
+          ? 'background:#EDE6D6;color:#16283D;border:1px solid rgba(22,40,61,.35);'
+          : 'background:#F6F1E4;color:rgba(22,40,61,.7);border:1px solid transparent;'}`,
       showStrongerHint: p.prominentStronger,
       tryStronger: () => this.tryStrongerDocReading(p.pageId),
     }));
@@ -6359,16 +6485,77 @@ class Component extends DCLogic {
       pick: () => this.chooseDocReattachTarget(p.pageId),
     }));
 
-    // Staff gallery: document pages grouped by capture, staff-only by type.
-    const documentCaptureGroups = this._docDisplay
-      ? this._docDisplay.groupDocumentPages(s.jobPhotos || []).map((g) => ({
-          pageCountLabel: `${g.pages.length} page${g.pages.length === 1 ? '' : 's'}`,
-          pages: g.pages.map((p) => ({
-            thumbUrl: this._docDisplay.photoThumbUrlOf(p),
-            open: () => this.openLightbox(p.id),
-          })),
-        }))
+    // ---------- DOCUMENTS: saved documents, staff-only ----------
+    //
+    // Grouped by document_capture_id from the saved photo rows, then joined to
+    // the human-reviewed source transcription — the activities rows the scan
+    // workflow wrote, activity_type 'document_transcription', ordered by
+    // comment_sequence. No new column and no new table: the capture id already
+    // links both sides.
+    //
+    // STAFF-ONLY BY TYPE. These pages are excluded from every customer and
+    // print surface by photosForAudience()/assertNoDocumentPhotos(), not by a
+    // per-row visibility flag, so nothing here can be flipped customer-visible
+    // by accident.
+    //
+    // The reviewed transcription shown here is the SOURCE record. A future
+    // customer-friendly version must be written as its own separate activity
+    // and must never overwrite these rows.
+    const docTranscripts = new Map();
+    for (const a of (s.jobActivities || [])) {
+      const cap = a && (a.documentCaptureId || a.document_capture_id);
+      const type = a && (a.activityType || a.activity_type);
+      if (!cap || type !== 'document_transcription') continue;
+      if (!docTranscripts.has(cap)) docTranscripts.set(cap, []);
+      docTranscripts.get(cap).push(a);
+    }
+    for (const list of docTranscripts.values()) {
+      list.sort((x, y) => {
+        const sx = x.commentSequence != null ? x.commentSequence : (x.comment_sequence != null ? x.comment_sequence : 0);
+        const sy = y.commentSequence != null ? y.commentSequence : (y.comment_sequence != null ? y.comment_sequence : 0);
+        return sx - sy;
+      });
+    }
+
+    const savedDocuments = this._docDisplay
+      ? this._docDisplay.groupDocumentPages(s.jobPhotos || []).map((g, gi) => {
+          const captureId = g.documentCaptureId || g.captureId || null;
+          const comments = (captureId && docTranscripts.get(captureId)) || [];
+          const open = !!captureId && s.openDocumentCaptureId === captureId;
+          const first = g.pages[0];
+          const savedAt = first && first.createdAt ? new Date(first.createdAt) : null;
+          return {
+            captureId,
+            title: `DOCUMENT ${gi + 1}`,
+            pageCountLabel: `${g.pages.length} page${g.pages.length === 1 ? '' : 's'}`,
+            transcriptCountLabel: comments.length
+              ? `${comments.length} reviewed comment${comments.length === 1 ? '' : 's'}`
+              : 'no reviewed text saved',
+            hasTranscript: comments.length > 0,
+            missingTranscript: comments.length === 0,
+            savedLabel: savedAt ? savedAt.toLocaleDateString() : '',
+            isOpen: open,
+            toggleLabel: open ? 'HIDE' : 'OPEN',
+            toggle: () => this.toggleSavedDocument(captureId),
+            rowStyle: `border:1px solid ${open ? '#1F6F78' : 'rgba(22,40,61,.14)'};border-radius:6px;padding:11px;margin-bottom:10px;background:${open ? '#FCFBF7' : '#fff'};`,
+            thumbs: g.pages.map((p, i) => ({
+              thumbUrl: this._docDisplay.photoThumbUrlOf(p),
+              pageLabel: `P${p.documentPageNumber != null ? p.documentPageNumber : i + 1}`,
+              open: () => this.openLightbox(p.id),
+            })),
+            comments: comments.map((a, i) => ({
+              sequence: a.commentSequence != null ? a.commentSequence : i + 1,
+              body: a.body || '',
+              aiGenerated: !!(a.aiGenerated || a.ai_generated),
+              visibilityLabel: (a.visibility === 'public') ? 'CUSTOMER VISIBLE' : 'STAFF ONLY',
+              visibilityStyle: `font:700 8.5px 'IBM Plex Mono',monospace;padding:2px 5px;border-radius:2px;${
+                a.visibility === 'public' ? 'background:#EFF6F5;color:#1F6F78;' : 'background:rgba(22,40,61,.08);color:rgba(22,40,61,.55);'}`,
+            })),
+          };
+        })
       : [];
+
+
 
     // ---------- serial number capture render data ----------
     const scScan = s.serialScan;
@@ -6904,10 +7091,31 @@ class Component extends DCLogic {
       // ---------- document photo transcription (Section 27) ----------
       featureDocumentTranscription,
       openDocCapture: this.openDocCapture,
-      closeDocCapture: this.closeDocCapture,
+      closeDocCapture: this.requestCloseDocCapture,
       pickDocPages: this.pickDocPages,
-      showDocCapture: !!dc,
-      isDocCaptureStep: s.docStep === 'capture',
+      // docSaved keeps the sheet mounted for the completion step after the
+      // capture itself is gone.
+      showDocCapture: !!dc || !!s.docSaved,
+      isDocCaptureStep: !!dc && s.docStep === 'capture',
+      docSheetTitle: s.docSaved ? 'SAVED TO THE JOB'
+        : s.docStep === 'review' ? 'REVIEW THE TEXT'
+        : s.docStep === 'reading' ? 'READING PAGES' : 'DOCUMENT PAGES',
+
+      hasDocCloseBlocked: !!s.docCloseBlocked,
+      docCloseBlockedMessage: s.docCloseBlocked || '',
+      hasDocConfirmClose: !!s.docConfirmClose,
+      docConfirmCloseMessage: s.docConfirmClose || '',
+      cancelCloseDocCapture: this.cancelCloseDocCapture,
+      confirmCloseDocCapture: this.confirmCloseDocCapture,
+
+      isDocSavedStep: !!s.docSaved,
+      docSavedSummary: s.docSaved
+        ? [s.docSaved.comments != null ? `${s.docSaved.comments} comment${s.docSaved.comments === 1 ? '' : 's'}` : null,
+           s.docSaved.photos != null ? `${s.docSaved.photos} page${s.docSaved.photos === 1 ? '' : 's'}` : null]
+          .filter(Boolean).join(' \u00b7 ')
+        : '',
+      hasDocSavedSummary: !!(s.docSaved && (s.docSaved.comments != null || s.docSaved.photos != null)),
+      finishDocCapture: this.finishDocCapture,
       docCapturePages,
       docCaptureBusy: !!(dc && dc.busy),
       docCaptureProcessingLabel: dc ? dc.processingLabel : '',
@@ -7003,8 +7211,9 @@ class Component extends DCLogic {
       cancelDeleteDocComment: this.cancelDeleteDocComment,
       confirmDiscardDocDraft: this.confirmDiscardDocDraft,
       cancelDiscardDocDraft: this.cancelDiscardDocDraft,
-      documentCaptureGroups,
-      hasDocumentCaptureGroups: documentCaptureGroups.length > 0,
+      savedDocuments,
+      hasSavedDocuments: savedDocuments.length > 0,
+      savedDocumentCountLabel: `DOCUMENTS (${savedDocuments.length})`,
 
       // ---------- Shop Configuration ----------
       featureQrEnabled, featureSerialEnabled,

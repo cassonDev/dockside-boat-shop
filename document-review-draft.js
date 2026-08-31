@@ -48,6 +48,12 @@ export const REVIEW_STATES = [
   'feature_disabled',
 ];
 
+// Per-page upload bound and the finalization bound. Generous enough that a slow
+// phone on marina wifi finishes a 5-page capture, short enough that a hung
+// request cannot hold the sheet hostage.
+export const UPLOAD_TIMEOUT_MS = 45_000;
+export const FINALIZE_TIMEOUT_MS = 30_000;
+
 export const MESSAGES = {
   storageUnavailable:
     'This device isn’t saving a local draft. Your review is still here while this tab stays open.',
@@ -71,6 +77,10 @@ export const MESSAGES = {
   ambiguous:
     'The save didn’t confirm. Nothing was lost — try again; saving twice cannot create duplicates.',
   locked: 'Saving is in progress. Wait for it to finish or fail before changing the review.',
+  uploadTimedOut:
+    'Page {n} took too long to upload, so the save was stopped. Nothing was saved and your pages are still here — check your connection and try again.',
+  finalizeTimedOut:
+    'Saving took too long and was stopped. Your reviewed text is still here. Saving twice cannot create duplicates, so it is safe to try again.',
   // The database refused the save because the shop owner switched the feature
   // off. Distinct from a failure: retrying changes nothing until an owner acts,
   // so no retry is offered — the reviewer returns to the review deliberately.
@@ -124,6 +134,22 @@ export function createReviewController(deps) {
     // handed IN from the frozen plan and must not be re-derived by the adapter.
     uploadPage = null,
     now = () => Date.now(),
+    // ---- bounded operations -------------------------------------------------
+    //
+    // The defect this closes: uploadPage() and finalize() were awaited with no
+    // bound. A request that never settles left confirmInFlight true forever —
+    // SAVE gone (canConfirm needs status 'review'), TRY SAVING AGAIN gone
+    // (canRetryConfirm needs status 'failed'), and closeReview() refusing
+    // because locked() was true. The sheet had no exit at all.
+    //
+    // A bound converts that into the EXISTING recoverable failure: status
+    // 'failed', lock cleared, draft and pages retained, TRY SAVING AGAIN
+    // offered. No new terminal state was invented for it.
+    uploadTimeoutMs = UPLOAD_TIMEOUT_MS,
+    finalizeTimeoutMs = FINALIZE_TIMEOUT_MS,
+    // Injected so tests drive the bound without waiting in real time.
+    setTimeoutFn = (fn, ms) => setTimeout(fn, ms),
+    clearTimeoutFn = (h) => clearTimeout(h),
     newId = () => `c-${Math.random().toString(16).slice(2)}`,
     onChange = () => {},
     maxAgeMs = DRAFT_MAX_AGE_MS,
@@ -646,6 +672,9 @@ export function createReviewController(deps) {
     return { applied: true };
   }
 
+  // Going PRIVATE is always immediate: hiding text from a customer needs no
+  // review. Going PUBLIC runs the professional-language scan FIRST, and the
+  // visibility change is withheld until the mechanic resolves the finding.
   function setVisibility(commentId, visibility) {
     if (locked()) return refuse();
     const c = find(commentId);
@@ -885,6 +914,26 @@ export function createReviewController(deps) {
     return { ok: false, retryable: true, error, ...extra };
   }
 
+  // Races a promise against a bound and normalises every outcome into one
+  // shape. TIMEOUT IS NOT CANCELLATION: the injected boundary exposes no abort,
+  // so the request may still land server-side after we stop waiting. That is
+  // exactly why the draft is retained and the retry is idempotent per capture
+  // id — a replay reconciles with whatever landed instead of duplicating it.
+  function withBound(promise, ms) {
+    const settled = Promise.resolve(promise).then((value) => ({ value }), (error) => ({ error }));
+    if (!(ms > 0)) return settled;
+    let handle = null;
+    const bound = new Promise((resolve) => {
+      handle = setTimeoutFn(() => resolve({ timedOut: true }), ms);
+    });
+    return Promise.race([settled, bound]).then((outcome) => {
+      // Cleared on BOTH paths, so a finished save leaves no pending timer that
+      // could fire against a later confirmation.
+      if (handle != null) clearTimeoutFn(handle);
+      return outcome;
+    });
+  }
+
   // Duplicate taps are refused in CODE. The flag is set synchronously, before
   // any await, so two taps in the same tick cannot both pass.
   async function confirm({ author, userId } = {}) {
@@ -917,12 +966,23 @@ export function createReviewController(deps) {
       for (const p of plan.pages) {
         progress = `Uploading page ${p.pageNumber} of ${plan.pages.length}`;
         emit();
-        try {
-          await uploadPage({
+        const outcome = await withBound(
+          Promise.resolve().then(() => uploadPage({
             pageId: p.pageId, pageNumber: p.pageNumber, totalPages: plan.pages.length,
             workOrderId: plan.workOrderId, documentCaptureId: plan.documentCaptureId,
-          });
-        } catch (e) {
+          })),
+          uploadTimeoutMs,
+        );
+        if (outcome.timedOut) {
+          // The hang that produced a sheet with no exit. It now lands in the
+          // same recoverable state as any other upload failure.
+          return failConfirmation(
+            MESSAGES.uploadTimedOut.replace('{n}', String(p.pageNumber)),
+            { reason: 'upload_timeout', pageNumber: p.pageNumber, timedOut: true },
+          );
+        }
+        if (outcome.error) {
+          const e = outcome.error;
           return failConfirmation(
             (e && e.code === 'OFFLINE') ? MESSAGES.offline
               : `Couldn’t upload page ${p.pageNumber}. Nothing was saved — try again.`,
@@ -934,10 +994,20 @@ export function createReviewController(deps) {
     progress = 'Saving reviewed comments';
     emit();
 
+    const fin = await withBound(
+      Promise.resolve().then(() => finalize(finalizePayloadFrom(plan))),
+      finalizeTimeoutMs,
+    );
+    if (fin.timedOut) {
+      // Deliberately the AMBIGUOUS class, not a clean failure: the write may
+      // have landed after we stopped waiting. The draft is kept and the retry is
+      // idempotent per capture id, so trying again reconciles rather than
+      // duplicating.
+      return failConfirmation(MESSAGES.finalizeTimedOut, { reason: 'finalize_timeout', timedOut: true, ambiguous: true });
+    }
     let result;
-    try {
-      result = await finalize(finalizePayloadFrom(plan));
-    } catch (e) {
+    if (fin.error) {
+      const e = fin.error;
       // The A2 feature gate refused: the owner switched the feature off. This is
       // its own state, not a failure — `failed` would derive a retry button, and
       // every retry would be refused identically until an owner acts.
@@ -957,6 +1027,8 @@ export function createReviewController(deps) {
           : (e && e.message) || MESSAGES.ambiguous,
         { reason: 'failed' },
       );
+    } else {
+      result = fin.value;
     }
 
     const verified = verifyResult(result, plan);
