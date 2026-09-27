@@ -21,6 +21,7 @@
 // ===========================================================================
 
 export const DOCUMENT_TRANSCRIBE_ENDPOINT = '/.netlify/functions/transcribe-document';
+export const DOCUMENT_PULL_ENDPOINT = '/.netlify/functions/pull-document-details';
 export const DOCUMENT_PHOTO_TYPE = 'document';
 export const DOCUMENT_PHOTO_CATEGORY = 'Document';
 export const DOCUMENT_MAX_PAGES = 5;
@@ -134,6 +135,40 @@ export function createDocumentCaptureApi(deps) {
       status: res.status,
       error: (payload && payload.error) || 'Document transcription is temporarily unavailable.',
       retryable: false,
+    };
+  }
+
+  // ---- pull what was asked for ---------------------------------------------
+  // Sends the already-read page text plus the staff member's request to the
+  // protected Function, which returns only what was asked for. "Everything"
+  // never comes here — the caller joins the text itself.
+  async function pullDocumentDetails({ workOrderId, instruction, pages }) {
+    const session = await getSessionFn();
+    const token = session && session.access_token;
+    if (!token) return { ok: false, code: 'UNAUTHENTICATED', error: 'You are signed out. Sign in again.' };
+
+    let res;
+    try {
+      res = await fetchImpl(DOCUMENT_PULL_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          workOrderId,
+          instruction,
+          pages: (pages || []).map((p) => ({ pageNumber: p.pageNumber, text: p.text })),
+        }),
+      });
+    } catch (e) {
+      return { ok: false, code: 'OFFLINE', error: 'This needs an internet connection. Reconnect and try again.' };
+    }
+
+    let payload = null;
+    try { payload = JSON.parse(await res.text()); } catch (e) { payload = null; }
+    if (payload && payload.ok === true && typeof payload.text === 'string') return { ok: true, text: payload.text };
+    return {
+      ok: false,
+      code: (payload && payload.code) || 'SERVER_CONFIG',
+      error: (payload && payload.error) || 'Couldn’t pull the details this time. Try again, or keep everything.',
     };
   }
 
@@ -398,7 +433,7 @@ export function createDocumentCaptureApi(deps) {
 
   return {
     newDocumentCaptureId, newTranscriptionRequestId, documentPagePaths,
-    transcribeDocumentPage, uploadDocumentPage,
+    transcribeDocumentPage, pullDocumentDetails, uploadDocumentPage,
     saveDocumentCapturePhotos, saveDocumentCaptureActivities,
     fetchDocumentCapturePhotos: async (w, c) => signPhotosFn((await selectPhotoRows(w, c)).map(photoFromRowFn)),
     fetchDocumentCaptureActivities: async (w, c) => (await selectActivityRows(w, c)).map(activityFromRowFn),

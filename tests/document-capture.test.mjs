@@ -288,7 +288,11 @@ test('the module never references a client-side AI fallback', async () => {
   const src = await readFile(new URL('../document-capture.js', import.meta.url), 'utf8');
   assert.equal(src.includes('window.claude'), false);
   assert.equal(src.includes('api.openai.com'), false);
-  assert.equal((src.match(/fetchImpl\(/g) || []).length, 1, 'exactly one outbound call site, and it is the protected Function');
+  // Exactly two outbound call sites, and both are protected Functions: reading
+  // a page, and pulling what was asked for from the text already read.
+  assert.equal((src.match(/fetchImpl\(/g) || []).length, 2, 'exactly two outbound call sites');
+  assert.equal((src.match(/fetchImpl\(DOCUMENT_(TRANSCRIBE|PULL)_ENDPOINT,/g) || []).length, 2, 'both go to protected Functions');
+  assert.match(src, /DOCUMENT_PULL_ENDPOINT = '\/\.netlify\/functions\/pull-document-details'/);
 });
 
 // ---------------------------------------------------------------------------

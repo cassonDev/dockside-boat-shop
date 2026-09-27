@@ -97,6 +97,19 @@ export const MESSAGES = {
 export const HINT_FEATURE_DISABLED = 'DOCUMENT_TRANSCRIPTION_DISABLED';
 export const HINT_NOT_ALLOWED = 'DOCUMENT_ROW_NOT_ALLOWED';
 
+// "Everything": every page's text, in page order, as one entry. A single page
+// is kept as-is; with several, each gets a "Page N" line so the text can be
+// matched back to its photo. Pages that came back empty are skipped.
+export function combinePageText(readingPages) {
+  const withText = (readingPages || [])
+    .filter((p) => typeof p.text === 'string' && p.text.trim() !== '')
+    .slice()
+    .sort((a, b) => a.pageNumber - b.pageNumber);
+  if (withText.length === 0) return '';
+  if (withText.length === 1) return withText[0].text.trim();
+  return withText.map((p) => `Page ${p.pageNumber}\n${p.text.trim()}`).join('\n\n');
+}
+
 const errorCarries = (e, hint) => {
   if (!e) return false;
   return [e.hint, e.code, e.details, e.message]
@@ -461,6 +474,52 @@ export function createReviewController(deps) {
     status = 'review';
     persistAndEmit();
     return { ok: true, comments: comments.length };
+  }
+
+  // The simple flow: the whole document becomes ONE timeline entry. `body` is
+  // what the staff member chose to keep — every page's text ("Everything") or
+  // only what they asked for — and every page is attached to it. Same
+  // refusals as beginReview(), so a failed or undecided reading can never be
+  // turned into an entry.
+  function beginSingleReview({ workOrderId, documentCaptureId, capturePages, readingPages, body }) {
+    if (locked()) return { ok: false, reason: 'in_flight', message: MESSAGES.locked };
+    const reading = readingPages || [];
+    const pending = reading.filter((p) => p.pendingStrong).map((p) => p.pageId);
+    if (pending.length) {
+      return { ok: false, reason: 'pending_stronger_choice', pageIds: pending, message: MESSAGES.pendingStronger };
+    }
+    const withText = reading.filter((p) => typeof p.text === 'string' && p.text.trim() !== '');
+    if (!withText.length) return { ok: false, reason: 'no_transcribed_text', message: MESSAGES.noTranscribedText };
+    if (typeof body !== 'string' || body.trim() === '') {
+      return { ok: false, reason: 'empty_body', message: MESSAGES.emptyBody };
+    }
+
+    session = { workOrderId, documentCaptureId };
+    adoptPages(capturePages);
+    restoredFromDraft = false;
+    draftPageIds = [];
+    lastResult = null;
+    error = '';
+    confirmInFlight = false;
+    progress = '';
+
+    const confidences = withText.map((p) => p.confidenceScore).filter((n) => typeof n === 'number');
+    comments = [makeComment({
+      body,
+      pageIds: pages.map((p) => p.pageId),
+      aiGenerated: true,
+      qualityTier: withText.some((p) => p.qualityTier === 'strong') ? 'strong' : 'standard',
+      originalConfidence: confidences.length ? Math.min(...confidences) : 0,
+      // Regions point into one page's reading; they do not map onto a combined
+      // or pulled text, so none are carried.
+      lowConfidenceRegions: [],
+      humanEdited: false,
+      source: 'document_photo_transcription',
+    })];
+
+    status = 'review';
+    persistAndEmit();
+    return { ok: true, comments: 1, commentId: comments[0].commentId };
   }
 
   // Returning from the page picker — or from a feature-off refusal — to the
@@ -1077,7 +1136,7 @@ export function createReviewController(deps) {
   }
 
   return {
-    beginReview, returnToReview, detectDraft, resumeDraft, discardDraft, reattachPage, syncCapture,
+    beginReview, beginSingleReview, returnToReview, detectDraft, resumeDraft, discardDraft, reattachPage, syncCapture,
     editComment, setVisibility, splitComment, mergeCommentUp, moveComment,
     deleteComment, addComment, setCommentPages, toggleCommentPage,
     confirm, retryConfirm, closeReview, backToCapture,

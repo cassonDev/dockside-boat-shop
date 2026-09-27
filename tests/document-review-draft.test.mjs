@@ -1113,7 +1113,7 @@ test('closeReview leaves the draft in place for the next visit', () => {
 test('the module exposes no storage, transcription, or database entry point of its own', () => {
   const api = createReviewController({ storage: makeStorage(), finalize: async () => ({}) });
   assert.deepEqual(Object.keys(api).sort(), [
-    '_internals', 'addComment', 'backToCapture', 'beginReview', 'closeReview', 'confirm',
+    '_internals', 'addComment', 'backToCapture', 'beginReview', 'beginSingleReview', 'closeReview', 'confirm',
     'deleteComment', 'detectDraft', 'discardDraft', 'editComment', 'getState', 'mergeCommentUp',
     'moveComment', 'reattachPage', 'resumeDraft', 'retryConfirm', 'returnToReview',
     'setCommentPages', 'setVisibility', 'splitComment', 'syncCapture', 'toggleCommentPage',
@@ -1981,31 +1981,28 @@ test('an ordinary failure still offers a retry, unchanged', async () => {
   assert.equal(s.featureDisabled, false);
 });
 
-// The documented template, checked as source: the state contract says the SAVE
-// control is ABSENT while the feature is off, not merely disabled.
-test('the integrated footer omits SAVE in feature_disabled rather than disabling it', async () => {
-  // Revision 129: was a read of the (root-level, never-shipped) index-5c-edits.md
-  // and failed with ENOENT. It now asserts the shipped template.
+// The shipped template, checked as source: while the feature is off the SAVE
+// control is ABSENT, not merely disabled, and no retry is offered.
+// (Updated for the simple "Scan a document" flow: the check screen is the one
+// review screen, so its ways out are "Pull something different" and CLOSE.)
+test('the check screen omits SAVE in feature_disabled rather than disabling it', async () => {
   const { readFile } = await import('node:fs/promises');
   const doc = await readFile(new URL('../index.html', import.meta.url), 'utf8');
-  const footer = doc.slice(doc.indexOf('{{ docPagesButtonStyle }}'), doc.indexOf('{{ docSaveProgress }}'));
-  assert.match(footer, /sc-if value="\{\{ docShowSave \}\}"/, 'SAVE is wrapped in a condition');
-  const saveAt = footer.indexOf('confirmDocCapture');
-  const condAt = footer.indexOf('docShowSave');
+  const screen = doc.slice(doc.indexOf('{{ isDocReviewStep }}'), doc.indexOf('{{ isDocSavedStep }}'));
+  assert.match(screen, /sc-if value="\{\{ docShowSave \}\}"/, 'SAVE is wrapped in a condition');
+  const saveAt = screen.indexOf('confirmDocCapture');
+  const condAt = screen.indexOf('docShowSave');
   assert.ok(condAt > -1 && condAt < saveAt, 'the condition precedes the SAVE control');
-  assert.match(doc, /docShowSave: !\(rv && rv\.featureDisabled\)/, 'and excludes the feature-off state');
-  assert.match(footer, /backToDocPages/, 'PAGES stays in the footer');
+  assert.match(doc, /docShowSave: !\(rv && \(rv\.featureDisabled/, 'and excludes the feature-off state');
+  assert.match(screen, /backToDocPull/, '"Pull something different" stays available');
 });
 
-test('the integrated feature_disabled panel offers RETURN TO REVIEW and no retry', async () => {
-  // Revision 129: same ENOENT correction — the shipped template is the subject.
+test('the feature_disabled message offers no retry and no SAVE', async () => {
   const { readFile } = await import('node:fs/promises');
   const doc = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const start = doc.indexOf('docFeatureDisabled }}');
   assert.notEqual(start, -1, 'the panel exists');
   const panel = doc.slice(start, doc.indexOf('docConfirmFailed }}', start));
-  assert.match(panel, /RETURN TO REVIEW/);
-  assert.match(panel, /returnAfterDocFeatureDisabled/);
   assert.equal(/TRY SAVING AGAIN/.test(panel), false, 'no retry control in this state');
   assert.equal(/confirmDocCapture/.test(panel), false, 'no SAVE control in this state');
   // and the close control is the sheet's own, always rendered
