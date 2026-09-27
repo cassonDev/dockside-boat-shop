@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Job Tracker</title>
-<!-- Home-screen ("Add to Home Screen") and browser-tab icon: the Casson Makes logo. -->
+<!-- Home-screen ("Add to Home Screen") and browser-tab icon: Casson Makes by default.
+     Once someone is signed in to a shop with a logo, the app swaps the home-screen
+     icon to that logo (see syncHomeScreenIcon). -->
 <meta name="apple-mobile-web-app-title" content="Job Tracker">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="icon" type="image/svg+xml" href="/casson-makes-logo.svg">
@@ -3085,6 +3087,41 @@ class Component extends DCLogic {
     } catch (err) {
       this.setState({ bootstrapBusy: false, bootstrapError: (err && err.message) || 'Could not create the shop owner account.' });
     }
+  }
+
+  componentDidUpdate() {
+    this.syncHomeScreenIcon();
+  }
+
+  // Home-screen icon (Safari "Add to Home Screen"): signed in to a shop with a
+  // logo → that shop's logo; otherwise the Casson Makes icon from the page head.
+  // Only does work when the logo actually changes.
+  homeScreenLogo() {
+    const s = this.state;
+    const branding = s.session && s.shop && s.shop.settings && s.shop.settings.branding;
+    return (branding && branding.logoDataUrl) || '';
+  }
+  syncHomeScreenIcon() {
+    const logo = this.homeScreenLogo();
+    if (logo === this._homeIconLogo) return;
+    this._homeIconLogo = logo;
+    const link = typeof document !== 'undefined' && document.querySelector('link[rel="apple-touch-icon"]');
+    if (!link) return;
+    if (!logo) { link.setAttribute('href', '/apple-touch-icon.png'); return; }
+    // Square 180x180 on white: iPhones show see-through areas as black.
+    const img = new Image();
+    img.onload = () => {
+      if (this._homeIconLogo !== logo) return; // shop changed while loading
+      const size = 180, pad = 18, box = size - 2 * pad;
+      const scale = Math.min(box / img.width, box / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+      link.setAttribute('href', canvas.toDataURL('image/png'));
+    };
+    img.src = logo;
   }
 
   componentWillUnmount() {

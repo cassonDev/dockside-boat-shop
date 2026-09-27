@@ -62,3 +62,23 @@ test('browser-tab icon is linked and present', () => {
   assert.match(html, /<link rel="icon" type="image\/svg\+xml" href="\/casson-makes-logo\.svg">/);
   assert.deepEqual(pngSize('favicon-32.png'), [32, 32]);
 });
+
+// Which logo the home-screen icon uses (the real homeScreenLogo() from index.html).
+const homeBody = html.match(/\n  homeScreenLogo\(\) \{\n([\s\S]*?)\n  \}\n/);
+// eslint-disable-next-line no-new-func
+const homeScreenLogo = (state) => new Function(homeBody[1]).call({ state });
+const withLogo = { name: 'Lessard Marine Works', settings: { branding: { logoDataUrl: 'data:image/png;base64,AAA' } } };
+
+test('home-screen icon: signed in to a shop with a logo -> that logo', () => {
+  assert.equal(homeScreenLogo({ session: { user: {} }, shop: withLogo }), 'data:image/png;base64,AAA');
+});
+
+test('home-screen icon: signed out, or shop has no logo -> default Casson Makes icon', () => {
+  assert.equal(homeScreenLogo({ session: null, shop: withLogo }), '');
+  assert.equal(homeScreenLogo({ session: { user: {} }, shop: { name: 'Casson PROD', settings: {} } }), '');
+  assert.equal(homeScreenLogo({ session: { user: {} }, shop: null }), '');
+});
+
+test('the app keeps the home-screen icon in sync after every update', () => {
+  assert.match(html, /\n  componentDidUpdate\(\) \{\n    this\.syncHomeScreenIcon\(\);\n  \}/);
+});
