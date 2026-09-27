@@ -75,13 +75,11 @@ a brand-new shop/tenant is a separate concept (bootstrap today; a future
      nothing else is exempted.
    - `SUPABASE_SERVICE_ROLE_KEY` — Project Settings → API → `service_role`
      secret key. **Never** put this in frontend code or commit it.
-   - `SHOP_OWNER_BOOTSTRAP_CODE` — a strong random string used once to
-     create the first shop_owner (see section 2). Safe to remove/rotate
-     after the first shop owner exists.
+   - `SHOP_OWNER_BOOTSTRAP_CODE` — no longer used (the first-owner
+     bootstrap was retired; new shops are set up by invitation). Safe to remove.
 3. Deploy. The function is reachable at `/.netlify/functions/manage-users`
-   and is called only by `supabase-client.js`'s `inviteMechanic`,
-   `setUserActive`, `setUserRole`, `deleteUserAccount` helpers — the
-   frontend never touches the service role key.
+   and is called only by `supabase-client.js`'s `inviteStaff` /
+   `inviteMechanic` helpers — the frontend never touches the service role key.
 4. Netlify's build needs to install the function's dependency
    (`@supabase/supabase-js`) — a `package.json` is included in
    `netlify/functions/`; Netlify installs it automatically at build time.
