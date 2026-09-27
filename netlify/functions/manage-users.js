@@ -1,12 +1,10 @@
 // Secure server-side user-management function.
 //
-// Handles every privileged operation the spec requires to stay OFF the
-// frontend: inviting/creating mechanic accounts, assigning roles, and
-// disabling/reactivating access. Runs with the Supabase SERVICE ROLE key,
-// which lives only in Netlify environment variables — never in client code.
+// A shop owner uses this to invite staff (new or existing logins) into THEIR
+// OWN shop. Runs with the Supabase SERVICE ROLE key, which lives only in
+// Netlify environment variables — never in client code.
 //
-// Deploy: this file lives at netlify-deploy/netlify/functions/manage-users.js
-// and is reachable at /.netlify/functions/manage-users once deployed.
+// Reachable at /.netlify/functions/manage-users once deployed.
 //
 // Required Netlify environment variables (Site settings → Environment):
 //   SUPABASE_URL              your Supabase project URL (Project Settings → API)
@@ -15,28 +13,42 @@
 // The caller must send their own Supabase session access token in the
 // Authorization header; this function verifies it belongs to an active
 // shop_owner before doing anything privileged.
-
-const { createClient } = require('@supabase/supabase-js');
+//
+// Retired actions (2026-09): set_active, set_role and delete_user accepted any
+// user id without checking that person belonged to the caller's shop, and no
+// screen used them — they now answer "Unknown action". Staff on/off and owner
+// mechanic toggles go through shop-scoped database functions instead. The
+// first-owner "bootstrap" is also retired: new shops are set up by invitation.
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-// One-time bootstrap secret for creating the very first shop_owner account.
-// Set this in Netlify env vars, share it out-of-band with whoever is setting
-// up the shop, and remove/rotate it once the first owner exists — the
-// endpoint also self-disables permanently as soon as any shop_owner exists.
-const BOOTSTRAP_CODE = process.env.SHOP_OWNER_BOOTSTRAP_CODE;
 
-// Actions that are reachable WITHOUT an existing session (bootstrap only).
-const PUBLIC_ACTIONS = new Set(['bootstrap_status', 'bootstrap_shop_owner']);
+// Loaded on first use (same pattern as lib/verify-shop-member.js) so tests can
+// swap in a fake client.
+const deps = {
+  createClient: (url, key, options) => require('@supabase/supabase-js').createClient(url, key, options),
+};
+
+// A plain email address: something@something.something, with no spaces and none
+// of the characters that act as search wildcards (% * \).
+function isValidEmail(email) {
+  return typeof email === 'string'
+    && email.length <= 254
+    && /^[^\s@%*\\]+@[^\s@%*\\]+\.[^\s@%*\\]+$/.test(email);
+}
 
 // Resolve an existing auth-user id for an email WITHOUT relying on
-// inviteUserByEmail's existing-email behavior. profiles mirrors auth.users
-// 1:1 (fast, indexed); fall back to a bounded authoritative auth scan.
+// inviteUserByEmail's existing-email behavior. Only an EXACT (case-insensitive)
+// match counts: "_" is escaped so it can't act as a wildcard, and every
+// candidate is compared exactly before it is used. Falls back to a bounded
+// authoritative auth scan. Callers must pass an email that passed isValidEmail.
 async function findUserIdByEmail(admin, email) {
   const target = (email || '').toLowerCase();
   if (!target) return null;
-  const { data: prof } = await admin.from('profiles').select('id').ilike('email', email).limit(1);
-  if (prof && prof[0] && prof[0].id) return prof[0].id;
+  const pattern = target.replace(/_/g, '\\_');
+  const { data: prof } = await admin.from('profiles').select('id, email').ilike('email', pattern).limit(5);
+  const exact = (prof || []).find((p) => (p.email || '').toLowerCase() === target);
+  if (exact && exact.id) return exact.id;
   for (let page = 1; page <= 20; page++) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
     if (error) break;
@@ -66,96 +78,17 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Invalid JSON body.' }) };
   }
 
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
-
-  // ---- bootstrap: only reachable while zero shop_owner rows exist ----
-  if (PUBLIC_ACTIONS.has(body.action)) {
-    const { count, error: countErr } = await admin
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .eq('role', 'shop_owner');
-    if (countErr) {
-      return { statusCode: 500, headers: cors, body: JSON.stringify({ error: countErr.message }) };
-    }
-    const ownerExists = (count || 0) > 0;
-
-    if (body.action === 'bootstrap_status') {
-      return { statusCode: 200, headers: cors, body: JSON.stringify({ needsBootstrap: !ownerExists }) };
-    }
-
-    // action === 'bootstrap_shop_owner'
-    if (ownerExists) {
-      return { statusCode: 403, headers: cors, body: JSON.stringify({ error: 'A shop owner already exists. Ask them to invite you instead.' }) };
-    }
-    if (!BOOTSTRAP_CODE) {
-      return { statusCode: 500, headers: cors, body: JSON.stringify({ error: 'Bootstrap is not configured (missing SHOP_OWNER_BOOTSTRAP_CODE).' }) };
-    }
-    if (!body.bootstrapCode || body.bootstrapCode !== BOOTSTRAP_CODE) {
-      return { statusCode: 403, headers: cors, body: JSON.stringify({ error: 'Incorrect setup code.' }) };
-    }
-    const { email, password, fullName } = body;
-    if (!email || !password) {
-      return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'email and password are required' }) };
-    }
-    // Refuse to run again unexpectedly: a shop already existing is also a stop
-    // condition, not just an existing owner.
-    const { count: shopCount, error: shopCountErr } = await admin
-      .from('shops').select('id', { count: 'exact', head: true });
-    if (shopCountErr) {
-      return { statusCode: 500, headers: cors, body: JSON.stringify({ error: shopCountErr.message }) };
-    }
-    if ((shopCount || 0) > 0) {
-      return { statusCode: 403, headers: cors, body: JSON.stringify({ error: 'A shop already exists. Bootstrap is disabled.' }) };
-    }
-    try {
-      // Documented, protected fresh-DB bootstrap (schema section 20, risk #3):
-      // 1) shop  2) primary location  3) owner auth user — the profiles
-      // trigger + handle_new_membership then create the owner membership and
-      // set active_shop_id from app_metadata.shop_id. 4) audit event.
-      const shopName = (body.shopName && String(body.shopName).trim()) || (fullName ? `${fullName}'s Shop` : 'New Shop');
-      const { data: shop, error: shopErr } = await admin.from('shops')
-        .insert({ name: shopName, legal_name: shopName }).select().single();
-      if (shopErr) throw shopErr;
-      const { data: loc, error: locErr } = await admin.from('shop_locations')
-        .insert({ shop_id: shop.id, name: 'Main Location', is_primary: true, is_active: true }).select().single();
-      if (locErr) throw locErr;
-
-      const { data, error } = await admin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { full_name: fullName || '' },
-        // service-role-only; drives the profiles trigger + handle_new_membership,
-        // which enrolls this user as shop_owner of shop.id and sets active_shop_id.
-        app_metadata: { role: 'shop_owner', active: true, shop_id: shop.id },
-      });
-      if (error) throw error;
-      const ownerId = data.user && data.user.id;
-
-      // Defensive: guarantee the membership + active shop exist even if the
-      // trigger path is ever changed. Idempotent upsert.
-      if (ownerId) {
-        await admin.from('shop_memberships').upsert(
-          { profile_id: ownerId, shop_id: shop.id, role: 'shop_owner', is_active: true, default_location_id: loc.id, approved_at: new Date().toISOString() },
-          { onConflict: 'profile_id,shop_id' });
-        await admin.from('profiles').update({ active_shop_id: shop.id }).eq('id', ownerId);
-        await admin.from('shops').update({ created_by: ownerId }).eq('id', shop.id);
-        await admin.from('shop_locations').update({ created_by: ownerId }).eq('id', loc.id);
-        // Audit is best-effort: the shop/owner have already committed, so a
-        // failed audit insert must NOT fail the bootstrap.
-        try {
-          await admin.from('audit_log').insert({
-            actor_id: ownerId, actor_name: fullName || '', actor_role: 'shop_owner',
-            action: 'shop_bootstrapped', table_name: 'shops', record_id: shop.id,
-            new_value: { shop: shopName, owner: email }, shop_id: shop.id,
-          });
-        } catch (auditErr) { console.error('audit_log insert failed (shop_bootstrapped):', auditErr); }
-      }
-      return { statusCode: 200, headers: cors, body: JSON.stringify({ ok: true, userId: ownerId, shopId: shop.id }) };
-    } catch (e) {
-      return { statusCode: 500, headers: cors, body: JSON.stringify({ error: (e && e.message) || 'Could not bootstrap shop.' }) };
-    }
+  // The first-owner bootstrap is retired: new shops are set up by invitation.
+  // 'bootstrap_status' still answers (always "not needed") so older copies of
+  // the app, which ask on the sign-in screen, keep loading cleanly.
+  if (body.action === 'bootstrap_status') {
+    return { statusCode: 200, headers: cors, body: JSON.stringify({ needsBootstrap: false }) };
   }
+  if (body.action === 'bootstrap_shop_owner') {
+    return { statusCode: 410, headers: cors, body: JSON.stringify({ error: 'Shop setup is by invitation only.' }) };
+  }
+
+  const admin = deps.createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 
   // ---- everything below requires a valid session belonging to an active shop_owner ----
   const authHeader = event.headers.authorization || event.headers.Authorization || '';
@@ -200,6 +133,7 @@ exports.handler = async (event) => {
         // means mechanic. platform_admin (and anything else) is rejected outright.
         const role = body.action === 'invite_mechanic' ? 'mechanic' : body.role;
         if (!email) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'email is required' }) };
+        if (!isValidEmail(email)) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Enter a valid email address.' }) };
         if (!['mechanic', 'shop_owner'].includes(role)) {
           return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'role must be mechanic or shop_owner' }) };
         }
@@ -220,6 +154,15 @@ exports.handler = async (event) => {
 
         const inactiveMember = { statusCode: 409, headers: cors, body: JSON.stringify({ status: 'inactive_member', error: 'This person was removed from your shop. Reactivate them from Staff, not via invite.' }) };
         const needsConfirm = { statusCode: 409, headers: cors, body: JSON.stringify({ status: 'requires_confirmation', error: 'That email already has an account. Adding them will grant that existing user access to your shop.' }) };
+        const cannotAdd = { statusCode: 403, headers: cors, body: JSON.stringify({ error: 'That login can’t be added to a shop.' }) };
+
+        // Platform admin logins stay outside every shop; a shop can never add one.
+        const isPlatformAdmin = async (profileId) => {
+          const { data, error } = await admin.from('platform_admins')
+            .select('profile_id').eq('profile_id', profileId).eq('is_active', true).maybeSingle();
+          if (error) throw error;
+          return !!data;
+        };
 
         // Explicit, authoritative provisioning. Membership is the ONLY grant of
         // tenant access, created here from the server-derived shop only.
@@ -259,6 +202,7 @@ exports.handler = async (event) => {
         // Decide new-vs-existing by authoritative lookup BEFORE inviting.
         const existingId = await findUserIdByEmail(admin, email);
         if (existingId) {
+          if (await isPlatformAdmin(existingId)) return cannotAdd;
           const { data: mem, error: memErr } = await admin.from('shop_memberships')
             .select('id, is_active').eq('profile_id', existingId).eq('shop_id', shopId).maybeSingle();
           if (memErr) throw memErr;
@@ -278,6 +222,7 @@ exports.handler = async (event) => {
           // Racy edge: created between our lookup and now → treat as existing.
           const racedId = await findUserIdByEmail(admin, email);
           if (racedId) {
+            if (await isPlatformAdmin(racedId)) return cannotAdd;
             if (body.addExistingUser !== true) return needsConfirm;
             return await provisionMembership(racedId, true);
           }
@@ -290,44 +235,6 @@ exports.handler = async (event) => {
         return await provisionMembership(newUserId, false);
       }
 
-      case 'set_active': {
-        const { userId, active } = body;
-        if (!userId || typeof active !== 'boolean') {
-          return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'userId and boolean active are required' }) };
-        }
-        const { error } = await admin.from('profiles').update({ active, updated_at: new Date().toISOString() }).eq('id', userId);
-        if (error) throw error;
-        // Also block sign-in at the auth layer while disabled.
-        await admin.auth.admin.updateUserById(userId, { ban_duration: active ? 'none' : '876000h' });
-        return { statusCode: 200, headers: cors, body: JSON.stringify({ ok: true }) };
-      }
-
-      case 'set_role': {
-        const { userId, role } = body;
-        if (!userId || !['shop_owner', 'mechanic'].includes(role)) {
-          return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'userId and valid role are required' }) };
-        }
-        if (!callerProfile.active_shop_id) {
-          return { statusCode: 409, headers: cors, body: JSON.stringify({ error: 'Your account has no active shop context.' }) };
-        }
-        // RLS authority first, then legacy column (see section 20 notes).
-        const { error: memErr } = await admin.from('shop_memberships')
-          .update({ role, updated_at: new Date().toISOString() })
-          .eq('profile_id', userId).eq('shop_id', callerProfile.active_shop_id);
-        if (memErr) throw memErr;
-        const { error } = await admin.from('profiles').update({ role, updated_at: new Date().toISOString() }).eq('id', userId);
-        if (error) throw error;
-        return { statusCode: 200, headers: cors, body: JSON.stringify({ ok: true }) };
-      }
-
-      case 'delete_user': {
-        const { userId } = body;
-        if (!userId) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'userId is required' }) };
-        const { error } = await admin.auth.admin.deleteUser(userId);
-        if (error) throw error;
-        return { statusCode: 200, headers: cors, body: JSON.stringify({ ok: true }) };
-      }
-
       default:
         return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Unknown action: ' + body.action }) };
     }
@@ -335,3 +242,6 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers: cors, body: JSON.stringify({ error: (e && e.message) || 'Unexpected server error' }) };
   }
 };
+
+// Test hook: swap deps.createClient for a fake; pure helpers exposed for unit tests.
+exports._test = { deps, isValidEmail, findUserIdByEmail };
