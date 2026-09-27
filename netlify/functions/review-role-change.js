@@ -11,10 +11,13 @@
 //   SUPABASE_URL
 //   SUPABASE_SERVICE_ROLE_KEY
 
-const { createClient } = require('@supabase/supabase-js');
-
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Loaded on first use so tests can swap in a fake client.
+const deps = {
+  createClient: (url, key, options) => require('@supabase/supabase-js').createClient(url, key, options),
+};
 
 exports.handler = async (event) => {
   const cors = {
@@ -37,7 +40,7 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'requestId and decision ("approve"|"deny") are required.' }) };
   }
 
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+  const admin = deps.createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 
   const authHeader = event.headers.authorization || event.headers.Authorization || '';
   const token = authHeader.replace(/^Bearer\s+/i, '');
@@ -106,6 +109,17 @@ exports.handler = async (event) => {
     }
 
     // approve
+    // The person named in the request must belong to the request's shop.
+    // Without this, a request naming someone from ANOTHER shop could change
+    // that person's role (profiles.role below is account-wide).
+    const { data: targetMem, error: targetMemErr } = await admin
+      .from('shop_memberships').select('id')
+      .eq('profile_id', reqRow.profile_id).eq('shop_id', reqRow.shop_id).maybeSingle();
+    if (targetMemErr) throw targetMemErr;
+    if (!targetMem) {
+      return { statusCode: 409, headers: cors, body: JSON.stringify({ error: 'That person is not a member of this shop.' }) };
+    }
+
     // Write the RLS authority (shop_memberships.role) FIRST in the request's
     // own shop, then the legacy profiles.role (section 20 staged migration).
     if (reqRow.shop_id) {
@@ -140,3 +154,6 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers: cors, body: JSON.stringify({ error: (e && e.message) || 'Unexpected server error' }) };
   }
 };
+
+// Test hook: swap deps.createClient for a fake.
+exports._test = { deps };
