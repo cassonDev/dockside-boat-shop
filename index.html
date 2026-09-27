@@ -3253,12 +3253,12 @@ class Component extends DCLogic {
           loaded: true, authChecking: false, loadError: '' });
         return;
       }
-      // profiles.active_shop_id can legitimately be NULL for an invited member —
-      // the DB resolves the active shop server-side (current_user_shop_id()). Fall
-      // back to the (single) active membership's shop so the client has a shop id
-      // for shop/location reads and owner detection.
+      // profiles.active_shop_id can be NULL (invited member) or stale (someone who
+      // was turned off at their old shop and now works at a new one). Use it only
+      // when they are still active there; otherwise use the shop they ARE active
+      // in — the same rule the database uses (current_user_shop_id()).
       const activeMem = (memberships || []).find(m => m.shopId === profile.activeShopId) || memberships[0] || null;
-      const effectiveShopId = profile.activeShopId || (activeMem && activeMem.shopId) || null;
+      const effectiveShopId = (activeMem && activeMem.shopId) || null;
       const bootIsOwner = !!(activeMem && activeMem.role === 'shop_owner');
       // Section 25.5 — existing-user agreement gate. Provisioned users (owners
       // AND mechanics, incl. platform admins) who pre-date Section 25, or who
