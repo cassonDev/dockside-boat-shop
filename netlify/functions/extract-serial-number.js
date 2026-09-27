@@ -13,6 +13,10 @@
 //   OPENAI_VISION_MODEL   defaults to 'gpt-4o-mini' (must support image input)
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const { verifyShopMember } = require('./lib/verify-shop-member');
+
+// Injection point so tests can run without Supabase. Production uses the real check.
+const deps = { verify: (event) => verifyShopMember(event) };
 const OPENAI_VISION_MODEL = process.env.OPENAI_VISION_MODEL || 'gpt-4o-mini';
 
 const SYSTEM_PROMPT = `You read equipment serial-number plates from photos for a boat repair shop.
@@ -36,6 +40,12 @@ exports.handler = async (event) => {
 
   if (!OPENAI_API_KEY) {
     return { statusCode: 500, headers: cors, body: JSON.stringify({ ok: false, error: 'Server is missing OPENAI_API_KEY environment variable.' }) };
+  }
+
+  // Only signed-in, active members of a shop may use AI (it is paid per call).
+  const member = await deps.verify(event);
+  if (!member.ok) {
+    return { statusCode: member.statusCode, headers: cors, body: JSON.stringify({ ok: false, code: member.code, error: member.error }) };
   }
 
   let body;
@@ -105,3 +115,6 @@ exports.handler = async (event) => {
   console.error('extract-serial-number failed after retries', lastErr && lastErr.message);
   return { statusCode: 200, headers: cors, body: JSON.stringify({ ok: false, error: 'AI could not read the serial number. Please try again or enter it manually.' }) };
 };
+
+// Exposed for automated tests (no network). Not part of the HTTP contract.
+exports._test = { deps };
