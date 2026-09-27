@@ -4879,10 +4879,19 @@ class Component extends DCLogic {
   // to window.claude.complete purely so this demos inside the design tool's
   // own preview — that fallback does nothing once deployed for real users.
   async runSerialScanExtraction(file) {
+    // Phone photos are often several MB, and as base64 they can pass Netlify's
+    // 6 MB request limit, which rejects the request (413) before the Function
+    // even runs. Send a copy scaled the same way saved photos are (1600 px,
+    // JPEG); use the original file only if the browser can't process it.
     let dataUrl = '';
-    try { dataUrl = await this.fileToDataUrl(file); } catch (e) {
-      this.setState({ serialScan: { ...this.state.serialScan, step: 'review', error: 'Could not read that photo file. Please try again.' } });
-      return;
+    try {
+      const readingCopy = await this.processPhotoFile(file, { rotation: 0, brightness: 100, contrast: 100, saturation: 100 });
+      dataUrl = await this.fileToDataUrl(readingCopy.blobOrig);
+    } catch (e) {
+      try { dataUrl = await this.fileToDataUrl(file); } catch (e2) {
+        this.setState({ serialScan: { ...this.state.serialScan, step: 'review', error: 'Could not read that photo file. Please try again.' } });
+        return;
+      }
     }
 
     let result = null;
@@ -4891,10 +4900,10 @@ class Component extends DCLogic {
         method: 'POST', headers: await this.aiRequestHeaders(),
         body: JSON.stringify({ imageDataUrl: dataUrl }),
       });
-      if (res.ok) {
-        const json = await res.json();
-        if (json && json.ok) result = json;
-      }
+      const json = await res.json().catch(() => null);
+      if (res.ok && json && json.ok) result = json;
+      // Diagnostic only: the screen shows a friendly message, the console keeps the reason.
+      else console.warn('[serial-scan] extract-serial-number failed', { status: res.status, code: json && json.code, error: json && json.error, sentBytes: dataUrl.length });
     } catch (e) { /* function not reachable (e.g. in-editor preview) — fall back below */ }
 
     if (!result) {
