@@ -168,16 +168,47 @@ test('invite_staff: a platform admin login can never be added to a shop', async 
   assert.equal(fake.calls.inserts.filter((c) => c.table === 'shop_memberships').length, 0);
 });
 
-test('invite_staff: existing login still needs confirmation, then joins the OWNER’s shop', async () => {
+test('invite_staff: someone active in ANOTHER shop is refused (one shop per login)', async () => {
   const fake = useFake(manageUsers, { tables: baseTables(), tokens: TOKENS });
-  const first = await manageUsers.handler(asOwnerA({ action: 'invite_staff', email: 'Pat.Lee@example.com', role: 'mechanic' }));
+  const res = await manageUsers.handler(asOwnerA({ action: 'invite_staff', email: 'Pat.Lee@example.com', role: 'mechanic', addExistingUser: true }));
+  assert.equal(res.statusCode, 409);
+  assert.equal(parse(res).status, 'member_of_another_shop');
+  assert.equal(fake.calls.inserts.filter((c) => c.table === 'shop_memberships').length, 0);
+});
+
+test('invite_staff: a login with no shop still needs confirmation, then joins the owner’s shop', async () => {
+  const tables = baseTables();
+  tables.profiles.push({ id: 'loner', email: 'Loner@Example.com', active: true, active_shop_id: null, full_name: 'Loner' });
+  const fake = useFake(manageUsers, { tables, tokens: TOKENS });
+  const first = await manageUsers.handler(asOwnerA({ action: 'invite_staff', email: 'loner@example.com', role: 'mechanic' }));
   assert.equal(first.statusCode, 409);
   assert.equal(parse(first).status, 'requires_confirmation');
-  const second = await manageUsers.handler(asOwnerA({ action: 'invite_staff', email: 'pat.lee@example.com', role: 'mechanic', addExistingUser: true }));
+  const second = await manageUsers.handler(asOwnerA({ action: 'invite_staff', email: 'loner@example.com', role: 'mechanic', addExistingUser: true }));
   assert.equal(second.statusCode, 200);
   assert.equal(parse(second).status, 'added_existing_user');
   const mem = fake.calls.inserts.find((c) => c.table === 'shop_memberships');
-  assert.deepEqual([mem.row.profile_id, mem.row.shop_id, mem.row.role], ['mixed', 'A', 'mechanic']);
+  assert.deepEqual([mem.row.profile_id, mem.row.shop_id, mem.row.role], ['loner', 'A', 'mechanic']);
+});
+
+test('invite_staff: someone turned off at another shop (they left) can join', async () => {
+  const tables = baseTables();
+  tables.shop_memberships.find((m) => m.profile_id === 'mixed').is_active = false;
+  const fake = useFake(manageUsers, { tables, tokens: TOKENS });
+  const res = await manageUsers.handler(asOwnerA({ action: 'invite_staff', email: 'pat.lee@example.com', role: 'mechanic', addExistingUser: true }));
+  assert.equal(res.statusCode, 200);
+  assert.equal(parse(res).status, 'added_existing_user');
+  assert.equal(fake.calls.inserts.find((c) => c.table === 'shop_memberships').row.shop_id, 'A');
+});
+
+test('invite_staff: re-inviting your own active staff member says "already a member"', async () => {
+  const tables = baseTables();
+  tables.profiles.push({ id: 'mech-a', email: 'm@shopa.com', active: true, active_shop_id: 'A', full_name: 'Mech A' });
+  tables.shop_memberships.push({ profile_id: 'mech-a', shop_id: 'A', role: 'mechanic', is_active: true });
+  const fake = useFake(manageUsers, { tables, tokens: TOKENS });
+  const res = await manageUsers.handler(asOwnerA({ action: 'invite_staff', email: 'm@shopa.com', role: 'mechanic' }));
+  assert.equal(res.statusCode, 200);
+  assert.equal(parse(res).status, 'already_member');
+  assert.equal(fake.calls.inserts.length, 0);
 });
 
 test('invite_staff: a brand-new email is invited into the owner’s shop (unchanged)', async () => {
