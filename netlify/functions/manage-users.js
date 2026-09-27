@@ -155,6 +155,7 @@ exports.handler = async (event) => {
         const inactiveMember = { statusCode: 409, headers: cors, body: JSON.stringify({ status: 'inactive_member', error: 'This person was removed from your shop. Reactivate them from Staff, not via invite.' }) };
         const needsConfirm = { statusCode: 409, headers: cors, body: JSON.stringify({ status: 'requires_confirmation', error: 'That email already has an account. Adding them will grant that existing user access to your shop.' }) };
         const cannotAdd = { statusCode: 403, headers: cors, body: JSON.stringify({ error: 'That login can’t be added to a shop.' }) };
+        const worksElsewhere = { statusCode: 409, headers: cors, body: JSON.stringify({ status: 'member_of_another_shop', error: 'That person already works at another shop. Each login belongs to one shop — ask them for a different email address.' }) };
 
         // Platform admin logins stay outside every shop; a shop can never add one.
         const isPlatformAdmin = async (profileId) => {
@@ -162,6 +163,15 @@ exports.handler = async (event) => {
             .select('profile_id').eq('profile_id', profileId).eq('is_active', true).maybeSingle();
           if (error) throw error;
           return !!data;
+        };
+
+        // One shop per login (for now): someone active in ANOTHER shop can't be
+        // added here. Being turned off elsewhere doesn't count — they've left.
+        const isActiveInAnotherShop = async (profileId) => {
+          const { data, error } = await admin.from('shop_memberships')
+            .select('shop_id').eq('profile_id', profileId).eq('is_active', true);
+          if (error) throw error;
+          return (data || []).some((m) => m.shop_id !== shopId);
         };
 
         // Explicit, authoritative provisioning. Membership is the ONLY grant of
@@ -210,6 +220,7 @@ exports.handler = async (event) => {
             if (mem.is_active) return { statusCode: 200, headers: cors, body: JSON.stringify({ ok: true, status: 'already_member', userId: existingId }) };
             return inactiveMember;
           }
+          if (await isActiveInAnotherShop(existingId)) return worksElsewhere;
           if (body.addExistingUser !== true) return needsConfirm;
           return await provisionMembership(existingId, true);
         }
@@ -223,6 +234,7 @@ exports.handler = async (event) => {
           const racedId = await findUserIdByEmail(admin, email);
           if (racedId) {
             if (await isPlatformAdmin(racedId)) return cannotAdd;
+            if (await isActiveInAnotherShop(racedId)) return worksElsewhere;
             if (body.addExistingUser !== true) return needsConfirm;
             return await provisionMembership(racedId, true);
           }
