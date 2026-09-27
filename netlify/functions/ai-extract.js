@@ -23,6 +23,10 @@
 // Required env: OPENAI_API_KEY. Optional: OPENAI_MODEL (default gpt-4o-mini).
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const { verifyShopMember } = require('./lib/verify-shop-member');
+
+// Injection point so tests can run without Supabase. Production uses the real check.
+const deps = { verify: (event) => verifyShopMember(event) };
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const EXTRACT_SEED = 7; // fixed seed -> repeatable output for identical input
 
@@ -266,6 +270,12 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers: cors, body: JSON.stringify({ ok: false, error: 'Server is missing OPENAI_API_KEY environment variable.' }) };
   }
 
+  // Only signed-in, active members of a shop may use AI (it is paid per call).
+  const member = await deps.verify(event);
+  if (!member.ok) {
+    return { statusCode: member.statusCode, headers: cors, body: JSON.stringify({ ok: false, code: member.code, error: member.error }) };
+  }
+
   let body;
   try { body = JSON.parse(event.body || '{}'); } catch (e) {
     return { statusCode: 400, headers: cors, body: JSON.stringify({ ok: false, error: 'Invalid JSON body.' }) };
@@ -305,4 +315,4 @@ exports.handler = async (event) => {
 };
 
 // Exposed for automated tests (no network). Not part of the HTTP contract.
-exports._test = { normalizePhone, extractPhone, detectPriority, toAppPriority, toDigitStream, buildJsonSchema, parseContent, sanitizeFields };
+exports._test = { normalizePhone, extractPhone, detectPriority, toAppPriority, toDigitStream, buildJsonSchema, parseContent, sanitizeFields, deps };
