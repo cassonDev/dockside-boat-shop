@@ -3959,6 +3959,17 @@ class Component extends DCLogic {
   backToIntakeDictate = () => this.setState({ intakeStep: 'dictate' });
   toggleReviewTranscript = () => this.setState(s => ({ reviewTranscriptOpen: !s.reviewTranscriptOpen }));
 
+  // The AI Functions only serve signed-in shop members, so every AI request
+  // carries the user's sign-in token.
+  async aiRequestHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    try {
+      const session = this._dataMod ? await this._dataMod.getSession() : null;
+      if (session && session.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    } catch (e) { /* signed out: the Function will refuse the request */ }
+    return headers;
+  }
+
   // Real extraction runs through the deployed Netlify Function (ai-extract.js),
   // which calls OpenAI server-side — this is what actually works once the app
   // is live for real users. window.claude.complete only exists inside this
@@ -3968,7 +3979,7 @@ class Component extends DCLogic {
     try {
       const res = await fetch('/.netlify/functions/ai-extract', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await this.aiRequestHeaders(),
         body: JSON.stringify({ rawText, schemaFields, schemaHint }),
       });
       if (res.ok) {
@@ -4751,7 +4762,7 @@ class Component extends DCLogic {
     let result = null;
     try {
       const res = await fetch('/.netlify/functions/extract-serial-number', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: await this.aiRequestHeaders(),
         body: JSON.stringify({ imageDataUrl: dataUrl }),
       });
       if (res.ok) {
