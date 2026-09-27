@@ -44,9 +44,9 @@
   <div class="no-print" style="background:#16283D;background-image:linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);background-size:24px 24px;padding:calc(env(safe-area-inset-top,0px) + 10px) max(16px,env(safe-area-inset-left,0px)) 10px max(16px,env(safe-area-inset-right,0px));position:sticky;top:0;z-index:50;">
     <div style="{{ navTopRowStyle }}">
       <div style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:none;" onClick="{{ goDashboard }}">
-        <img src="https://lessardmarineworks.com/wp-content/uploads/2022/11/cropped-lessard-marine-works-logo.png" style="width:34px;height:34px;border-radius:6px;object-fit:contain;background:#fff;padding:2px;flex:none;"/>
+        <img src="{{ headerLogoSrc }}" style="width:34px;height:34px;border-radius:6px;object-fit:contain;background:#fff;padding:2px;flex:none;"/>
         <div style="min-width:0;">
-          <div style="font:800 clamp(12px,3.6vw,15px) 'Archivo',sans-serif;color:#F6F1E4;letter-spacing:.3px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">LESSARD MARINE WORKS</div>
+          <div style="font:800 clamp(12px,3.6vw,15px) 'Archivo',sans-serif;color:#F6F1E4;letter-spacing:.3px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ headerShopName }}</div>
           <div style="font:600 9.5px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.6px;">JOB TRACKER</div>
         </div>
       </div>
@@ -1224,8 +1224,10 @@
       <div style="position:absolute;bottom:12px;right:12px;width:12px;height:12px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,#7A8288);"></div>
       <div style="background:#16283D;border-radius:8px;padding:24px 20px;text-align:center;">
         <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;">
-          <img src="https://lessardmarineworks.com/wp-content/uploads/2022/11/cropped-lessard-marine-works-logo.png" style="width:22px;height:22px;border-radius:4px;background:#fff;"/>
-          <div style="font:800 12px 'Archivo',sans-serif;color:#8FBFAE;letter-spacing:1.5px;">LESSARD MARINE WORKS</div>
+          <sc-if value="{{ printShowLogo }}" hint-placeholder-val="{{ true }}">
+          <img src="{{ printLogoSrc }}" style="width:22px;height:22px;border-radius:4px;background:#fff;object-fit:contain;"/>
+          </sc-if>
+          <div style="font:800 12px 'Archivo',sans-serif;color:#8FBFAE;letter-spacing:1.5px;">{{ printShopNameUpper }}</div>
         </div>
         <div style="background:#fff;border-radius:6px;padding:14px;display:inline-block;">
           <sc-if value="{{ selectedJob.hasQr }}" hint-placeholder-val="{{ false }}">
@@ -1248,11 +1250,13 @@
       <div style="background:#D97706;color:#fff;font:700 12px 'IBM Plex Mono',monospace;padding:10px 16px;border-radius:4px;cursor:pointer;" onClick="{{ printPage }}">&#9113; PRINT</div>
     </div>
     <div class="dk-print-page" style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:36px 40px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #16283D;padding-bottom:16px;margin-bottom:20px;">
+      <div style="{{ serviceRecordHeaderStyle }}">
         <div style="display:flex;align-items:center;gap:10px;">
-          <img src="https://lessardmarineworks.com/wp-content/uploads/2022/11/cropped-lessard-marine-works-logo.png" style="width:38px;height:38px;border-radius:6px;"/>
+          <sc-if value="{{ printShowLogo }}" hint-placeholder-val="{{ true }}">
+          <img src="{{ printLogoSrc }}" style="width:38px;height:38px;border-radius:6px;object-fit:contain;"/>
+          </sc-if>
           <div>
-            <div style="font:800 17px 'Archivo',sans-serif;color:#16283D;">Lessard Marine Works</div>
+            <div style="font:800 17px 'Archivo',sans-serif;color:#16283D;">{{ printShopName }}</div>
             <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;">SERVICE RECORD</div>
           </div>
         </div>
@@ -1616,7 +1620,7 @@
               </sc-if>
             </div>
           </div>
-          <div style="font:500 10.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.4);margin-top:6px;">PNG or JPG. Automatically resized &amp; compressed before it's stored.</div>
+          <div style="font:500 10.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.4);margin-top:6px;">PNG or JPG. Automatically resized &amp; compressed before it's stored. Without a logo, the Casson Makes logo is used.</div>
         </div>
 
         <div>
@@ -1642,8 +1646,8 @@
         <div>
           <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:8px;">PREVIEW</div>
           <div style="{{ brandingPreviewHeaderStyle }}">
-            <sc-if value="{{ hasBrandingLogo }}" hint-placeholder-val="{{ false }}">
-              <img src="{{ brandingDraft.logoDataUrl }}" style="width:34px;height:34px;border-radius:6px;object-fit:contain;background:#fff;padding:2px;flex:none;"/>
+            <sc-if value="{{ brandingPreviewShowLogo }}" hint-placeholder-val="{{ true }}">
+              <img src="{{ brandingPreviewLogoSrc }}" style="width:34px;height:34px;border-radius:6px;object-fit:contain;background:#fff;padding:2px;flex:none;"/>
             </sc-if>
             <div style="min-width:0;">
               <div style="font:800 14px 'Archivo',sans-serif;color:#fff;letter-spacing:.3px;line-height:1.1;">{{ brandingPreviewName }}</div>
@@ -1727,9 +1731,9 @@
   <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;">
     <form style="width:100%;max-width:380px;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(22,40,61,.12);overflow:hidden;" onSubmit="{{ submitAuthForm }}">
       <div style="background:#16283D;padding:22px 24px;display:flex;align-items:center;gap:10px;">
-        <img src="https://lessardmarineworks.com/wp-content/uploads/2022/11/cropped-lessard-marine-works-logo.png" style="width:34px;height:34px;border-radius:6px;object-fit:contain;background:#fff;padding:2px;"/>
+        <img src="./casson-makes-logo.svg" style="width:34px;height:34px;border-radius:6px;object-fit:contain;background:#fff;padding:2px;"/>
         <div>
-          <div style="font:900 15px 'Archivo',sans-serif;color:#F6F1E4;letter-spacing:.3px;">LESSARD MARINE WORKS</div>
+          <div style="font:900 15px 'Archivo',sans-serif;color:#F6F1E4;letter-spacing:.3px;">CASSON MAKES</div>
           <div style="font:600 9.5px 'IBM Plex Mono',monospace;color:#8FBFAE;letter-spacing:.6px;">JOB TRACKER</div>
         </div>
       </div>
@@ -5432,6 +5436,18 @@ class Component extends DCLogic {
     return active ? active.role : null;
   }
   isShopOwner() { return this.activeShopRole() === 'shop_owner'; }
+  // The shop's own name and logo (Shop Config → Branding) for the app header and
+  // customer printouts. A shop without a logo gets the Casson Makes logo.
+  shopBranding() {
+    const shop = this.state.shop;
+    const b = (shop && shop.settings && shop.settings.branding) || {};
+    return {
+      name: (shop && shop.name) || 'Casson Makes',
+      logoSrc: b.logoDataUrl || './casson-makes-logo.svg',
+      showLogoOnPrint: b.showLogoOnPrint !== false,
+      printAccent: (b.showAccentOnPrint && b.accentColor) || '#16283D',
+    };
+  }
   activeMembership() {
     const s = this.state;
     return (s.memberships || []).find(m => m.shopId === s.activeShopId) || null;
@@ -6647,6 +6663,7 @@ class Component extends DCLogic {
     const brandingSaveLabel = s.brandingSaving ? 'SAVING\u2026' : 'SAVE BRANDING';
     const brandingSaveStyle = `background:${s.brandingSaving ? '#B9C0C4' : '#1F6F78'};color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:12px;border-radius:4px;cursor:pointer;letter-spacing:.4px;`;
     const brandingAccentColor = brandingDraft.showAccentOnPrint ? brandingDraft.accentColor : '#16283D';
+    const brand = this.shopBranding();
 
     return {
       navVisible: true,
@@ -6671,6 +6688,13 @@ class Component extends DCLogic {
       showFullProfileDetail: !profileIsLimited,
       profileMechLocationLabel: profileMechLocationName || 'No location assigned',
       isTag: s.screen === 'tag' && !!sj,
+      headerLogoSrc: brand.logoSrc,
+      headerShopName: brand.name.toUpperCase(),
+      printShowLogo: brand.showLogoOnPrint,
+      printLogoSrc: brand.logoSrc,
+      printShopName: brand.name,
+      printShopNameUpper: brand.name.toUpperCase(),
+      serviceRecordHeaderStyle: `display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid ${brand.printAccent};padding-bottom:16px;margin-bottom:20px;`,
       isInvoice: s.screen === 'invoice' && !!sj,
       isArchive: s.screen === 'archive',
       isAuditLog: s.screen === 'auditLog',
@@ -7048,6 +7072,8 @@ class Component extends DCLogic {
       hasFeatureError: !!s.featureError, featureError: s.featureError,
       brandingDraft, accentSwatches,
       hasBrandingLogo, noBrandingLogo: !hasBrandingLogo,
+      brandingPreviewShowLogo: !!brandingDraft.showLogoOnPrint,
+      brandingPreviewLogoSrc: brandingDraft.logoDataUrl || './casson-makes-logo.svg',
       pickShopLogo: this.pickShopLogo, removeShopLogo: this.removeShopLogo,
       toggleShowLogoOnPrint: () => this.toggleBrandingFlag('showLogoOnPrint'),
       toggleShowAccentOnPrint: () => this.toggleBrandingFlag('showAccentOnPrint'),
