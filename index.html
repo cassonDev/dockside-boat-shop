@@ -505,9 +505,9 @@
         <sc-if value="{{ featureDocumentTranscription }}" hint-placeholder-val="{{ false }}">
         <div class="no-print" style="padding:0 20px 14px;">
           <div style="border-top:1px solid rgba(22,40,61,.1);padding-top:14px;">
-            <div style="font:800 12px 'Archivo',sans-serif;color:#16283D;letter-spacing:.4px;margin-bottom:2px;">DOCUMENT TO COMMENTS</div>
-            <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);margin-bottom:10px;text-wrap:pretty;">Photograph a handwritten or printed document and turn it into reviewed notes on this job.</div>
-            <div style="background:#1F6F78;color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:0 18px;border-radius:4px;cursor:pointer;width:fit-content;min-height:44px;display:flex;align-items:center;" onClick="{{ openDocCapture }}">ADD A DOCUMENT</div>
+            <div style="font:800 12px 'Archivo',sans-serif;color:#16283D;letter-spacing:.4px;margin-bottom:2px;">DOCUMENTS</div>
+            <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);margin-bottom:10px;text-wrap:pretty;">Photograph a handwritten or printed document and save what you need from it to this job&rsquo;s timeline.</div>
+            <div style="background:#1F6F78;color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;padding:0 18px;border-radius:4px;cursor:pointer;width:fit-content;min-height:44px;display:flex;align-items:center;" onClick="{{ openDocCapture }}">SCAN A DOCUMENT</div>
           </div>
         </div>
         </sc-if>
@@ -2241,362 +2241,239 @@
   </div>
   </sc-if>
 
-  <!-- ============ DOCUMENT CAPTURE / READING / REVIEW (Section 27) ============ -->
+  <!-- ============ SCAN A DOCUMENT (Section 27, simple flow) ============
+       One page at a time -> read all pages together -> choose what to keep
+       (everything, or say/type what to pull) -> check -> save as ONE timeline
+       entry. Every step has the same CLOSE, back to the job. -->
   <sc-if value="{{ showDocCapture }}" hint-placeholder-val="{{ false }}">
   <div class="no-print" style="position:fixed;inset:0;background:rgba(22,40,61,.7);display:flex;align-items:flex-end;justify-content:center;z-index:300;">
     <div style="background:#fff;border-radius:10px 10px 0 0;width:100%;max-width:520px;max-height:92vh;overflow:auto;padding-bottom:env(safe-area-inset-bottom);">
-      <div style="background:#16283D;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:2;">
-        <div style="font:800 14px 'Archivo',sans-serif;color:#fff;">{{ docSheetTitle }}</div>
-        <div style="display:flex;align-items:center;gap:7px;min-height:44px;padding:0 10px;border:1px solid rgba(255,255,255,.35);border-radius:4px;cursor:pointer;" onClick="{{ closeDocCapture }}">
+      <div style="background:#16283D;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:2;">
+        <div style="min-width:0;">
+          <div style="font:800 16px 'Archivo',sans-serif;color:#fff;">Scan a document</div>
+          <div style="font:500 12px 'Public Sans',sans-serif;color:#B9C0C4;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ docJobLabel }}</div>
+        </div>
+        <div style="flex:none;display:flex;align-items:center;gap:7px;min-height:44px;padding:0 10px;border:1px solid rgba(255,255,255,.4);border-radius:4px;cursor:pointer;" onClick="{{ closeDocCapture }}">
           <div style="font:700 19px 'Public Sans',sans-serif;color:#fff;line-height:1;">&times;</div>
           <div style="font:700 10px 'IBM Plex Mono',monospace;color:#fff;letter-spacing:.06em;">CLOSE</div>
         </div>
       </div>
 
-      <!-- Refused because a write is in progress. Says so instead of doing nothing. -->
       <sc-if value="{{ hasDocCloseBlocked }}" hint-placeholder-val="{{ false }}">
-        <div style="margin:14px 18px 0;background:#EFF6F5;border:1px solid #1F6F78;border-radius:6px;padding:10px 12px;font:600 12px 'Public Sans',sans-serif;color:#16283D;text-wrap:pretty;">{{ docCloseBlockedMessage }}</div>
+        <div style="margin:14px 18px 0;background:#EFF6F5;border:1px solid #1F6F78;border-radius:6px;padding:10px 12px;font:600 13px 'Public Sans',sans-serif;color:#16283D;">{{ docCloseBlockedMessage }}</div>
       </sc-if>
-
-      <!-- Close guard. Nothing has been torn down while this is showing. -->
       <sc-if value="{{ hasDocConfirmClose }}" hint-placeholder-val="{{ false }}">
-        <div style="margin:14px 18px 0;background:#FBF6E8;border:1px solid #B08A2E;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:10px;">
-          <div style="font:700 13px 'Public Sans',sans-serif;color:#5C4A1A;">{{ docConfirmCloseMessage }}</div>
-          <div style="font:500 12px 'Public Sans',sans-serif;color:#5C4A1A;text-wrap:pretty;">Your pages and any text you have reviewed will be lost.</div>
-          <div style="display:flex;gap:8px;">
+        <div style="margin:14px 18px 0;background:#fff;border:1px solid #C0392B;border-radius:6px;padding:12px 14px;">
+          <div style="font:700 14px 'Public Sans',sans-serif;color:#16283D;">{{ docConfirmCloseMessage }}</div>
+          <div style="display:flex;gap:8px;margin-top:10px;">
             <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ cancelCloseDocCapture }}">STAY</div>
-            <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#C0463C;color:#fff;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ confirmCloseDocCapture }}">DISCARD &amp; CLOSE</div>
+            <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#C0392B;color:#fff;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ confirmCloseDocCapture }}">LEAVE WITHOUT SAVING</div>
           </div>
         </div>
       </sc-if>
 
-      <!-- Completion. The capture is already torn down; this is the exit. -->
-      <sc-if value="{{ isDocSavedStep }}" hint-placeholder-val="{{ false }}">
-        <div style="padding:22px 18px;display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center;">
-          <div style="font:800 17px 'Archivo',sans-serif;color:#16283D;">Saved to the job</div>
-          <sc-if value="{{ hasDocSavedSummary }}" hint-placeholder-val="{{ false }}">
-            <div style="font:700 11px 'IBM Plex Mono',monospace;color:#1F6F78;background:#EFF6F5;padding:6px 11px;border-radius:3px;">{{ docSavedSummary }}</div>
-          </sc-if>
-          <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);text-wrap:pretty;max-width:34ch;">The comments are on the job timeline and the document pages are in the staff-only gallery.</div>
-          <div style="width:100%;min-height:52px;display:flex;align-items:center;justify-content:center;background:#D97706;color:#fff;border-radius:6px;font:800 14px 'IBM Plex Mono',monospace;letter-spacing:.06em;cursor:pointer;" onClick="{{ finishDocCapture }}">DONE</div>
-        </div>
-      </sc-if>
+      <div style="padding:20px 18px 24px;display:flex;flex-direction:column;gap:16px;">
 
-      <div style="padding:14px 18px;display:flex;flex-direction:column;gap:12px;">
-        <sc-if value="{{ docCaptureBusy }}" hint-placeholder-val="{{ false }}">
-          <div style="font:600 12px 'IBM Plex Mono',monospace;color:#1F6F78;">{{ docCaptureProcessingLabel }}</div>
-        </sc-if>
-        <sc-if value="{{ hasDocCaptureError }}" hint-placeholder-val="{{ false }}">
-          <div style="font:600 12px 'Public Sans',sans-serif;background:#FBEAEA;border:1px solid #C0463C;color:#8A2D26;padding:9px 11px;border-radius:4px;">{{ docCaptureError }}</div>
-        </sc-if>
-        <sc-if value="{{ hasDocReviewBlocked }}" hint-placeholder-val="{{ false }}">
-          <div style="font:600 12px 'Public Sans',sans-serif;background:#FBF6E8;border:1px solid #B08A2E;color:#8A6A1E;padding:9px 11px;border-radius:4px;">{{ docReviewBlocked }}</div>
-        </sc-if>
-
-        <!-- Resume or discard, offered on entry. The panel renders for EVERY
-             recovered key, usable or not — a malformed or expired draft the
-             mechanic cannot see is a key they cannot clear. -->
-        <sc-if value="{{ docHasDraft }}" hint-placeholder-val="{{ false }}">
-          <div style="background:#FBF6E8;border:1px solid #B08A2E;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:10px;">
-            <div style="font:700 11px 'IBM Plex Mono',monospace;color:#8A6A1E;">{{ docDraftTitle }}</div>
-            <div style="font:500 13px 'Public Sans',sans-serif;color:#5C4A1A;text-wrap:pretty;">{{ docDraftSummary }}</div>
-            <sc-if value="{{ docDraftUsable }}" hint-placeholder-val="{{ true }}">
-              <div style="font:500 12px 'Public Sans',sans-serif;color:#5C4A1A;text-wrap:pretty;">The photos are not saved on this device. You'll add each page again and match it to the page it replaces.</div>
-              <div style="display:flex;gap:8px;">
-                <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ resumeDocDraft }}">RESUME REVIEW</div>
-                <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ discardDocDraft }}">DISCARD</div>
-              </div>
-            </sc-if>
-            <sc-if value="{{ docDraftUnusable }}" hint-placeholder-val="{{ false }}">
-              <div style="min-height:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ discardDocDraft }}">DISCARD SAVED DRAFT</div>
-            </sc-if>
-          </div>
-        </sc-if>
-
-        <!-- On the PAGES step with a restored review waiting: always a way back. -->
-        <sc-if value="{{ docCanReturnToReview }}" hint-placeholder-val="{{ false }}">
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.6);text-wrap:pretty;">{{ docReturnHint }}</div>
-            <div style="min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ returnToDocReview }}">RETURN TO REVIEW</div>
-          </div>
-        </sc-if>
-
-        <!-- Reattachment: one row per ORIGINAL page identity the review still
-             refers to, mapped by an explicit tap onto a live page. Nothing is
-             inferred from filename, position or page number. -->
-        <sc-if value="{{ docNeedsReattach }}" hint-placeholder-val="{{ false }}">
-          <div style="background:#FBEAEA;border:1px solid #C0463C;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:10px;">
-            <div style="font:700 11px 'IBM Plex Mono',monospace;color:#8A2D26;">MATCH THE MISSING PAGES</div>
-            <div style="font:500 12px 'Public Sans',sans-serif;color:#8A2D26;text-wrap:pretty;">{{ docReattachMessage }}</div>
-            <sc-for list="{{ docMissingPages }}" as="mp" hint-placeholder-count="1">
-              <div style="display:flex;flex-direction:column;gap:8px;border-top:1px solid rgba(192,70,60,.25);padding-top:9px;">
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                  <div style="font:700 11px 'IBM Plex Mono',monospace;color:#8A2D26;">{{ mp.label }}</div>
-                  <div style="{{ docActionStyle }}" onClick="{{ mp.choose }}">{{ mp.buttonLabel }}</div>
-                </div>
-                <sc-if value="{{ mp.picking }}" hint-placeholder-val="{{ false }}">
-                  <div style="display:flex;gap:8px;overflow-x:auto;">
-                    <sc-for list="{{ docReattachCandidates }}" as="cand" hint-placeholder-count="2">
-                      <div style="min-height:44px;min-width:44px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px;border:2px solid #1F6F78;border-radius:6px;cursor:pointer;background:#EFF6F5;" onClick="{{ cand.pick }}">
-                        <img src="{{ cand.thumbUrl }}" style="width:44px;height:44px;object-fit:cover;border-radius:3px;background:#EDE6D6;"/>
-                        <div style="font:700 10px 'IBM Plex Mono',monospace;color:#1F6F78;">{{ cand.label }}</div>
-                      </div>
-                    </sc-for>
-                    <sc-if value="{{ docNoReattachCandidates }}" hint-placeholder-val="{{ false }}">
-                      <div style="font:500 12px 'Public Sans',sans-serif;color:#8A2D26;">Add a page first, then match it here.</div>
-                    </sc-if>
-                  </div>
-                </sc-if>
-              </div>
-            </sc-for>
-          </div>
-        </sc-if>
-
-        <sc-if value="{{ docSharedPagePrompt }}" hint-placeholder-val="{{ false }}">
-          <div style="background:#FBF6E8;border:1px solid #B08A2E;border-radius:6px;padding:11px;display:flex;flex-direction:column;gap:9px;">
-            <div style="font:600 12px 'Public Sans',sans-serif;color:#5C4A1A;text-wrap:pretty;">{{ docSharedPagePrompt }}</div>
-            <div style="display:flex;gap:8px;">
-              <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ approveSharedDocPage }}">USE THE SAME PHOTO</div>
-              <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ cancelDocReattach }}">CHOOSE ANOTHER</div>
-            </div>
-          </div>
-        </sc-if>
-
-        <!-- ---------- PAGES step (5A) ---------- -->
+        <!-- ---------- 1-2. PAGES: one at a time ---------- -->
         <sc-if value="{{ isDocCaptureStep }}" hint-placeholder-val="{{ true }}">
-          <div style="display:flex;flex-direction:column;gap:12px;">
-            <sc-for list="{{ docCapturePages }}" as="page" hint-placeholder-count="2">
-              <div style="display:flex;gap:10px;align-items:center;border:1px solid rgba(22,40,61,.12);border-radius:6px;padding:8px;">
-                <img src="{{ page.thumbUrl }}" style="width:56px;height:56px;object-fit:cover;border-radius:4px;flex:none;background:#EDE6D6;"/>
-                <div style="flex:1;min-width:0;">
-                  <div style="font:700 11px 'IBM Plex Mono',monospace;color:#16283D;">PAGE {{ page.label }}</div>
-                  <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">{{ page.sizeLabel }}</div>
-                </div>
-                <div style="display:flex;gap:4px;flex:none;{{ docPageControlsStyle }}">
-                  <div style="min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;border-radius:4px;font:700 14px 'IBM Plex Mono',monospace;color:#16283D;cursor:pointer;" onClick="{{ page.moveUp }}">&uarr;</div>
-                  <div style="min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;border-radius:4px;font:700 14px 'IBM Plex Mono',monospace;color:#16283D;cursor:pointer;" onClick="{{ page.moveDown }}">&darr;</div>
-                  <div style="min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;color:#16283D;cursor:pointer;" onClick="{{ page.rotate }}">&#8635;</div>
-                  <div style="min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;color:#16283D;cursor:pointer;" onClick="{{ page.enhance }}">&#9788;</div>
-                  <div style="min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;background:#FBEAEA;border-radius:4px;font:700 14px 'Public Sans',sans-serif;color:#8A2D26;cursor:pointer;" onClick="{{ page.remove }}">&times;</div>
-                </div>
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <sc-if value="{{ docNoPagesYet }}" hint-placeholder-val="{{ true }}">
+              <div>
+                <div style="font:800 22px 'Archivo',sans-serif;color:#16283D;">Page 1</div>
+                <div style="font:500 14px 'Public Sans',sans-serif;color:#4A5A6B;margin-top:4px;">Hold the page flat and fill the frame. If the document has more pages, you&rsquo;ll add them one at a time.</div>
               </div>
-            </sc-for>
+            </sc-if>
+            <sc-if value="{{ docHasPages }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <div style="font:800 22px 'Archivo',sans-serif;color:#16283D;">{{ docPagesHeading }}</div>
+                <div style="font:500 14px 'Public Sans',sans-serif;color:#4A5A6B;margin-top:4px;">Got more? Add them one at a time.</div>
+              </div>
+              <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                <sc-for list="{{ docCapturePages }}" as="page" hint-placeholder-count="2">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                    <img src="{{ page.thumbUrl }}" style="width:84px;height:108px;object-fit:cover;border-radius:4px;border:1px solid rgba(22,40,61,.2);background:#EDE6D6;"/>
+                    <div style="font:600 12px 'Public Sans',sans-serif;color:#16283D;">{{ page.label }}</div>
+                    <div style="min-height:36px;display:flex;align-items:center;padding:0 6px;font:600 12px 'Public Sans',sans-serif;color:#8A2D26;text-decoration:underline;cursor:pointer;{{ docPageControlsStyle }}" onClick="{{ page.remove }}">Remove</div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
 
-            <!-- The whole picker row disappears while busy or at the limit
-                 (docCaptureCanAddPages is false then), so a second pick is
-                 impossible by construction as well as refused by the controller.
-                 Two inputs on purpose: on iOS `capture` and `multiple` are
-                 mutually exclusive. -->
+            <sc-if value="{{ docCaptureBusy }}" hint-placeholder-val="{{ false }}">
+              <div style="font:600 13px 'Public Sans',sans-serif;color:#1F6F78;">{{ docCaptureProcessingLabel }}</div>
+            </sc-if>
+            <sc-if value="{{ hasDocCaptureError }}" hint-placeholder-val="{{ false }}">
+              <div style="font:600 13px 'Public Sans',sans-serif;background:#FBEAEA;border:1px solid #C0463C;color:#8A2D26;padding:10px 12px;border-radius:4px;">{{ docCaptureError }}</div>
+            </sc-if>
+
+            <!-- Two inputs on purpose: on iOS `capture` (camera) and a library
+                 pick are separate. One page per pick. -->
             <sc-if value="{{ docCaptureCanAddPages }}" hint-placeholder-val="{{ true }}">
-              <div style="display:flex;gap:8px;">
-                <label style="flex:1;background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'IBM Plex Mono',monospace;border-radius:6px;cursor:pointer;min-height:44px;display:flex;align-items:center;justify-content:center;">
-                  {{ docCaptureCameraLabel }}
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <label style="{{ docCameraStyle }}">
+                  {{ docCameraLabel }}
                   <input type="file" accept="image/*" capture="environment" style="display:none;" onChange="{{ pickDocPages }}"/>
                 </label>
-                <label style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 12px 'IBM Plex Mono',monospace;border-radius:6px;cursor:pointer;min-height:44px;display:flex;align-items:center;justify-content:center;">
-                  LIBRARY
-                  <input type="file" accept="image/*" multiple="{{ true }}" style="display:none;" onChange="{{ pickDocPages }}"/>
+                <label style="align-self:center;min-height:40px;display:flex;align-items:center;font:600 14px 'Public Sans',sans-serif;color:#1F6F78;text-decoration:underline;cursor:pointer;">
+                  or choose a photo
+                  <input type="file" accept="image/*" style="display:none;" onChange="{{ pickDocPages }}"/>
                 </label>
               </div>
             </sc-if>
             <sc-if value="{{ docCaptureAtLimit }}" hint-placeholder-val="{{ false }}">
-              <div style="font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);text-align:center;">MAXIMUM 5 PAGES</div>
+              <div style="font:500 13px 'Public Sans',sans-serif;color:#4A5A6B;text-align:center;">5 pages is the most for one document.</div>
             </sc-if>
-
             <sc-if value="{{ docCanStartReading }}" hint-placeholder-val="{{ false }}">
-              <div style="min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ startDocReading }}">READ THESE PAGES</div>
+              <div style="min-height:52px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;letter-spacing:.05em;cursor:pointer;" onClick="{{ startDocReading }}">{{ docReadLabel }}</div>
             </sc-if>
           </div>
         </sc-if>
 
-        <!-- ---------- READING step (5B) ---------- -->
+        <!-- ---------- 3. READING: nothing to decide; moves on by itself ---------- -->
         <sc-if value="{{ isDocReadingStep }}" hint-placeholder-val="{{ false }}">
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            <div style="font:700 11px 'IBM Plex Mono',monospace;color:#1F6F78;">{{ docReadingProgress }}</div>
-
-            <sc-if value="{{ docReadingHalted }}" hint-placeholder-val="{{ false }}">
-              <div style="font:600 12px 'Public Sans',sans-serif;background:#FBF6E8;border:1px solid #B08A2E;color:#8A6A1E;padding:9px 11px;border-radius:4px;">{{ docReadingHaltedMessage }}</div>
-            </sc-if>
-
-            <sc-if value="{{ hasDocReviewBlocked }}" hint-placeholder-val="{{ false }}">
-              <div style="font:600 12px 'Public Sans',sans-serif;background:#FBF6E8;border:1px solid #B08A2E;color:#8A6A1E;padding:9px 11px;border-radius:4px;text-wrap:pretty;">{{ docReviewBlocked }}</div>
-            </sc-if>
-
-            <sc-if value="{{ docReadingNoText }}" hint-placeholder-val="{{ false }}">
-              <div style="font:600 12px 'Public Sans',sans-serif;background:#FBEAEA;border:1px solid #C0463C;color:#8A2D26;padding:9px 11px;border-radius:4px;text-wrap:pretty;">No text came back from any page. Your photos are still here. Try again, or try a stronger reading, before reviewing.</div>
-            </sc-if>
-
-            <!-- The ONLY control that resumes the remainder. TRY AGAIN and READ
-                 PAGE AGAIN deliberately send one page each; without this button a
-                 mechanic could be left with pages stuck in "waiting" after a 429
-                 and a targeted retry. Hidden while the queue is moving, so
-                 repeated taps cannot double-queue. -->
-            <sc-if value="{{ docCanResumeReading }}" hint-placeholder-val="{{ false }}">
-              <div style="min-height:44px;padding:0 16px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ resumeDocReading }}">CONTINUE REMAINING PAGES</div>
-            </sc-if>
-
-            <sc-for list="{{ docReadingPages }}" as="rp" hint-placeholder-count="2">
-              <div style="border:1px solid rgba(22,40,61,.12);border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:6px;">
-                <div style="display:flex;align-items:center;gap:8px;">
-                  <div style="font:700 10px 'IBM Plex Mono',monospace;color:#16283D;">PAGE {{ rp.pageNumber }}</div>
-                  <div style="{{ rp.stateBadgeStyle }}">{{ rp.stateLabel }}</div>
-                </div>
-
-                <sc-if value="{{ rp.hasError }}" hint-placeholder-val="{{ false }}">
-                  <div style="font:500 12px 'Public Sans',sans-serif;color:#8A2D26;text-wrap:pretty;">{{ rp.error }}</div>
-                </sc-if>
-
-                <sc-if value="{{ rp.hasChoice }}" hint-placeholder-val="{{ false }}">
-                  <div style="background:#FBF6E8;border:1px dashed #B08A2E;border-radius:4px;padding:9px 11px;display:flex;flex-direction:column;gap:8px;">
-                    <div style="font:600 12px 'Public Sans',sans-serif;color:#5C4A1A;text-wrap:pretty;">A stronger reading is ready. Your edits are still here &mdash; choose which to keep.</div>
-                    <div style="display:flex;gap:8px;">
-                      <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ rp.keepEdits }}">KEEP MY EDITS</div>
-                      <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ rp.useStronger }}">USE STRONGER READING</div>
-                    </div>
-                  </div>
-                </sc-if>
-
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                  <sc-if value="{{ rp.canRetry }}" hint-placeholder-val="{{ false }}">
-                    <div style="min-height:44px;padding:0 14px;display:flex;align-items:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ rp.retry }}">{{ rp.retryLabel }}</div>
-                  </sc-if>
-                  <sc-if value="{{ rp.canTryStronger }}" hint-placeholder-val="{{ true }}">
-                    <div style="{{ rp.strongerStyle }}" onClick="{{ rp.tryStronger }}">TRY STRONGER READING</div>
-                  </sc-if>
-                </div>
-                <sc-if value="{{ rp.showStrongerHint }}" hint-placeholder-val="{{ false }}">
-                  <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">Doesn&rsquo;t match the photo? Try a stronger reading for this page. This may take longer.</div>
-                </sc-if>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px 0;text-align:center;">
+            <div style="font:800 21px 'Archivo',sans-serif;color:#16283D;">{{ docReadingTitle }}</div>
+            <div style="font:500 14px 'Public Sans',sans-serif;color:#4A5A6B;">Usually under a minute. Nothing to do yet.</div>
+            <div style="font:700 11px 'IBM Plex Mono',monospace;color:#1F6F78;letter-spacing:.05em;">{{ docReadingProgress }}</div>
+            <div style="display:flex;gap:8px;justify-content:center;">
+              <sc-for list="{{ docCapturePages }}" as="page" hint-placeholder-count="2">
+                <img src="{{ page.thumbUrl }}" style="width:48px;height:62px;object-fit:cover;border-radius:3px;border:1px solid rgba(22,40,61,.2);background:#EDE6D6;"/>
+              </sc-for>
+            </div>
+          </div>
+          <sc-if value="{{ docReadingHalted }}" hint-placeholder-val="{{ false }}">
+            <div style="font:600 13px 'Public Sans',sans-serif;background:#FBF6E8;border:1px solid #B08A2E;color:#16283D;padding:10px 12px;border-radius:4px;">{{ docReadingHaltedMessage }}</div>
+          </sc-if>
+          <sc-if value="{{ docCanResumeReading }}" hint-placeholder-val="{{ false }}">
+            <div style="min-height:48px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ resumeDocReading }}">CONTINUE READING</div>
+          </sc-if>
+          <sc-for list="{{ docProblemPages }}" as="pp" hint-placeholder-count="0">
+            <div style="border:1px solid #C0463C;background:#FBEAEA;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:10px;">
+              <div style="font:700 14px 'Public Sans',sans-serif;color:#8A2D26;">{{ pp.label }}: {{ pp.message }}</div>
+              <div style="display:flex;gap:8px;">
+                <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ pp.retry }}">TRY AGAIN</div>
+                <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ pp.skip }}">SKIP THIS PAGE</div>
               </div>
-            </sc-for>
+            </div>
+          </sc-for>
+        </sc-if>
 
-            <div style="display:flex;gap:8px;">
-              <div style="{{ docActionStyle }}" onClick="{{ backToDocPages }}">PAGES</div>
-              <sc-if value="{{ docReadingSettled }}" hint-placeholder-val="{{ false }}">
-                <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ startDocReview }}">REVIEW THE TEXT</div>
+        <!-- ---------- 4. WHAT DO YOU WANT FROM THESE PAGES? ---------- -->
+        <sc-if value="{{ isDocPullStep }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="font:700 11px 'IBM Plex Mono',monospace;color:#1F6F78;letter-spacing:.06em;">{{ docReadCountLabel }}</div>
+            <div style="font:800 22px 'Archivo',sans-serif;color:#16283D;margin-top:4px;line-height:1.2;">What do you want from these pages?</div>
+          </div>
+          <sc-if value="{{ hasDocPullError }}" hint-placeholder-val="{{ false }}">
+            <div style="font:600 13px 'Public Sans',sans-serif;background:#FBEAEA;border:1px solid #C0463C;color:#8A2D26;padding:10px 12px;border-radius:4px;">{{ docPullError }}</div>
+          </sc-if>
+          <div style="padding:16px;border:2px solid #16283D;border-radius:8px;display:flex;align-items:center;gap:12px;cursor:pointer;" onClick="{{ chooseDocEverything }}">
+            <div style="flex:1;">
+              <div style="font:800 18px 'Archivo',sans-serif;color:#16283D;">Everything</div>
+              <div style="font:500 14px 'Public Sans',sans-serif;color:#4A5A6B;margin-top:2px;">Keep all the text from every page.</div>
+            </div>
+            <div style="font:700 22px 'Public Sans',sans-serif;color:#16283D;">&rsaquo;</div>
+          </div>
+          <div style="padding:16px;border:2px solid #1F6F78;border-radius:8px;background:#EFF6F5;display:flex;flex-direction:column;gap:12px;">
+            <div>
+              <div style="font:800 18px 'Archivo',sans-serif;color:#16283D;">Tell me what to pull</div>
+              <div style="font:500 14px 'Public Sans',sans-serif;color:#4A5A6B;margin-top:2px;">Tap the mic and say it &mdash; like &ldquo;just the parts and the serial numbers.&rdquo;</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+              <div style="{{ docPullMicStyle }}" onClick="{{ toggleDocPullMic }}">
+                <div style="font:700 11px 'IBM Plex Mono',monospace;color:#fff;letter-spacing:.04em;">{{ docPullMicLabel }}</div>
+              </div>
+              <sc-if value="{{ hasDocPullInterim }}" hint-placeholder-val="{{ false }}">
+                <div style="font:italic 500 13px 'Public Sans',sans-serif;color:#4A5A6B;">{{ docPullInterim }}</div>
               </sc-if>
+              <sc-if value="{{ hasDocPullMicError }}" hint-placeholder-val="{{ false }}">
+                <div style="font:600 12px 'Public Sans',sans-serif;color:#8A2D26;text-align:center;">{{ docPullMicError }}</div>
+              </sc-if>
+            </div>
+            <div>
+              <div style="font:600 13px 'Public Sans',sans-serif;color:#16283D;margin-bottom:6px;">Or type it</div>
+              <div style="display:flex;gap:8px;">
+                <input style="flex:1;min-width:0;min-height:46px;box-sizing:border-box;padding:0 12px;border:1px solid rgba(22,40,61,.4);border-radius:4px;font:500 16px 'Public Sans',sans-serif;color:#16283D;background:#fff;" placeholder="e.g. parts and labour only" value="{{ docPullText }}" onChange="{{ setDocPullText }}"/>
+                <div style="{{ docPullGoStyle }}" onClick="{{ submitDocPull }}">GO</div>
+              </div>
             </div>
           </div>
         </sc-if>
 
-        <!-- ---------- REVIEW step (5C) ---------- -->
+        <sc-if value="{{ isDocPullingStep }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:28px 0;text-align:center;">
+            <div style="font:800 21px 'Archivo',sans-serif;color:#16283D;">Pulling what you asked for&hellip;</div>
+            <div style="font:500 14px 'Public Sans',sans-serif;color:#4A5A6B;">A few seconds.</div>
+          </div>
+        </sc-if>
+
+        <!-- ---------- 5. CHECK AND SAVE ---------- -->
         <sc-if value="{{ isDocReviewStep }}" hint-placeholder-val="{{ false }}">
-          <div style="display:flex;flex-direction:column;gap:14px;padding-bottom:96px;{{ docReviewLockStyle }}">
-
-            <sc-if value="{{ docStorageWarning }}" hint-placeholder-val="{{ false }}">
-              <div style="background:#F6F1E4;border:1px solid rgba(22,40,61,.15);border-radius:6px;padding:10px;font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);text-wrap:pretty;">{{ docStorageWarning }}</div>
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;">
+            <div style="font:800 22px 'Archivo',sans-serif;color:#16283D;">{{ docReviewTitle }}</div>
+            <div style="display:flex;gap:4px;flex:none;">
+              <sc-for list="{{ docCapturePages }}" as="page" hint-placeholder-count="2">
+                <img src="{{ page.thumbUrl }}" style="width:32px;height:42px;object-fit:cover;border-radius:3px;border:1px solid rgba(22,40,61,.2);background:#EDE6D6;"/>
+              </sc-for>
+            </div>
+          </div>
+          <div style="font:500 13px 'Public Sans',sans-serif;color:#4A5A6B;">You can fix anything before saving.</div>
+          <textarea style="width:100%;box-sizing:border-box;min-height:220px;padding:12px;border:1px solid rgba(22,40,61,.4);border-radius:6px;font:500 16px 'Public Sans',sans-serif;line-height:1.5;color:#16283D;resize:vertical;{{ docReviewLockStyle }}" value="{{ docReviewBody }}" onChange="{{ editDocReviewBody }}"></textarea>
+          <sc-if value="{{ docReviewLowConfidence }}" hint-placeholder-val="{{ false }}">
+            <div style="font:600 13px 'Public Sans',sans-serif;background:#FBF6E8;border:1px solid #B08A2E;color:#16283D;padding:9px 11px;border-radius:4px;">Some of it was hard to read. Check it against the photos before saving.</div>
+          </sc-if>
+          <div style="display:flex;flex-direction:column;{{ docReviewLockStyle }}">
+            <div style="min-height:40px;display:flex;align-items:center;font:600 14px 'Public Sans',sans-serif;color:#1F6F78;text-decoration:underline;cursor:pointer;" onClick="{{ backToDocPull }}">Pull something different</div>
+            <sc-if value="{{ docCanTryStronger }}" hint-placeholder-val="{{ true }}">
+              <div style="min-height:40px;display:flex;align-items:center;font:600 14px 'Public Sans',sans-serif;color:#1F6F78;text-decoration:underline;cursor:pointer;" onClick="{{ requestDocStronger }}">Not right? Try a stronger read</div>
             </sc-if>
-
-            <sc-for list="{{ docReviewComments }}" as="rc" hint-placeholder-count="2">
-              <div data-comment="{{ rc.commentId }}" style="border:1px solid rgba(22,40,61,.12);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px;background:#fff;">
-
-                <div style="display:flex;align-items:center;gap:8px;">
-                  <div style="font:800 11px 'Archivo',sans-serif;color:#16283D;letter-spacing:.4px;">COMMENT {{ rc.sequence }}</div>
-                  <div style="{{ rc.provenanceStyle }}">{{ rc.provenanceLabel }}</div>
-                </div>
-
-                <!-- Selected page preview above the editable text. Thumbnails come
-                     from the 5A thumbnail blobs; no full-resolution copy is held. -->
-                <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;">
-                  <sc-for list="{{ rc.pages }}" as="pg" hint-placeholder-count="2">
-                    <div style="{{ pg.chipStyle }}" onClick="{{ pg.toggle }}">
-                      <img src="{{ pg.thumbUrl }}" style="width:44px;height:44px;object-fit:cover;border-radius:3px;background:#EDE6D6;"/>
-                      <div style="font:700 10px 'IBM Plex Mono',monospace;">{{ pg.label }}</div>
-                    </div>
-                  </sc-for>
-                </div>
-                <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);">{{ rc.pagesLabel }}</div>
-
-                <textarea value="{{ rc.body }}" onInput="{{ rc.onEdit }}" rows="4" style="width:100%;box-sizing:border-box;min-height:120px;height:auto;resize:none;overflow:hidden;border:1px solid rgba(22,40,61,.2);border-radius:6px;padding:11px;font:500 15px/1.45 'Public Sans',sans-serif;color:#16283D;background:#FCFBF7;"></textarea>
-
-                <sc-if value="{{ rc.lowConfidence }}" hint-placeholder-val="{{ false }}">
-                  <div style="font:600 11px 'Public Sans',sans-serif;color:#8A6A1E;text-wrap:pretty;">The reading was uncertain on this page. Check it against the photo before saving.</div>
-                </sc-if>
-                <sc-for list="{{ rc.uncertain }}" as="u" hint-placeholder-count="0">
-                  <div style="font:500 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.55);">PAGE {{ u.pageNumber }} &middot; {{ u.reason }}</div>
-                </sc-for>
-                <sc-if value="{{ rc.hasIssue }}" hint-placeholder-val="{{ false }}">
-                  <div style="font:600 12px 'Public Sans',sans-serif;color:#8A2D26;text-wrap:pretty;">{{ rc.issueMessage }}</div>
-                </sc-if>
-
-                <div style="display:flex;gap:8px;">
-                  <div style="{{ rc.privateStyle }}" onClick="{{ rc.setPrivate }}">STAFF ONLY</div>
-                  <div style="{{ rc.publicStyle }}" onClick="{{ rc.setPublic }}">CUSTOMER VISIBLE</div>
-                </div>
-
-                <div style="display:flex;flex-wrap:wrap;gap:6px;">
-                  <div style="{{ docActionStyle }}" onClick="{{ rc.split }}">SPLIT HERE</div>
-                  <sc-if value="{{ rc.canMergeUp }}" hint-placeholder-val="{{ false }}">
-                    <div style="{{ docActionStyle }}" onClick="{{ rc.merge }}">MERGE UP</div>
-                  </sc-if>
-                  <sc-if value="{{ rc.canMoveUp }}" hint-placeholder-val="{{ false }}">
-                    <div style="{{ docActionStyle }}" onClick="{{ rc.moveUp }}">MOVE UP</div>
-                  </sc-if>
-                  <sc-if value="{{ rc.canMoveDown }}" hint-placeholder-val="{{ false }}">
-                    <div style="{{ docActionStyle }}" onClick="{{ rc.moveDown }}">MOVE DOWN</div>
-                  </sc-if>
-                  <div style="min-height:44px;padding:0 14px;display:flex;align-items:center;background:#FBEAEA;color:#8A2D26;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ rc.remove }}">DELETE</div>
-                </div>
+          </div>
+          <sc-if value="{{ docConfirmStronger }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#fff;border:1px solid #1F6F78;border-radius:6px;padding:12px 14px;">
+              <div style="font:600 14px 'Public Sans',sans-serif;color:#16283D;">A stronger read replaces the text above, including your changes. It takes a little longer.</div>
+              <div style="display:flex;gap:8px;margin-top:10px;">
+                <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ cancelDocStronger }}">KEEP MY TEXT</div>
+                <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ confirmDocStronger }}">READ AGAIN</div>
               </div>
-            </sc-for>
-
-            <div style="min-height:44px;display:flex;align-items:center;justify-content:center;background:#F6F1E4;color:#16283D;border:1px dashed rgba(22,40,61,.25);border-radius:6px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ addDocComment }}">ADD A COMMENT</div>
-          </div>
-
-          <!-- Sticky inside the sheet's own scroller: iOS keeps it above the
-               keyboard, which position:fixed does not. -->
-          <div style="position:sticky;bottom:0;background:#fff;border-top:1px solid rgba(22,40,61,.12);padding:10px 0 calc(10px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:8px;">
-            <div style="display:flex;gap:8px;">
-              <div style="{{ docPagesButtonStyle }}" onClick="{{ backToDocPages }}">PAGES</div>
-              <!-- SAVE is OMITTED, not merely disabled, while the feature is off:
-                   the approved state contract says the control is absent. PAGES
-                   and the sheet's close control stay reachable. -->
-              <sc-if value="{{ docShowSave }}" hint-placeholder-val="{{ true }}">
-                <div style="{{ docConfirmStyle }}" onClick="{{ confirmDocCapture }}">{{ docConfirmLabel }}</div>
-              </sc-if>
             </div>
-            <sc-if value="{{ docSaveProgress }}" hint-placeholder-val="{{ false }}">
-              <div style="font:700 11px 'IBM Plex Mono',monospace;color:#1F6F78;text-align:center;">{{ docSaveProgress }}</div>
-            </sc-if>
+          </sc-if>
+          <div style="min-height:64px;padding:12px 14px;display:flex;align-items:center;gap:14px;background:#F6F1E4;border:1px solid #E4DCC8;border-radius:6px;cursor:pointer;{{ docReviewLockStyle }}" onClick="{{ toggleDocShare }}">
+            <div style="flex:1;">
+              <div style="font:700 15px 'Public Sans',sans-serif;color:#16283D;">Share with customer</div>
+              <div style="font:500 13px 'Public Sans',sans-serif;color:#4A5A6B;margin-top:2px;">{{ docShareLabel }}</div>
+            </div>
+            <div style="{{ docShareTrackStyle }}"><div style="{{ docShareKnobStyle }}"></div></div>
           </div>
-
           <sc-if value="{{ docFeatureDisabled }}" hint-placeholder-val="{{ false }}">
-            <!-- No SAVE (canConfirm is false) and deliberately NO retry button:
-                 retrying would be refused identically until an owner acts. -->
-            <div style="background:#FBF6E8;border:1px solid #B08A2E;border-radius:6px;padding:11px;display:flex;flex-direction:column;gap:9px;">
-              <div style="font:700 11px 'IBM Plex Mono',monospace;color:#8A6A1E;">TRANSCRIPTION TURNED OFF</div>
-              <div style="font:600 12px 'Public Sans',sans-serif;color:#5C4A1A;text-wrap:pretty;">{{ docFeatureDisabledMessage }}</div>
-              <div style="min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ returnAfterDocFeatureDisabled }}">RETURN TO REVIEW</div>
-            </div>
+            <div style="font:600 13px 'Public Sans',sans-serif;background:#FBEAEA;border:1px solid #C0463C;color:#8A2D26;padding:10px 12px;border-radius:4px;">{{ docFeatureDisabledMessage }}</div>
           </sc-if>
-
           <sc-if value="{{ docConfirmFailed }}" hint-placeholder-val="{{ false }}">
-            <div style="background:#FBEAEA;border:1px solid #C0463C;border-radius:6px;padding:11px;display:flex;flex-direction:column;gap:9px;">
-              <div style="font:600 12px 'Public Sans',sans-serif;color:#8A2D26;text-wrap:pretty;">{{ docConfirmError }}</div>
-              <div style="min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ retryDocConfirm }}">TRY SAVING AGAIN</div>
-            </div>
+            <div style="font:600 13px 'Public Sans',sans-serif;background:#FBEAEA;border:1px solid #C0463C;color:#8A2D26;padding:10px 12px;border-radius:4px;">{{ docConfirmError }}</div>
+            <div style="min-height:52px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ retryDocConfirm }}">TRY SAVING AGAIN</div>
+          </sc-if>
+          <sc-if value="{{ docShowSave }}" hint-placeholder-val="{{ true }}">
+            <div style="{{ docSaveStyle }}" onClick="{{ confirmDocCapture }}">{{ docSaveLabel }}</div>
+          </sc-if>
+          <sc-if value="{{ hasDocSaveProgress }}" hint-placeholder-val="{{ false }}">
+            <div style="font:600 12px 'IBM Plex Mono',monospace;color:#1F6F78;text-align:center;">{{ docSaveProgress }}</div>
           </sc-if>
         </sc-if>
 
-        <!-- two-tap warnings: deleting the last comment, discarding a draft -->
-        <sc-if value="{{ hasDocDeleteWarning }}" hint-placeholder-val="{{ false }}">
-          <div style="background:#FBEAEA;border:1px solid #C0463C;border-radius:6px;padding:11px;display:flex;flex-direction:column;gap:9px;">
-            <div style="font:600 12px 'Public Sans',sans-serif;color:#8A2D26;text-wrap:pretty;">{{ docDeleteWarning }}</div>
-            <div style="display:flex;gap:8px;">
-              <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#FBEAEA;color:#8A2D26;border:1px solid #C0463C;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ confirmDeleteDocComment }}">DELETE ANYWAY</div>
-              <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ cancelDeleteDocComment }}">KEEP IT</div>
-            </div>
+        <!-- ---------- 6. SAVED ---------- -->
+        <sc-if value="{{ isDocSavedStep }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:10px 0 4px;">
+            <div style="width:68px;height:68px;border-radius:50%;background:#1F6F78;display:flex;align-items:center;justify-content:center;font:700 34px 'Public Sans',sans-serif;color:#fff;">&#10003;</div>
+            <div style="font:800 22px 'Archivo',sans-serif;color:#16283D;">Saved to the job</div>
           </div>
-        </sc-if>
-        <sc-if value="{{ hasDocDiscardWarning }}" hint-placeholder-val="{{ false }}">
-          <div style="background:#FBEAEA;border:1px solid #C0463C;border-radius:6px;padding:11px;display:flex;flex-direction:column;gap:9px;">
-            <div style="font:600 12px 'Public Sans',sans-serif;color:#8A2D26;text-wrap:pretty;">{{ docDiscardWarning }}</div>
-            <div style="display:flex;gap:8px;">
-              <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#FBEAEA;color:#8A2D26;border:1px solid #C0463C;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ confirmDiscardDocDraft }}">DISCARD THE DRAFT</div>
-              <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;" onClick="{{ cancelDiscardDocDraft }}">KEEP IT</div>
-            </div>
+          <div style="padding:14px 16px;background:#F6F1E4;border-radius:6px;display:flex;flex-direction:column;gap:10px;font:500 14px 'Public Sans',sans-serif;color:#16283D;">
+            <div style="display:flex;justify-content:space-between;"><span style="color:#4A5A6B;">On the timeline</span><span style="font-weight:700;">1 entry</span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:#4A5A6B;">Pages attached</span><span style="font-weight:700;">{{ docSavedPagesLabel }}</span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:#4A5A6B;">Who can see it</span><span style="font-weight:700;">{{ docSavedAudienceLabel }}</span></div>
           </div>
+          <div style="min-height:52px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;letter-spacing:.05em;cursor:pointer;" onClick="{{ finishDocCapture }}">DONE &mdash; BACK TO JOB</div>
+          <div style="min-height:52px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;letter-spacing:.05em;cursor:pointer;" onClick="{{ scanAnotherDocument }}">SCAN ANOTHER DOCUMENT</div>
         </sc-if>
+
       </div>
     </div>
   </div>
@@ -2913,23 +2790,30 @@ class Component extends DCLogic {
     // 5A capture: pages hold compressed blobs and ONE object URL each; no
     // decoded canvas and no OCR data URL ever lives in state.
     docCapture: null,      // { captureId, pages: [], busy, processingLabel, error }
-    docStep: 'capture',    // 'capture' | 'reading' | 'review'
-    docReading: null,      // 5B scheduler snapshot
-    // 5C review: text and small metadata only. No blob, object URL or data URL.
+    docStep: 'capture',    // 'capture' | 'reading' | 'pull' | 'pulling' | 'review'
+    docReading: null,      // reading scheduler snapshot
+    // The ONE entry being checked before saving. Text and small metadata only.
     docReview: null,
-    docReviewBlocked: '',
-    docConfirmDelete: null,
-    docConfirmDiscard: null,
-    // Close guard and the post-save completion step. docSaved keeps the sheet
-    // on screen after the capture itself has been torn down, so a successful
-    // save ends on a visible DONE instead of the sheet vanishing.
+    // What the staff member chose to keep: { mode: 'everything' } or
+    // { mode: 'ask', instruction }. Applied again after a stronger read.
+    docPull: null,
+    docPullText: '',
+    _docPullInterim: '',
+    docPullError: '',
+    docPullRecording: false,
+    docPullRecBusy: false,
+    docPullMicError: '',
+    docShare: false,          // "Share with customer": off (staff only) by default
+    docStrongerUsed: false,   // one stronger read per document
+    docStrongerRunning: false,
+    docConfirmStronger: false,
+    // Close guard and the "Saved" step. docSaved keeps the sheet on screen after
+    // the capture itself has been torn down.
     docConfirmClose: null,
     docSaved: null,
     docCloseBlocked: '',
     // Which saved document is expanded in the DOCUMENTS section, by capture id.
     openDocumentCaptureId: null,
-    docReattachFor: null,
-    docSharedPagePrompt: null,
 
     // ---------- serial number capture (multi-record) ----------
     serialScan: null, // { step, file, previewUrl, draftValue, confidence, alternates, needsReview, error, saving, labelChoice, customLabel, showToCustomer, replaceRecordId }
@@ -4499,39 +4383,41 @@ class Component extends DCLogic {
     // A reopen invalidates any prior reading session: queued jobs settle as
     // cancelled, in-flight responses are discarded on arrival.
     if (this.__transcriber) this.__transcriber.endSession();
-    this.setState({ docStep: 'capture', docReading: null });
-    // Provisional identity. If a draft is recovered, resumeDocDraft() reopens
-    // the capture under the DRAFT's id and this one is never used again.
+    this._docAutoAdvanced = false;
+    this.setState({
+      docStep: 'capture', docReading: null, docReview: null, docSaved: null,
+      docPull: null, docPullText: '', _docPullInterim: '', docPullError: '', docPullMicError: '',
+      docShare: false, docStrongerUsed: false, docStrongerRunning: false, docConfirmStronger: false,
+      docConfirmClose: null, docCloseBlocked: '',
+    });
     this._captureController().open(mod ? mod.newDocumentCaptureId() : null);
-    this.checkDocDraft();
   };
 
-  // The one escape hatch. Everything that can lose work routes through here
-  // rather than calling closeDocCapture() directly.
+  // The one way out. Anything that could lose work asks first.
   requestCloseDocCapture = () => {
-    // A database write is in progress. Refusing silently is what made the sheet
-    // feel broken, so the refusal says so and names the way out.
+    // A database write is in progress: say so instead of doing nothing.
     if (this.__reviewer && this.__reviewer.getState().locked) {
-      this.setState({ docCloseBlocked: 'Saving right now. This closes on its own when the save finishes or fails.' });
+      this.setState({ docCloseBlocked: 'Saving right now. This closes on its own when the save finishes.' });
       return;
     }
     if (this.state.docCloseBlocked) this.setState({ docCloseBlocked: '' });
     if (this.state.docSaved) { this.finishDocCapture(); return; }       // nothing left to lose
     const dc = this.state.docCapture;
-    const rv = this.state.docReview;
-    const hasPages = !!(dc && dc.pages && dc.pages.length);
-    const hasReview = !!(rv && rv.comments && rv.comments.length);
-    if (!hasPages && !hasReview) { this.closeDocCapture(); return; }
-    this.setState({ docConfirmClose: 'Discard unsaved changes?' });
+    if (!(dc && dc.pages && dc.pages.length)) { this.closeDocCapture(); return; }
+    this.setState({ docConfirmClose: 'Leave without saving? The pages and text will be lost.' });
   };
   cancelCloseDocCapture = () => this.setState({ docConfirmClose: null });
   confirmCloseDocCapture = () => {
     this.setState({ docConfirmClose: null });
     this.closeDocCapture();
   };
-  // Leaves the completion step. The capture and review were already torn down
-  // by confirmDocCapture(); this only dismisses the sheet.
+  // Leaves the "Saved" step. The capture was already torn down by
+  // confirmDocCapture(); this only dismisses the sheet.
   finishDocCapture = () => this.setState({ docSaved: null, docConfirmClose: null, docCloseBlocked: '' });
+  scanAnotherDocument = () => {
+    this.finishDocCapture();
+    this.openDocCapture();
+  };
 
   // DOCUMENTS section: one document expanded at a time.
   toggleSavedDocument = (captureId) => {
@@ -4540,22 +4426,21 @@ class Component extends DCLogic {
   };
 
   closeDocCapture = () => {
-    // The review module is authoritative: it refuses teardown while a
-    // confirmation is in flight, and so must this handler. Closing mid-save
-    // would null the session between awaits and throw away the draft the
-    // confirmation is protecting.
+    // The review module refuses teardown while a save is in flight, and so must
+    // this handler: closing mid-save would lose track of what was written.
     if (this.__reviewer && this.__reviewer.closeReview().reason === 'in_flight') return;
+    this._stopDocPullMic();
     if (this.__transcriber) this.__transcriber.endSession();
     this._captureController().close();
     this.setState({ docStep: 'capture', docReading: null, docReview: null,
-                    docReattachFor: null, docSharedPagePrompt: null,
+                    docPull: null, docPullText: '', _docPullInterim: '', docPullError: '',
+                    docStrongerRunning: false, docConfirmStronger: false,
                     docConfirmClose: null, docSaved: null, docCloseBlocked: '' });
   };
 
-  // Camera and library share this. Files are processed ONE AT A TIME via the
-  // controller, which owns the cancellation generation, the busy guard and the
-  // per-page operation tokens. The input is cleared immediately so picking the
-  // same file twice still fires a change.
+  // Camera and library share this. Files are processed ONE AT A TIME by the
+  // capture controller. The input is cleared so picking the same file twice
+  // still fires a change.
   pickDocPages = async (e) => {
     const files = Array.from((e.target && e.target.files) || []);
     e.target.value = '';
@@ -4564,11 +4449,8 @@ class Component extends DCLogic {
   };
 
   removeDocPage = (pageId) => this._captureController().remove(pageId);
-  moveDocPage = (index, delta) => this._captureController().move(index, delta);
-  rotateDocPage = (pageId) => this._captureController().rotatePage(pageId);
-  enhanceDocPage = (pageId, values) => this._captureController().enhancePage(pageId, values);
 
-  // ---------- 5B: reading ----------
+  // ---------- reading ----------
   _transcriber() {
     if (!this.__transcriber) {
       this.__transcriber = this._docScheduler.createTranscriptionScheduler({
@@ -4581,10 +4463,12 @@ class Component extends DCLogic {
           r.onerror = () => reject(new Error('Could not read the page image.'));
           r.readAsDataURL(blob);
         }),
-        // The only transcription route: the approved data layer's call to the
-        // protected Function endpoint. No browser OpenAI call, no fallback.
+        // The only transcription route: the protected Function. No fallback.
         transcribe: (req) => this._dataMod.transcribeDocumentPage(req),
-        onChange: (docReading) => this.setState({ docReading }),
+        onChange: (docReading) => {
+          this.setState({ docReading });
+          this._afterDocReadingChange(docReading);
+        },
       });
     }
     return this.__transcriber;
@@ -4592,51 +4476,79 @@ class Component extends DCLogic {
 
   startDocReading = async () => {
     const dc = this.state.docCapture;
-    if (!dc || !dc.pages.length) return;
-    // Identity is fixed HERE and travels with every request. It is never
-    // re-read from component state after scheduling.
+    if (!dc || !dc.pages.length || dc.busy) return;
+    this._docAutoAdvanced = false;
+    // Identity is fixed HERE and travels with every request.
     this._transcriber().startSession({
       workOrderId: this.state.selectedJobId,
       documentCaptureId: dc.captureId,
       pages: dc.pages,
     });
-    this.setState({ docStep: 'reading' });
+    this.setState({ docStep: 'reading', docPullError: '' });
     await this._transcriber().start();
   };
 
+  // Moves on by itself once every page has text, so the reading screen needs
+  // no tap. A page that failed or came back blank keeps the screen open with
+  // its own Try again / Skip choice. The instance flag (not state, which
+  // updates later) makes sure this happens once per reading.
+  _afterDocReadingChange(docReading) {
+    if (this._docAutoAdvanced || this.state.docStep !== 'reading') return;
+    if (!docReading || !docReading.allSettled || !docReading.pages.length) return;
+    const allRead = docReading.pages.every((p) =>
+      (p.state === 'ready' || p.state === 'needs_review') && typeof p.text === 'string' && p.text.trim() !== '');
+    if (!allRead) return;
+    this._docAutoAdvanced = true;
+    if (this.state.docStrongerRunning) {
+      this.setState({ docStrongerRunning: false });
+      this._repeatDocPull(docReading.pages);
+    } else {
+      this.setState({ docStep: 'pull', docPullError: '' });
+    }
+  }
+
   resumeDocReading = () => this._transcriber().resumeQueue();
   retryDocPage = (pageId) => this._transcriber().retryPage(pageId);
-  readDocPageAgain = (pageId) => this._transcriber().readPageAgain(pageId);
-  tryStrongerDocReading = (pageId) => this._transcriber().tryStrongerReading(pageId);
-  keepMyDocEdits = (pageId) => this._transcriber().resolveStrongerChoice(pageId, 'keep');
-  useStrongerDocReading = (pageId) => this._transcriber().resolveStrongerChoice(pageId, 'use');
 
-  // ---------- 5C: review, recovery and confirmation ----------
+  // Skipping removes the page from the document. The last page cannot be
+  // skipped into nothing: that goes back to taking a photo.
+  skipDocPage = (pageId) => {
+    const dc = this.state.docCapture;
+    if (dc && dc.pages.length <= 1) {
+      if (this.__transcriber) this.__transcriber.endSession();
+      this._captureController().remove(pageId);
+      this.setState({ docStep: 'capture', docReading: null, docStrongerRunning: false });
+      return;
+    }
+    this._captureController().remove(pageId);
+  };
+
+  // The freshest page text, straight from the scheduler.
+  _docReadPages() {
+    const dr = this.__transcriber ? this.__transcriber.getState() : this.state.docReading;
+    return dr ? dr.pages : [];
+  }
+
+  // ---------- one entry, check and save ----------
   _reviewer() {
     if (!this.__reviewer) {
       this.__reviewer = this._docReview.createReviewController({
-        storage: (() => { try { return window.localStorage; } catch (e) { return null; } })(),
-        // The APPROVED Step 4 finalization. No storage or database logic is
-        // duplicated in the review module.
+        // The simple flow keeps no local drafts: if the app closes part way,
+        // you start the document again (the photos never survive a reload).
+        storage: null,
+        // The APPROVED Step 4 finalization; no storage or database logic here.
         finalize: (payload) => this._dataMod.finalizeDocumentCapture(payload),
-        // Staging one page's already-generated blobs. IDENTITY IS HANDED IN from
-        // the module's frozen confirmation plan — this adapter must never read
-        // this.state.selectedJobId or this.state.docCapture.captureId, or a job
-        // switch mid-save would retarget the write.
+        // Stages ONE page's already-generated blobs. Identity is handed in from
+        // the module's frozen save plan and is never re-read from state.
         uploadPage: ({ pageId, pageNumber, workOrderId, documentCaptureId }) => {
           const dc = this.state.docCapture;
-          // The live capture must BE the plan's capture. Page ids are client ids
-          // and can repeat across captures, so a page-id lookup alone would
-          // happily upload another capture's photo into this capture's
-          // deterministic path. Throwing here fails the confirmation before any
-          // byte is written and keeps the draft.
           if (!dc || dc.captureId !== documentCaptureId) {
             throw new Error('The active document capture changed before upload.');
           }
           const page = dc.pages.find((p) => p.pageId === pageId);
           if (!page) throw new Error(`Page ${pageNumber} is no longer available.`);
           return this._dataMod.uploadDocumentPage({
-            workOrderId, documentCaptureId, pageNumber,   // handed in, never re-derived
+            workOrderId, documentCaptureId, pageNumber,
             blobOrig: page.archival.blob,
             blobThumb: page.thumb.blob,
           });
@@ -4649,161 +4561,207 @@ class Component extends DCLogic {
     return this.__reviewer;
   }
 
-  startDocReview = () => {
+  // Turns the chosen text into the ONE entry to check. Keeps the share choice
+  // if the staff member already turned it on.
+  _beginDocEntry(body, readingPages) {
     const dc = this.state.docCapture;
-    const dr = this.state.docReading;
-    if (!dc) return;
-    const r = this._reviewer().beginReview({
+    if (!dc) return false;
+    const r = this._reviewer().beginSingleReview({
       workOrderId: this.state.selectedJobId,
       documentCaptureId: dc.captureId,
       capturePages: dc.pages,
-      readingPages: dr ? dr.pages : [],
+      readingPages,
+      body,
     });
-    if (!r.ok) { this.setState({ docStep: 'reading', docReviewBlocked: r.message }); return; }
-    this.setState({ docStep: 'review', docReviewBlocked: '' });
+    if (!r.ok) { this.setState({ docStep: 'pull', docPullError: r.message }); return false; }
+    if (this.state.docShare) this._reviewer().setVisibility(r.commentId, 'public');
+    this.setState({ docStep: 'review', docPullError: '', docConfirmStronger: false });
+    return true;
+  }
+
+  // "Everything": no AI call — the page text is joined here.
+  chooseDocEverything = () => {
+    this._stopDocPullMic();
+    const pages = this._docReadPages();
+    this.setState({ docPull: { mode: 'everything' } });
+    this._beginDocEntry(this._docReview.combinePageText(pages), pages);
   };
 
-  // Coming back from the page picker to the EXISTING review. Never beginReview()
-  // — that would re-derive comments from reading state and discard restored or
-  // edited text.
-  returnToDocReview = () => {
-    const r = this._reviewer().returnToReview();
-    if (r.applied) this.setState({ docStep: 'review' });
-  };
+  setDocPullText = (e) => this.setState({ docPullText: e.target.value, docPullError: '' });
 
-  backToDocPages = () => {
-    const r = this._reviewer().backToCapture();
-    if (r.applied) this.setState({ docStep: 'capture' });
-  };
-
-  editDocComment = (commentId, e) => {
-    const el = e && e.target;
-    if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; }  // auto-grow
-    this._reviewer().editComment(commentId, el ? el.value : '');
-  };
-
-  splitDocComment = (commentId, e) => {
-    const card = e && e.target && e.target.closest ? e.target.closest('[data-comment]') : null;
-    const ta = card ? card.querySelector('textarea') : null;
-    this._reviewer().splitComment(commentId, ta ? ta.selectionStart : null);
-  };
-
-  mergeDocComment = (commentId) => this._reviewer().mergeCommentUp(commentId);
-  moveDocComment = (commentId, delta) => this._reviewer().moveComment(commentId, delta);
-  addDocComment = () => this._reviewer().addComment();
-  setDocCommentVisibility = (commentId, v) => this._reviewer().setVisibility(commentId, v);
-  toggleDocCommentPage = (commentId, pageId) => this._reviewer().toggleCommentPage(commentId, pageId);
-
-  deleteDocComment = (commentId) => {
-    const r = this._reviewer().deleteComment(commentId);
-    if (r.requiresConfirm) this.setState({ docConfirmDelete: { commentId, warning: r.warning } });
-  };
-  confirmDeleteDocComment = () => {
-    const p = this.state.docConfirmDelete;
-    if (!p) return;
-    this._reviewer().deleteComment(p.commentId, { force: true });
-    this.setState({ docConfirmDelete: null });
-  };
-  cancelDeleteDocComment = () => this.setState({ docConfirmDelete: null });
-
-  // Reattachment: explicit, two-step, never inferred from filename, position or
-  // page number.
-  startDocReattach = (oldPageId) => this.setState({ docReattachFor: oldPageId });
-  cancelDocReattach = () => this.setState({ docReattachFor: null, docSharedPagePrompt: null });
-
-  chooseDocReattachTarget = (newPageId) => {
-    const oldPageId = this.state.docReattachFor;
-    if (!oldPageId) return;
-    const r = this._reviewer().reattachPage(oldPageId, newPageId);
-    if (r.requiresApproval) {
-      // Many-to-one mapping is a separate, explicit approval.
-      this.setState({ docSharedPagePrompt: { oldPageId, newPageId, message: r.message } });
+  submitDocPull = async () => {
+    await this._stopDocPullMicAndWait();
+    const instruction = (this.state.docPullText || '').trim();
+    if (!instruction) {
+      this.setState({ docPullError: 'Tap the mic or type what you want pulled from the pages.' });
       return;
     }
-    this.setState({ docReattachFor: null, docSharedPagePrompt: null });
+    this.setState({ docPull: { mode: 'ask', instruction } });
+    await this._runDocPull(instruction, this._docReadPages());
   };
 
-  approveSharedDocPage = () => {
-    const p = this.state.docSharedPagePrompt;
-    if (!p) return;
-    this._reviewer().reattachPage(p.oldPageId, p.newPageId, { allowShared: true });
-    this.setState({ docReattachFor: null, docSharedPagePrompt: null });
-  };
-
-  checkDocDraft = () => this._reviewer().detectDraft(this.state.selectedJobId);
-
-  // RESUME REVIEW adopts the RECOVERED capture id and reopens the 5A capture
-  // under it, so the capture controller, the upload adapter and finalization all
-  // share one identity. A provisional id minted on open is discarded here.
-  resumeDocDraft = () => {
-    const rv = this.state.docReview;
-    const rec = rv && rv.recovery;
-    if (!rec || !rec.usable) return;
-    this._captureController().open(rec.documentCaptureId);   // the identity switch
-    const r = this._reviewer().resumeDraft({
+  async _runDocPull(instruction, pages) {
+    const dc = this.state.docCapture;
+    const captureId = dc && dc.captureId;
+    this.setState({ docStep: 'pulling', docPullError: '' });
+    const r = await this._dataMod.pullDocumentDetails({
       workOrderId: this.state.selectedJobId,
-      documentCaptureId: rec.documentCaptureId,
-      capturePages: [],                                      // photos never survive a reload
+      instruction,
+      pages: pages.filter((p) => typeof p.text === 'string' && p.text.trim() !== ''),
     });
-    if (!r.ok) { this.setState({ docReviewBlocked: 'That saved draft belongs to a different job or capture.' }); return; }
-    // The module itself lands in its "away at pages" state when photos are
-    // missing, so RETURN TO REVIEW is offered and beginReview() is never called
-    // on this path. The step below only follows it.
-    this.setState({ docStep: r.needsReattach ? 'capture' : 'review', docReviewBlocked: '' });
+    // Closed, or a different document opened, while waiting: drop the answer.
+    const now = this.state.docCapture;
+    if (!now || now.captureId !== captureId || this.state.docStep !== 'pulling') return;
+    if (!r.ok) { this.setState({ docStep: 'pull', docPullError: r.error }); return; }
+    this._beginDocEntry(r.text, pages);
+  }
+
+  // After a stronger read, the same choice is applied again automatically.
+  _repeatDocPull(pages) {
+    const choice = this.state.docPull;
+    if (choice && choice.mode === 'ask' && choice.instruction) {
+      this._runDocPull(choice.instruction, pages);
+      return;
+    }
+    this._beginDocEntry(this._docReview.combinePageText(pages), pages);
+  }
+
+  backToDocPull = () => this.setState({ docStep: 'pull', docPullError: '', docConfirmStronger: false });
+
+  editDocReviewBody = (e) => {
+    const rv = this.state.docReview;
+    const entry = rv && rv.comments[0];
+    if (entry) this._reviewer().editComment(entry.commentId, e.target.value);
   };
 
-  discardDocDraft = () => {
-    const r = this._reviewer().discardDraft();
-    if (r.requiresConfirm) this.setState({ docConfirmDiscard: r.warning });
+  toggleDocShare = () => {
+    const next = !this.state.docShare;
+    this.setState({ docShare: next });
+    const rv = this.state.docReview;
+    const entry = rv && rv.comments[0];
+    if (entry) this._reviewer().setVisibility(entry.commentId, next ? 'public' : 'private');
   };
-  confirmDiscardDocDraft = () => {
-    this._reviewer().discardDraft({ force: true });
-    this.setState({ docConfirmDiscard: null, docStep: 'capture' });
+
+  // One stronger read per document: every page is read again more carefully,
+  // then the same choice (everything, or the same request) is applied again.
+  requestDocStronger = () => {
+    const rv = this.state.docReview;
+    const entry = rv && rv.comments[0];
+    if (entry && entry.humanEdited) { this.setState({ docConfirmStronger: true }); return; }
+    this._runDocStronger();
   };
-  cancelDiscardDocDraft = () => this.setState({ docConfirmDiscard: null });
+  cancelDocStronger = () => this.setState({ docConfirmStronger: false });
+  confirmDocStronger = () => {
+    this.setState({ docConfirmStronger: false });
+    this._runDocStronger();
+  };
+  _runDocStronger() {
+    if (this.state.docStrongerUsed) return;
+    const scheduler = this._transcriber();
+    const pages = scheduler.getState().pages;
+    if (!pages.length) return;
+    this._docAutoAdvanced = false;
+    this.setState({ docStrongerUsed: true, docStrongerRunning: true, docStep: 'reading' });
+    pages.forEach((p) => scheduler.tryStrongerReading(p.pageId));
+  }
+
+  // ---------- voice: "tell me what to pull" ----------
+  toggleDocPullMic = () => {
+    if (this.state.docPullRecBusy) return;
+    if (this.state.docPullRecording) this._stopDocPullMic();
+    else this._startDocPullMic();
+  };
+
+  _startDocPullMic() {
+    if (this._docPullRecActive) return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      this.setState({ docPullMicError: 'Voice isn’t supported in this browser — type it below instead.' });
+      return;
+    }
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+    let finalText = (this.state.docPullText || '').trim();
+    rec.onstart = () => {
+      this._docPullRecActive = true;
+      this.setState({ docPullRecording: true, docPullRecBusy: false, docPullMicError: '', docPullError: '' });
+    };
+    rec.onresult = (ev) => {
+      let interim = '';
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const t = ev.results[i][0].transcript;
+        if (ev.results[i].isFinal) finalText += (finalText ? ' ' : '') + t.trim();
+        else interim += t;
+      }
+      this.setState({ docPullText: finalText, _docPullInterim: interim });
+    };
+    rec.onerror = (ev) => {
+      this._docPullRecActive = false;
+      this._docPullRec = null;
+      this.setState({
+        docPullRecording: false, docPullRecBusy: false,
+        docPullMicError: ev.error === 'no-speech' ? 'Didn’t catch that — tap the mic and try again.' : this.micErrorMessage(ev.error),
+      });
+    };
+    rec.onend = () => {
+      this._docPullRecActive = false;
+      this._docPullRec = null;
+      this.setState({ docPullRecording: false, docPullRecBusy: false, _docPullInterim: '' });
+      if (this._docPullStopResolve) { const r = this._docPullStopResolve; this._docPullStopResolve = null; r(); }
+    };
+    this._docPullRec = rec;
+    this.setState({ docPullRecBusy: true, docPullMicError: '' });
+    try {
+      rec.start();
+    } catch (e) {
+      this._docPullRecActive = false;
+      this._docPullRec = null;
+      this.setState({ docPullRecording: false, docPullRecBusy: false, docPullMicError: this.micErrorMessage(e.name) });
+    }
+  }
+
+  _stopDocPullMic() {
+    if (this._docPullRec) { try { this._docPullRec.stop(); } catch (e) { /* already stopped */ } }
+  }
+
+  // Resolves once the last spoken words are in docPullText, so GO never sends
+  // half a sentence.
+  _stopDocPullMicAndWait() {
+    if (!this._docPullRecActive) return Promise.resolve();
+    const stopped = new Promise((resolve) => { this._docPullStopResolve = resolve; this._stopDocPullMic(); });
+    // Some browsers never report the end; never leave GO hanging on that.
+    const giveUp = new Promise((resolve) => setTimeout(resolve, 2500));
+    return Promise.race([stopped, giveUp]);
+  }
 
   confirmDocCapture = async () => {
     const jobId = this.state.selectedJobId;
+    const shared = !!this.state.docShare;
     const r = await this._reviewer().confirm({
       author: {
         id: this.state.profile && this.state.profile.id,
-        // The author is the reviewing human — never the model, never a tier.
+        // The author is the reviewing human — never the model.
         name: this.state.profile && this.state.profile.name,
         role: this.activeShopRole(),
       },
     });
     if (!r.ok) return;                     // the failed state owns the retry action
-    // Only now is the capture torn down; the draft was cleared by the controller
-    // after verified success.
     this._transcriber().endSession();
     this._reviewer().closeReview();
     this._captureController().close();
-    // Teardown is unchanged — blobs and object URLs are released exactly as
-    // before. docSaved is what keeps the sheet on screen for the DONE button.
     const n = (v) => (typeof v === 'number' ? v : null);
     this.setState({
-      docStep: 'saved', docReading: null, docReview: null,
-      docSaved: { comments: n(r.activities), photos: n(r.photos) },
+      docStep: 'saved', docReading: null, docReview: null, docPull: null, docPullText: '',
+      docShare: false, docStrongerRunning: false,
+      docSaved: { photos: n(r.photos), shared },
     });
-    // The approved controller returns verified COUNTS (r.activities is a number),
-    // not rows, so there is nothing to append optimistically here. The reload
-    // below is the authoritative refresh; realtime inserts that arrive in the
-    // meantime are de-duplicated by id in subscribeActivities via
-    // _activityStream().applyRealtime, which is where the five-comment race
-    // actually shows up.
     await this.loadActivities(jobId);
     await this.loadJobPhotos(jobId);
   };
 
   retryDocConfirm = () => this.confirmDocCapture();
-
-  // Section 27 A2 refused the save because the owner switched the feature off.
-  // A pure state transition: no request, no flag check, and no claim to have
-  // checked. It re-exposes SAVE deliberately.
-  returnAfterDocFeatureDisabled = () => {
-    const r = this._reviewer().returnToReview();
-    if (r.applied) this.setState({ docStep: 'review' });
-  };
 
   // ---------- 5D: activity stream and the owner's switch ----------
   _activityStream() {
@@ -6402,108 +6360,41 @@ class Component extends DCLogic {
       onOpen: () => this.openLightbox(p.id),
     }));
 
-    // ---------- document photo transcription render data (Section 27) ----------
+    // ---------- scan a document: render data (Section 27, simple flow) ----------
     const dc = s.docCapture;
-    const docCapturePages = (dc ? dc.pages : []).map((p, i, arr) => ({
+    const docCapturePages = (dc ? dc.pages : []).map((p, i) => ({
       thumbUrl: p.thumb.url,
-      label: `${i + 1} OF ${arr.length}`,
-      sizeLabel: `${p.archival.width}\u00d7${p.archival.height}`,
-      moveUp: () => this.moveDocPage(i, -1),
-      moveDown: () => this.moveDocPage(i, 1),
-      rotate: () => this.rotateDocPage(p.pageId),
-      // Auto-enhance, matching the existing photo editor's one-tap values.
-      // Toggles back to neutral so it is reversible.
-      enhance: () => this.enhanceDocPage(p.pageId, p.brightness === 100
-        ? { brightness: 108, contrast: 118, saturation: 114 }
-        : { brightness: 100, contrast: 100, saturation: 100 }),
+      label: `Page ${i + 1}`,
       remove: () => this.removeDocPage(p.pageId),
     }));
+    const docPageCount = dc ? dc.pages.length : 0;
+    const docJob = (s.jobs || []).find((j) => j.id === s.selectedJobId);
+    const docJobLabel = docJob ? [docJob.id, docJob.customerName].filter(Boolean).join(' · ') : '';
 
     const dr = s.docReading;
-    const docReadingPages = (dr ? dr.pages : []).map((p) => ({
-      pageNumber: p.pageNumber,
-      stateLabel: { waiting: 'WAITING', reading: 'READING\u2026', ready: 'READY',
-                    needs_review: 'NEEDS REVIEW', failed: 'FAILED' }[p.state],
-      stateBadgeStyle: `font:700 9px 'IBM Plex Mono',monospace;padding:3px 7px;border-radius:3px;letter-spacing:.3px;background:${
-        p.state === 'ready' ? '#EFF6F5' : p.state === 'failed' ? '#FBEAEA' : '#EDE6D6'};color:${
-        p.state === 'failed' ? '#8A2D26' : '#16283D'};`,
-      hasError: !!p.error,
-      error: p.error,
-      hasChoice: !!p.pendingStrong,
-      keepEdits: () => this.keepMyDocEdits(p.pageId),
-      useStronger: () => this.useStrongerDocReading(p.pageId),
-      canRetry: p.state === 'failed',
-      retryLabel: this._docScheduler && p.error === this._docScheduler.RESULT_LOST_MESSAGE ? 'READ PAGE AGAIN' : 'TRY AGAIN',
-      retry: () => this.retryDocPage(p.pageId),
-      canTryStronger: p.canTryStronger,
-      // Always available; prominence is the only thing confidence changes.
-      // Both variants are now the existing cream secondary. prominentStronger
-      // still decides prominence — unchanged behavior — but it does so with a
-      // border and full-strength navy text instead of the bright orange, which
-      // read as a primary action on a failed page.
-      strongerStyle: `min-height:44px;padding:0 14px;display:flex;align-items:center;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;${
-        p.prominentStronger
-          ? 'background:#EDE6D6;color:#16283D;border:1px solid rgba(22,40,61,.35);'
-          : 'background:#F6F1E4;color:rgba(22,40,61,.7);border:1px solid transparent;'}`,
-      showStrongerHint: p.prominentStronger,
-      tryStronger: () => this.tryStrongerDocReading(p.pageId),
-    }));
+    const docHasText = (p) => typeof p.text === 'string' && p.text.trim() !== '';
+    // Shown once everything has settled: a page that failed, or came back blank.
+    const docProblemPages = (dr && dr.allSettled ? dr.pages : [])
+      .filter((p) => p.state === 'failed' || ((p.state === 'ready' || p.state === 'needs_review') && !docHasText(p)))
+      .map((p) => ({
+        label: `Page ${p.pageNumber}`,
+        message: p.state === 'failed' ? (p.error || 'It couldn’t be read.') : 'No readable text came back.',
+        retry: () => this.retryDocPage(p.pageId),
+        skip: () => this.skipDocPage(p.pageId),
+      }));
+
+    const docPullRecording = !!s.docPullRecording;
+    const docPullMicBusy = !!s.docPullRecBusy;
+    const docPullMicStyle = `width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:${docPullMicBusy ? 'default' : 'pointer'};pointer-events:${docPullMicBusy ? 'none' : 'auto'};background:${docPullMicBusy ? '#B9C0C4' : docPullRecording ? '#C0392B' : '#1F6F78'};${docPullRecording ? 'animation:dk-pulse 1.6s infinite;' : ''}`;
+    const docPullReady = (s.docPullText || '').trim() !== '' || docPullRecording;
+    const docPullGoStyle = `min-height:46px;padding:0 18px;display:flex;align-items:center;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;letter-spacing:.05em;${
+      docPullReady ? 'background:#16283D;color:#fff;cursor:pointer;' : 'background:#EDE6D6;color:rgba(22,40,61,.45);cursor:pointer;'}`;
 
     const rv = s.docReview;
+    const docEntry = rv && rv.comments.length ? rv.comments[0] : null;
     const docLocked = !!(rv && rv.locked);
-    const docThumbFor = (pageId) => {
-      const p = (s.docCapture ? s.docCapture.pages : []).find((x) => x.pageId === pageId);
-      return p && p.thumb ? p.thumb.url : '';
-    };
-    const docChip = (on) => `min-height:44px;min-width:44px;display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;cursor:pointer;border:2px solid ${on ? '#1F6F78' : 'rgba(22,40,61,.15)'};background:${on ? '#EFF6F5' : '#fff'};color:${on ? '#1F6F78' : 'rgba(22,40,61,.55)'};`;
-    const docPill = (on, tone) => `min-height:44px;flex:1;display:flex;align-items:center;justify-content:center;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;background:${on ? tone : '#F6F1E4'};color:${on ? '#fff' : 'rgba(22,40,61,.6)'};`;
-
-    const docReviewComments = (rv ? rv.comments : []).map((c) => ({
-      commentId: c.commentId,
-      sequence: c.sequence,
-      body: c.body,
-      onEdit: (e) => this.editDocComment(c.commentId, e),
-      provenanceLabel: c.manualEntry ? 'TYPED BY HAND' : (c.humanEdited ? 'AI READING \u00b7 EDITED' : 'AI READING'),
-      provenanceStyle: `font:700 9px 'IBM Plex Mono',monospace;padding:3px 7px;border-radius:3px;letter-spacing:.3px;background:${c.manualEntry ? '#EDE6D6' : '#EFF6F5'};color:${c.manualEntry ? '#16283D' : '#1F6F78'};`,
-      pages: (rv ? rv.pages : []).map((p) => ({
-        label: `P${p.pageNumber}`,
-        thumbUrl: docThumbFor(p.pageId),
-        chipStyle: docChip(c.pageIds.includes(p.pageId)),
-        toggle: () => this.toggleDocCommentPage(c.commentId, p.pageId),
-      })),
-      pagesLabel: c.missingPageIds.length
-        ? `${c.missingPageIds.length} page(s) need matching`
-        : (c.pageNumbers.length === (rv ? rv.pages.length : 0) ? 'All pages' : `Pages ${c.pageNumbers.join(', ')}`),
-      lowConfidence: c.lowConfidence,
-      uncertain: c.lowConfidenceRegions,
-      hasIssue: !c.ok,
-      issueMessage: c.ok ? '' : c.issues[0].message,
-      privateStyle: docPill(c.visibility === 'private', '#16283D'),
-      publicStyle: docPill(c.visibility === 'public', '#1F6F78'),
-      setPrivate: () => this.setDocCommentVisibility(c.commentId, 'private'),
-      setPublic: () => this.setDocCommentVisibility(c.commentId, 'public'),
-      split: (e) => this.splitDocComment(c.commentId, e),
-      merge: () => this.mergeDocComment(c.commentId),
-      canMergeUp: c.canMergeUp,
-      canMoveUp: c.canMoveUp,
-      canMoveDown: c.canMoveDown,
-      moveUp: () => this.moveDocComment(c.commentId, -1),
-      moveDown: () => this.moveDocComment(c.commentId, 1),
-      remove: () => this.deleteDocComment(c.commentId),
-    }));
-
-    // One row per ORIGINAL page identity that still needs a live photo.
-    const docMissingPages = (rv ? rv.missingPageIds : []).map((pageId, i) => ({
-      label: `MISSING PAGE ${i + 1}`,
-      picking: s.docReattachFor === pageId,
-      buttonLabel: s.docReattachFor === pageId ? 'CHOOSING\u2026' : 'MATCH A PAGE',
-      choose: () => this.startDocReattach(pageId),
-    }));
-    const docReattachCandidates = (rv ? rv.reattachCandidates : []).map((p) => ({
-      label: `P${p.pageNumber}`,
-      thumbUrl: docThumbFor(p.pageId),
-      pick: () => this.chooseDocReattachTarget(p.pageId),
-    }));
+    const docShareOn = !!s.docShare;
+    const docCanSave = !!(rv && rv.canConfirm);
 
     // ---------- DOCUMENTS: saved documents, staff-only ----------
     //
@@ -7108,19 +6999,14 @@ class Component extends DCLogic {
       serialLabelsConfigDisplay,
       noSerialLabelsConfig: serialLabelsConfigDisplay.length === 0,
 
-      // ---------- document photo transcription (Section 27) ----------
+      // ---------- scan a document (Section 27, simple flow) ----------
       featureDocumentTranscription,
       openDocCapture: this.openDocCapture,
       closeDocCapture: this.requestCloseDocCapture,
       pickDocPages: this.pickDocPages,
-      // docSaved keeps the sheet mounted for the completion step after the
-      // capture itself is gone.
+      // docSaved keeps the sheet up for the "Saved" step after the capture is gone.
       showDocCapture: !!dc || !!s.docSaved,
-      isDocCaptureStep: !!dc && s.docStep === 'capture',
-      docSheetTitle: s.docSaved ? 'SAVED TO THE JOB'
-        : s.docStep === 'review' ? 'REVIEW THE TEXT'
-        : s.docStep === 'reading' ? 'READING PAGES' : 'DOCUMENT PAGES',
-
+      docJobLabel,
       hasDocCloseBlocked: !!s.docCloseBlocked,
       docCloseBlockedMessage: s.docCloseBlocked || '',
       hasDocConfirmClose: !!s.docConfirmClose,
@@ -7128,109 +7014,93 @@ class Component extends DCLogic {
       cancelCloseDocCapture: this.cancelCloseDocCapture,
       confirmCloseDocCapture: this.confirmCloseDocCapture,
 
-      isDocSavedStep: !!s.docSaved,
-      docSavedSummary: s.docSaved
-        ? [s.docSaved.comments != null ? `${s.docSaved.comments} comment${s.docSaved.comments === 1 ? '' : 's'}` : null,
-           s.docSaved.photos != null ? `${s.docSaved.photos} page${s.docSaved.photos === 1 ? '' : 's'}` : null]
-          .filter(Boolean).join(' \u00b7 ')
-        : '',
-      hasDocSavedSummary: !!(s.docSaved && (s.docSaved.comments != null || s.docSaved.photos != null)),
-      finishDocCapture: this.finishDocCapture,
+      // 1-2. pages
+      isDocCaptureStep: !!dc && s.docStep === 'capture',
+      docNoPagesYet: !!dc && docPageCount === 0,
+      docHasPages: docPageCount > 0,
+      docPagesHeading: docPageCount === 1 ? '1 page ready' : `${docPageCount} pages ready`,
       docCapturePages,
       docCaptureBusy: !!(dc && dc.busy),
       docCaptureProcessingLabel: dc ? dc.processingLabel : '',
       hasDocCaptureError: !!(dc && dc.error),
       docCaptureError: dc ? dc.error : '',
-      docCaptureCanAddPages: !!dc && s.docStep === 'capture' && dc.pages.length < 5 && !dc.busy,
-      // Visibly disabled AS WELL AS refused in the controller. The controller is
-      // the guard; this is so the mechanic can see why a tap did nothing.
+      docCaptureCanAddPages: !!dc && s.docStep === 'capture' && docPageCount < 5 && !dc.busy,
       docPageControlsStyle: dc && dc.busy ? 'pointer-events:none;opacity:.45;' : '',
-      docCaptureAtLimit: !!dc && dc.pages.length >= 5,
-      docCaptureCameraLabel: dc && dc.pages.length ? 'ADD ANOTHER PAGE' : 'CAMERA',
-      docCanStartReading: !!dc && s.docStep === 'capture' && dc.pages.length > 0 && !dc.busy,
+      docCaptureAtLimit: docPageCount >= 5,
+      docCameraLabel: docPageCount ? '+ ADD ANOTHER PAGE' : 'TAKE PHOTO OF PAGE 1',
+      docCameraStyle: `min-height:52px;display:flex;align-items:center;justify-content:center;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;letter-spacing:.05em;cursor:pointer;${
+        docPageCount ? 'background:#EDE6D6;color:#16283D;' : 'background:#1F6F78;color:#fff;'}`,
+      docCanStartReading: !!dc && s.docStep === 'capture' && docPageCount > 0 && !dc.busy,
+      docReadLabel: docPageCount > 1 ? 'THAT’S ALL — READ THEM' : 'THAT’S ALL — READ IT',
       startDocReading: this.startDocReading,
 
-      isDocReadingStep: s.docStep === 'reading',
-      docReadingPages,
+      // 3. reading
+      isDocReadingStep: !!dc && s.docStep === 'reading',
+      docReadingTitle: s.docStrongerRunning ? 'Reading again, more carefully…'
+        : (docPageCount === 1 ? 'Reading your page…' : `Reading your ${docPageCount} pages…`),
       docReadingProgress: dr ? dr.progressLabel : '',
       docReadingHalted: !!(dr && dr.halted),
       docReadingHaltedMessage: dr && dr.halted ? dr.halted.message : '',
       docCanResumeReading: !!(dr && dr.canResumeQueue),
       resumeDocReading: this.resumeDocReading,
-      // Settled is not enough: every page can settle as 'failed'. REVIEW THE
-      // TEXT appears only once at least one page has actually returned text,
-      // which is the same condition beginReview() enforces.
-      docReadingSettled: !!(dr && dr.allSettled
-        && dr.pages.some((p) => typeof p.text === 'string' && p.text.trim() !== '')),
-      docReadingNoText: !!(dr && dr.pages.length && dr.allSettled
-        && !dr.pages.some((p) => typeof p.text === 'string' && p.text.trim() !== '')),
-      startDocReview: this.startDocReview,
+      docProblemPages,
 
-      isDocReviewStep: s.docStep === 'review',
-      docReviewComments,
-      docActionStyle: "min-height:44px;padding:0 14px;display:flex;align-items:center;background:#EDE6D6;color:#16283D;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;cursor:pointer;",
-      // Visibly disabled as well as refused in the module. The module is the guard.
+      // 4. what to pull
+      isDocPullStep: !!dc && s.docStep === 'pull',
+      docReadCountLabel: docPageCount === 1 ? '1 PAGE READ' : `${docPageCount} PAGES READ`,
+      chooseDocEverything: this.chooseDocEverything,
+      toggleDocPullMic: this.toggleDocPullMic,
+      docPullMicStyle,
+      docPullMicLabel: docPullMicBusy ? '…' : (docPullRecording ? '■ STOP' : '● TALK'),
+      docPullText: s.docPullText || '',
+      setDocPullText: this.setDocPullText,
+      hasDocPullInterim: !!s._docPullInterim,
+      docPullInterim: s._docPullInterim || '',
+      hasDocPullMicError: !!s.docPullMicError,
+      docPullMicError: s.docPullMicError || '',
+      docPullGoStyle,
+      submitDocPull: this.submitDocPull,
+      hasDocPullError: !!s.docPullError,
+      docPullError: s.docPullError || '',
+      isDocPullingStep: !!dc && s.docStep === 'pulling',
+
+      // 5. check and save
+      isDocReviewStep: !!dc && s.docStep === 'review',
+      docReviewTitle: s.docPull && s.docPull.mode === 'ask' ? 'Here’s what I pulled' : 'Here’s everything I read',
+      docReviewBody: docEntry ? docEntry.body : '',
+      editDocReviewBody: this.editDocReviewBody,
+      docReviewLowConfidence: !!(docEntry && docEntry.lowConfidence),
       docReviewLockStyle: docLocked ? 'pointer-events:none;opacity:.55;' : '',
-      docNeedsReattach: !!(rv && rv.needsReattach),
-      docReattachMessage: rv ? rv.reattachMessage : '',
-      docMissingPages,
-      docReattachCandidates,
-      docNoReattachCandidates: !!(rv && rv.needsReattach && rv.reattachCandidates.length === 0),
-      docSharedPagePrompt: s.docSharedPagePrompt ? s.docSharedPagePrompt.message : '',
-      approveSharedDocPage: this.approveSharedDocPage,
-      cancelDocReattach: this.cancelDocReattach,
-      docStorageWarning: rv ? rv.storageMessage : '',
-      docHasDraft: !!(rv && rv.recovery),
-      docDraftUsable: !!(rv && rv.recovery && rv.recovery.usable),
-      docDraftUnusable: !!(rv && rv.recovery && !rv.recovery.usable),
-      docDraftTitle: rv && rv.recovery && rv.recovery.usable
-        ? 'UNFINISHED REVIEW FOUND' : 'SAVED DRAFT CAN\u2019T BE OPENED',
-      docDraftSummary: rv && rv.recovery
-        ? (rv.recovery.usable
-            ? `${rv.recovery.comments} reviewed comment(s) from an earlier session on this device.`
-            : {
-                malformed: 'A saved draft for this job is damaged and can\u2019t be restored.',
-                expired: 'A saved draft for this job is too old to restore.',
-                schema_version: 'A saved draft for this job was written by an older version of the app.',
-              }[rv.recovery.reason] || 'A saved draft for this job can\u2019t be restored.')
-        : '',
-      docCanReturnToReview: !!(rv && rv.canReturnToReview),
-      docReturnHint: rv && rv.needsReattach
-        ? 'Add the pages this review refers to, then match them above.'
-        : 'Your reviewed comments are waiting.',
-      returnToDocReview: this.returnToDocReview,
-      docConfirmLabel: rv && rv.confirmInFlight ? 'SAVING\u2026' : `SAVE ${rv ? rv.comments.length : 0} COMMENT(S)`,
-      docConfirmStyle: `flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:4px;font:700 12px 'IBM Plex Mono',monospace;${
-        rv && rv.canConfirm ? 'background:#1F6F78;color:#fff;cursor:pointer;'
-                            : 'background:#EDE6D6;color:rgba(22,40,61,.4);pointer-events:none;'}`,
-      docPagesButtonStyle: `min-height:44px;padding:0 16px;display:flex;align-items:center;border-radius:4px;font:700 11px 'IBM Plex Mono',monospace;background:#EDE6D6;color:#16283D;${
-        docLocked ? 'opacity:.5;pointer-events:none;' : 'cursor:pointer;'}`,
+      backToDocPull: this.backToDocPull,
+      docCanTryStronger: !s.docStrongerUsed && !docLocked,
+      requestDocStronger: this.requestDocStronger,
+      docConfirmStronger: !!s.docConfirmStronger,
+      cancelDocStronger: this.cancelDocStronger,
+      confirmDocStronger: this.confirmDocStronger,
+      toggleDocShare: this.toggleDocShare,
+      docShareLabel: docShareOn ? 'On — the customer can see this entry.' : 'Off — only your team sees this.',
+      docShareTrackStyle: `flex:none;width:52px;height:30px;border-radius:15px;position:relative;background:${docShareOn ? '#1F6F78' : '#9AA6B2'};`,
+      docShareKnobStyle: `position:absolute;top:3px;left:${docShareOn ? '25px' : '3px'};width:24px;height:24px;border-radius:50%;background:#fff;`,
+      docSaveLabel: rv && rv.confirmInFlight ? 'SAVING…' : 'SAVE TO JOB',
+      docSaveStyle: `min-height:54px;display:flex;align-items:center;justify-content:center;border-radius:4px;font:700 13px 'IBM Plex Mono',monospace;letter-spacing:.05em;${
+        docCanSave ? 'background:#1F6F78;color:#fff;cursor:pointer;' : 'background:#EDE6D6;color:rgba(22,40,61,.45);pointer-events:none;'}`,
+      confirmDocCapture: this.confirmDocCapture,
+      hasDocSaveProgress: !!(rv && rv.progress),
       docSaveProgress: rv ? rv.progress : '',
       docConfirmFailed: !!(rv && rv.status === 'failed'),
-      // The A2 feature-off state. PAGES and close stay reachable; SAVE and the
-      // generic retry are both absent by construction.
-      docFeatureDisabled: !!(rv && rv.featureDisabled),
-      // Absent, not disabled: no SAVE control is rendered at all in that state.
-      docShowSave: !(rv && rv.featureDisabled),
-      docFeatureDisabledMessage: rv ? rv.featureDisabledMessage : '',
-      returnAfterDocFeatureDisabled: this.returnAfterDocFeatureDisabled,
       docConfirmError: rv ? rv.error : '',
-      docDeleteWarning: s.docConfirmDelete ? s.docConfirmDelete.warning : '',
-      hasDocDeleteWarning: !!s.docConfirmDelete,
-      docDiscardWarning: s.docConfirmDiscard || '',
-      hasDocDiscardWarning: !!s.docConfirmDiscard,
-      docReviewBlocked: s.docReviewBlocked,
-      hasDocReviewBlocked: !!s.docReviewBlocked,
-      addDocComment: this.addDocComment,
-      confirmDocCapture: this.confirmDocCapture,
       retryDocConfirm: this.retryDocConfirm,
-      backToDocPages: this.backToDocPages,
-      resumeDocDraft: this.resumeDocDraft,
-      discardDocDraft: this.discardDocDraft,
-      confirmDeleteDocComment: this.confirmDeleteDocComment,
-      cancelDeleteDocComment: this.cancelDeleteDocComment,
-      confirmDiscardDocDraft: this.confirmDiscardDocDraft,
-      cancelDiscardDocDraft: this.cancelDiscardDocDraft,
+      // The owner switched the feature off mid-way: no Save at all.
+      docFeatureDisabled: !!(rv && rv.featureDisabled),
+      docFeatureDisabledMessage: rv ? rv.featureDisabledMessage : '',
+      docShowSave: !(rv && (rv.featureDisabled || rv.status === 'failed')),
+
+      // 6. saved
+      isDocSavedStep: !!s.docSaved,
+      docSavedPagesLabel: s.docSaved && s.docSaved.photos != null ? String(s.docSaved.photos) : '—',
+      docSavedAudienceLabel: s.docSaved && s.docSaved.shared ? 'Team and customer' : 'Staff only',
+      finishDocCapture: this.finishDocCapture,
+      scanAnotherDocument: this.scanAnotherDocument,
       savedDocuments,
       hasSavedDocuments: savedDocuments.length > 0,
       savedDocumentCountLabel: `DOCUMENTS (${savedDocuments.length})`,

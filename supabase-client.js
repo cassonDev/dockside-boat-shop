@@ -1001,6 +1001,7 @@ export const newDocumentCaptureId = _documentCaptureApi.newDocumentCaptureId;
 export const newTranscriptionRequestId = _documentCaptureApi.newTranscriptionRequestId;
 export const documentPagePaths = _documentCaptureApi.documentPagePaths;
 export const transcribeDocumentPage = _documentCaptureApi.transcribeDocumentPage;
+export const pullDocumentDetails = _documentCaptureApi.pullDocumentDetails;
 export const uploadDocumentPage = _documentCaptureApi.uploadDocumentPage;
 export const saveDocumentCapturePhotos = _documentCaptureApi.saveDocumentCapturePhotos;
 export const saveDocumentCaptureActivities = _documentCaptureApi.saveDocumentCaptureActivities;
