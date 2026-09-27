@@ -1071,9 +1071,6 @@ export async function inviteStaff(email, fullName, role, opts = {}) {
 export async function inviteMechanic(email, fullName) {
   return inviteStaff(email, fullName, 'mechanic');
 }
-export async function setUserActive(userId, active) {
-  return callManageUsers('set_active', { userId, active });
-}
 // Shop-level enable/disable: flips shop_memberships.is_active for ONE member in
 // ONE shop, via the set_membership_active() SECURITY DEFINER RPC (section-23).
 // The RPC derives the shop from current_user_shop_id(), requires the caller be
@@ -1103,9 +1100,6 @@ export async function setOwnerMechanicStatus({ profileId, enabled }) {
   if (error) throw error;
   return data;
 }
-export async function setUserRole(userId, role) {
-  return callManageUsers('set_role', { userId, role });
-}
 
 async function callReviewRoleChange(payload) {
   const { data: { session } } = await supabase.auth.getSession();
@@ -1118,9 +1112,6 @@ async function callReviewRoleChange(payload) {
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
   return json;
-}
-export async function deleteUserAccount(userId) {
-  return callManageUsers('delete_user', { userId });
 }
 
 // Promote/demote a staff member's role from the Mechanic Profile page's
