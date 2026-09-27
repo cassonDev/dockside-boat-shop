@@ -44,3 +44,21 @@ test('the shop can turn the logo off for printouts, and the accent off', () => {
 test('before the shop has loaded, Casson Makes is shown', () => {
   assert.deepEqual(shopBranding(null), { name: 'Casson Makes', logoSrc: './casson-makes-logo.svg', showLogoOnPrint: true, printAccent: '#16283D' });
 });
+
+// Home-screen icon (Safari "Add to Home Screen") and browser-tab icon.
+const pngSize = (name) => {
+  const buf = readFileSync(new URL(`../${name}`, import.meta.url));
+  assert.equal(buf.toString('ascii', 1, 4), 'PNG', `${name} is a PNG`);
+  return [buf.readUInt32BE(16), buf.readUInt32BE(20)];
+};
+
+test('home-screen icon is the Casson Makes logo at 180x180, linked from the page', () => {
+  assert.match(html, /<link rel="apple-touch-icon" href="\/apple-touch-icon\.png">/);
+  assert.match(html, /<meta name="apple-mobile-web-app-title" content="Job Tracker">/);
+  assert.deepEqual(pngSize('apple-touch-icon.png'), [180, 180]);
+});
+
+test('browser-tab icon is linked and present', () => {
+  assert.match(html, /<link rel="icon" type="image\/svg\+xml" href="\/casson-makes-logo\.svg">/);
+  assert.deepEqual(pngSize('favicon-32.png'), [32, 32]);
+});
