@@ -149,8 +149,8 @@ test('starting a new entry or opening a job forgets earlier hand changes', () =>
   const clears = (name) => new RegExp(`${name} = [^\\n]*logTouchedFields: \\[\\]`);
   assert.match(html, clears('openLogWork'));
   assert.match(html, /this\.setState\(\{ \.\.\.emptyLogBox, screen: 'jobDetail', selectedJobId: id, [^\n]*logTouchedFields: \[\]/);
-  assert.match(html, /cancelLogReview = \(\) => \{\n[^\n]*logTouchedFields: \[\]/);
-  assert.match(html, /estimatedCost: '' \},\n\s*logTouchedFields: \[\],\n\s*logSaveBusy: false/, 'cleared after a successful save');
+  assert.match(html, /discardLogReview = \(\) => \{\n[^\n]*logTouchedFields: \[\]/);
+  assert.match(html, /estimatedCost: '' \},\n\s*logTouchedFields: \[\],\n\s*logAskingToDiscard: false, logAiFailed: false,\n\s*logSaveBusy: false/, 'cleared after a successful save');
 });
 
 // ---- Notes typed for one job must never follow the mechanic to another job ----
@@ -197,4 +197,111 @@ test('stopping dictation ignores words that arrive afterwards', () => {
   assert.equal(stopped, true);
   assert.equal(rec.onresult, null);
   assert.doesNotThrow(() => discardLogDictation.call({ _logRec: null }));
+});
+
+// ---- Peer-review fixes to creating an entry ----
+
+// An arrow-function property of the component, e.g. `  name = async () => {…};`
+const arrowBody = (name, params = '') => html.match(new RegExp(`\\n  ${name} = (?:async )?\\(${params}\\) => \\{\\n([\\s\\S]*?)\\n  \\};\\n`))[1];
+// A one-line arrow property, e.g. `  name = () => this.setState({ … });`
+const oneLiner = (name) => new Function(html.match(new RegExp(`\\n  ${name} = \\(\\) => (this\\.setState\\([^\\n]*\\));\\n`))[1]);
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+const emptyLogFields = { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' };
+
+// A fake component holding state; setState accepts objects or functions like React.
+const fakeLogApp = (state, extra = {}) => {
+  const app = {
+    state: { logRecording: false, logTranscript: '', logTyped: '', logFields: { ...emptyLogFields }, logTouchedFields: [], ...state },
+    setState(update) { this.state = { ...this.state, ...(typeof update === 'function' ? update(this.state) : update) }; },
+    keepTouchedLogFields,
+    ...extra,
+  };
+  return app;
+};
+
+test('when the AI cannot be reached, the screen says so and offers to fill the boxes by hand', async () => {
+  const run = new AsyncFunction(arrowBody('runLogExtraction'));
+  const app = fakeLogApp({ logTyped: 'Changed the impeller.' }, { requestExtraction: async () => null });
+  await run.call(app);
+  assert.equal(app.state.logStep, undefined, 'stays on the talk/type screen');
+  assert.equal(app.state.logAiFailed, true);
+  assert.match(app.state.logExtractError, /couldn’t read your notes/);
+  assert.equal(app.state.logTyped, 'Changed the impeller.', 'notes are kept');
+
+  const fill = new Function(arrowBody('fillLogBoxesMyself'));
+  fill.call(app);
+  assert.equal(app.state.logStep, 'review');
+  assert.equal(app.state.logFromAi, false, 'saved as not AI-generated');
+  assert.equal(app.state.logFields.privateNotes, 'Changed the impeller.');
+  assert.equal(app.state.logFields.customerUpdate, '');
+});
+
+test('when the AI answers, its boxes open for checking and are marked as AI', async () => {
+  const run = new AsyncFunction(arrowBody('runLogExtraction'));
+  const app = fakeLogApp({ logTyped: 'Changed the impeller.' }, { requestExtraction: async () => ({ customerUpdate: 'We replaced the impeller.', partsUsed: 'Impeller' }) });
+  await run.call(app);
+  assert.equal(app.state.logStep, 'review');
+  assert.equal(app.state.logFromAi, true);
+  assert.equal(app.state.logFields.customerUpdate, 'We replaced the impeller.');
+  assert.equal(app.state.logFields.privateNotes, 'Changed the impeller.');
+});
+
+test('the AI request returns null on failure; intake still gets empty fields', async () => {
+  const request = new AsyncFunction('rawText', 'schemaFields', 'schemaHint',
+    html.match(/\n  async requestExtraction\(rawText, schemaFields, schemaHint\) \{\n([\s\S]*?)\n  \}\n/)[1]);
+  const savedFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false });
+  try {
+    const fields = await request.call({ aiRequestHeaders: async () => ({}) }, 'notes', ['customerUpdate'], '');
+    assert.equal(fields, null);
+  } finally {
+    globalThis.fetch = savedFetch;
+  }
+  assert.match(html, /async runExtraction\(rawText, schemaFields, schemaHint\) \{\n\s*return \(await this\.requestExtraction\(rawText, schemaFields, schemaHint\)\) \|\| \{\};/);
+});
+
+test('dictated words land in the text box, where they can be corrected', () => {
+  const start = new Function(arrowBody('startLogRecording'));
+  let rec;
+  const savedWindow = globalThis.window;
+  globalThis.window = { SpeechRecognition: class { start() {} } };
+  try {
+    const app = fakeLogApp({ logTyped: 'Checked the drive.' });
+    start.call(app);
+    rec = app._logRec;
+    rec.onresult({ resultIndex: 0, results: [
+      Object.assign([{ transcript: ' shift cable not throttle cable ' }], { isFinal: true }),
+      Object.assign([{ transcript: 'adjusted it' }], { isFinal: false }),
+    ] });
+    assert.equal(app.state.logTyped, 'Checked the drive. shift cable not throttle cable');
+    assert.equal(app.state._logInterim, 'adjusted it', 'words still being heard show separately');
+  } finally {
+    globalThis.window = savedWindow;
+  }
+});
+
+test('Cancel asks first; Keep it changes nothing; Discard clears', () => {
+  const app = fakeLogApp({ logStep: 'review', logTyped: 'notes', logFields: { ...emptyLogFields, customerUpdate: 'Update' } });
+  oneLiner('cancelLogReview').call(app);
+  assert.equal(app.state.logAskingToDiscard, true);
+  assert.equal(app.state.logFields.customerUpdate, 'Update', 'nothing cleared yet');
+  oneLiner('keepLogReview').call(app);
+  assert.equal(app.state.logAskingToDiscard, false);
+  assert.equal(app.state.logStep, 'review');
+  oneLiner('cancelLogReview').call(app);
+  new Function(arrowBody('discardLogReview')).call(app);
+  assert.equal(app.state.logStep, 'dictate');
+  assert.equal(app.state.logTyped, '');
+  assert.deepEqual(app.state.logFields, emptyLogFields);
+});
+
+test('creating uses the same boxes as editing, with a full-width Save and plain errors', () => {
+  assert.match(html, /<sc-for list="\{\{ logReviewFields \}\}" as="field"/);
+  assert.match(html, /logReviewFields: s\.logStep === 'review' \? this\.constructor\.WORK_LOG_EDIT_FIELDS\.map/);
+  assert.doesNotMatch(html, /CUSTOMER UPDATE &middot; EDITABLE/);
+  assert.doesNotMatch(html, /NEVER CUSTOMER VISIBLE/);
+  assert.match(html, /logSaveButtonStyle: `min-height:48px;/);
+  assert.match(html, /aiGenerated: !!this\.state\.logFromAi/);
+  assert.doesNotMatch(html, /logSaveError: \(e && e\.message\)/);
+  assert.match(html, /Couldn(’|\\u2019)t save this update\. Everything is still here/);
 });

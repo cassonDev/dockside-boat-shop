@@ -610,10 +610,13 @@
           <div style="width:100%;box-sizing:border-box;background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:8px 10px;font:600 11.5px 'Public Sans',sans-serif;color:#C0392B;">{{ logMicErrorLabel }}</div>
         </sc-if>
         <sc-if value="{{ hasLogExtractError }}" hint-placeholder-val="{{ false }}">
-          <div style="width:100%;box-sizing:border-box;background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:8px 10px;font:600 11.5px 'Public Sans',sans-serif;color:#C0392B;">{{ logExtractErrorLabel }}</div>
+          <div role="alert" style="width:100%;box-sizing:border-box;background:#FBEAEA;border:1px solid #C0392B;border-radius:6px;padding:10px 12px;font:600 13px 'Public Sans',sans-serif;color:#8A2D26;line-height:1.45;">{{ logExtractErrorLabel }}</div>
+        </sc-if>
+        <sc-if value="{{ logAiFailed }}" hint-placeholder-val="{{ false }}">
+          <div style="min-height:44px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#fff;color:#16283D;border:1.5px solid rgba(22,40,61,.35);border-radius:6px;font:700 12.5px 'Public Sans',sans-serif;letter-spacing:.3px;cursor:pointer;" onClick="{{ fillLogBoxesMyself }}">FILL IN THE BOXES MYSELF</div>
         </sc-if>
         <sc-if value="{{ hasLogTranscript }}" hint-placeholder-val="{{ false }}">
-          <div style="width:100%;box-sizing:border-box;background:#fff;border:1px dashed rgba(22,40,61,.3);border-radius:4px;padding:10px;font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.75);line-height:1.5;">{{ logTranscriptDisplay }}</div>
+          <div style="width:100%;box-sizing:border-box;border:1px dashed rgba(22,40,61,.3);border-radius:4px;padding:8px 10px;font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);font-style:italic;line-height:1.45;">Hearing: {{ logTranscriptDisplay }}</div>
         </sc-if>
         <textarea style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 13px;font:500 14px 'Public Sans',sans-serif;color:#16283D;min-height:88px;resize:vertical;" placeholder="e.g. Changed the impeller today. Water pressure is back to normal. Also found a cracked cooling hose &mdash; customer should replace before next use." value="{{ logTyped }}" onChange="{{ setLogTyped }}"></textarea>
         <sc-if value="{{ hasKeptLogEdits }}" hint-placeholder-val="{{ false }}">
@@ -625,42 +628,25 @@
 
       <sc-if value="{{ isLogReviewStep }}" hint-placeholder-val="{{ false }}">
       <div class="no-print" style="margin:14px 20px 0;padding:18px;display:flex;flex-direction:column;gap:10px;background:#F6F1E4;border-radius:6px;border:1px solid rgba(31,111,120,.35);">
-        <div style="font:700 10px 'IBM Plex Mono',monospace;color:#1F6F78;letter-spacing:.5px;">&#10024; HERE&rsquo;S WHAT I UNDERSTOOD &mdash; REVIEW &amp; EDIT BEFORE SAVING</div>
+        <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#1F6F78;letter-spacing:.5px;line-height:1.4;">{{ logReviewHeading }}</div>
 
-        <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:10px 12px;">
-          <div style="font:700 9px 'IBM Plex Mono',monospace;color:#1F6F78;margin-bottom:4px;">CUSTOMER UPDATE &middot; EDITABLE</div>
-          <textarea placeholder="No customer update generated. Add findings, work completed, or next steps." style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 14px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:64px;resize:vertical;" value="{{ logFields.customerUpdate }}" onChange="{{ setLogFieldCustomerUpdate }}"></textarea>
-        </div>
-
-        <div style="background:#FBF6E8;border:1px dashed #B08A2E;border-radius:4px;padding:10px 12px;">
-          <div style="font:700 9px 'IBM Plex Mono',monospace;color:#8A6A1E;margin-bottom:4px;">&#128274; PRIVATE MECHANIC NOTES &middot; NEVER CUSTOMER VISIBLE</div>
-          <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:500 13px 'Public Sans',sans-serif;color:#5C4A1A;outline:none;min-height:52px;resize:vertical;" value="{{ logFields.privateNotes }}" onChange="{{ setLogFieldPrivateNotes }}"></textarea>
-        </div>
-
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <div style="flex:1;min-width:140px;background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
-            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">FINDINGS</div>
-            <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 12.5px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:34px;resize:vertical;" value="{{ logFields.findings }}" onChange="{{ setLogFieldFindings }}"></textarea>
+        <!-- Same boxes as "Edit entry" (fieldBoxDisplay), so creating and editing are one form. -->
+        <sc-for list="{{ logReviewFields }}" as="field" hint-placeholder-count="7">
+          <div style="{{ field.boxStyle }}">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+              <div style="{{ field.labelStyle }}">{{ field.label }}</div>
+              <sc-if value="{{ field.hasTag }}" hint-placeholder-val="{{ false }}">
+                <div style="{{ field.tagStyle }}">{{ field.tag }}</div>
+              </sc-if>
+            </div>
+            <sc-if value="{{ field.singleLine }}" hint-placeholder-val="{{ false }}">
+              <input aria-label="{{ field.label }}" placeholder="{{ field.placeholder }}" style="{{ field.textStyle }}" value="{{ field.value }}" onChange="{{ field.onChange }}"/>
+            </sc-if>
+            <sc-if value="{{ field.multiLine }}" hint-placeholder-val="{{ true }}">
+              <textarea aria-label="{{ field.label }}" placeholder="{{ field.placeholder }}" rows="{{ field.rows }}" style="{{ field.textStyle }}" value="{{ field.value }}" onChange="{{ field.onChange }}"></textarea>
+            </sc-if>
           </div>
-          <div style="flex:1;min-width:140px;background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
-            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">PARTS USED</div>
-            <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 12.5px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:34px;resize:vertical;" value="{{ logFields.partsUsed }}" onChange="{{ setLogFieldParts }}"></textarea>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <div style="flex:1;min-width:140px;background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
-            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">LABOR</div>
-            <input style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 12.5px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ logFields.laborTime }}" onChange="{{ setLogFieldLabor }}"/>
-          </div>
-          <div style="flex:1;min-width:140px;background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
-            <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">RECOMMENDATIONS</div>
-            <textarea style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 12.5px 'Public Sans',sans-serif;color:#16283D;outline:none;min-height:34px;resize:vertical;" value="{{ logFields.recommendations }}" onChange="{{ setLogFieldRecommendations }}"></textarea>
-          </div>
-        </div>
-        <div style="background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:4px;padding:9px 11px;">
-          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:3px;">ESTIMATED COST &middot; NOT FINAL</div>
-          <input placeholder="Leave blank unless an amount was stated" style="width:100%;box-sizing:border-box;border:none;background:transparent;font:600 12.5px 'Public Sans',sans-serif;color:#16283D;outline:none;" value="{{ logFields.estimatedCost }}" onChange="{{ setLogFieldEstimatedCost }}"/>
-        </div>
+        </sc-for>
 
         <div>
           <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">ATTACH PHOTOS FROM GALLERY</div>
@@ -680,13 +666,24 @@
             </label>
           </div>
         </div>
-        <div style="display:flex;gap:8px;">
-          <div style="{{ logSaveButtonStyle }}" onClick="{{ saveLogEntry }}">{{ logSaveButtonLabel }}</div>
-          <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ backToDictate }}">BACK TO MY NOTES</div>
-          <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ cancelLogReview }}">CANCEL</div>
-        </div>
         <sc-if value="{{ hasLogSaveError }}" hint-placeholder-val="{{ false }}">
-          <div style="font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ logSaveErrorLabel }}</div>
+          <div role="alert" style="background:#FBEAEA;border:1px solid #C0392B;border-radius:6px;padding:10px 12px;font:600 13px 'Public Sans',sans-serif;color:#8A2D26;line-height:1.45;">{{ logSaveErrorLabel }}</div>
+        </sc-if>
+        <sc-if value="{{ logAskingToDiscard }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FBEAEA;border:1px solid #C0463C;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:10px;">
+            <div style="font:600 13px 'Public Sans',sans-serif;color:#8A2D26;line-height:1.45;">Discard this update? Your notes and everything in the boxes will be cleared.</div>
+            <div style="display:flex;gap:8px;">
+              <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#FBEAEA;color:#8A2D26;border:1px solid #C0463C;border-radius:6px;font:700 12.5px 'Public Sans',sans-serif;cursor:pointer;" onClick="{{ discardLogReview }}">DISCARD</div>
+              <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:6px;font:700 12.5px 'Public Sans',sans-serif;cursor:pointer;" onClick="{{ keepLogReview }}">KEEP IT</div>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ logNotAskingToDiscard }}" hint-placeholder-val="{{ true }}">
+          <div style="{{ logSaveButtonStyle }}" onClick="{{ saveLogEntry }}">{{ logSaveButtonLabel }}</div>
+          <div style="display:flex;gap:8px;">
+            <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#fff;color:#16283D;border:1.5px solid rgba(22,40,61,.35);border-radius:6px;font:700 12.5px 'Public Sans',sans-serif;letter-spacing:.3px;cursor:pointer;" onClick="{{ backToDictate }}">BACK TO MY NOTES</div>
+            <div style="min-height:44px;padding:0 18px;display:flex;align-items:center;justify-content:center;background:#EDE6D6;color:#16283D;border-radius:6px;font:700 12.5px 'Public Sans',sans-serif;letter-spacing:.3px;cursor:pointer;" onClick="{{ cancelLogReview }}">CANCEL</div>
+          </div>
         </sc-if>
       </div>
       </sc-if>
@@ -2846,6 +2843,9 @@ class Component extends DCLogic {
     logSaveError: '',
     logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' },
     logTouchedFields: [], // review boxes changed by hand; kept if the AI runs again
+    logFromAi: false,          // the review boxes were filled by the AI (saved as ai_generated)
+    logAiFailed: false,        // the AI couldn't be reached; offer "Fill in the boxes myself"
+    logAskingToDiscard: false, // Cancel was tapped; waiting for Discard / Keep it
     logSelectedPhotoIds: [],
     quickUpdateOpen: false,
     jobWorkspace: 'checkin',
@@ -3875,10 +3875,10 @@ class Component extends DCLogic {
     const isDifferentJob = id !== this.state.selectedJobId;
     if (isDifferentJob) this.discardLogDictation();
     const emptyLogBox = isDifferentJob ? {
-      logTranscript: '', logTyped: '', logRawNotesFinal: '', logMicError: '', logExtractError: '', logSaveError: '',
+      logTranscript: '', logTyped: '', logRawNotesFinal: '', logMicError: '', logExtractError: '', logSaveError: '', logAiFailed: false,
       logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' },
     } : {};
-    this.setState({ ...emptyLogBox, screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', logTouchedFields: [],quickUpdateOpen: false, jobWorkspace: 'checkin', showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '', jobPhotos: [], serialNumbers: [], serialEdits: {} });
+    this.setState({ ...emptyLogBox, screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', logTouchedFields: [], logAskingToDiscard: false, quickUpdateOpen: false, jobWorkspace: 'checkin', showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '', jobPhotos: [], serialNumbers: [], serialEdits: {} });
     if (!(opts && opts.skipHistory) && typeof window !== 'undefined' && window.history) {
       window.history.pushState({ jobId: id }, '', '/job/' + encodeURIComponent(id));
     }
@@ -4064,7 +4064,9 @@ class Component extends DCLogic {
   // is live for real users. window.claude.complete only exists inside this
   // design tool's own preview, so it's kept as a fallback purely so the
   // feature still demos here while you're iterating on the design.
-  async runExtraction(rawText, schemaFields, schemaHint) {
+  // Returns the filled fields, or null when the AI couldn't be reached or gave
+  // no usable answer (so a screen can say so instead of showing empty boxes).
+  async requestExtraction(rawText, schemaFields, schemaHint) {
     try {
       const res = await fetch('/.netlify/functions/ai-extract', {
         method: 'POST',
@@ -4084,10 +4086,14 @@ class Component extends DCLogic {
         system,
       });
       const match = result.match(/\{[\s\S]*\}/);
-      return match ? JSON.parse(match[0]) : {};
+      return match ? JSON.parse(match[0]) : null;
     } catch (e) {
-      return {};
+      return null;
     }
+  }
+  // Same as requestExtraction, but empty fields on failure (intake keeps this behaviour).
+  async runExtraction(rawText, schemaFields, schemaHint) {
+    return (await this.requestExtraction(rawText, schemaFields, schemaHint)) || {};
   }
 
   runIntakeExtraction = async () => {
@@ -4227,7 +4233,7 @@ class Component extends DCLogic {
   // entry's main text (for a work log, the customer update); every other key
   // lives in the entry's meta. Only these two tags are shown, by choice.
   static WORK_LOG_EDIT_FIELDS = [
-    { key: 'body', label: 'CUSTOMER UPDATE', tag: 'CUSTOMER SEES THIS' },
+    { key: 'body', label: 'CUSTOMER UPDATE', tag: 'CUSTOMER SEES THIS', placeholder: 'What the customer should know: work done, findings, next steps' },
     { key: 'rawNotes', label: 'PRIVATE MECHANIC NOTES', tag: 'STAFF ONLY', isPrivate: true },
     { key: 'findings', label: 'FINDINGS' },
     { key: 'partsUsed', label: 'PARTS USED', singleLine: true, placeholder: 'None' },
@@ -5227,9 +5233,12 @@ class Component extends DCLogic {
     rec.onresult = null;
     try { rec.stop(); } catch (e) {}
   }
-  backToDictate = () => this.setState({ logStep: 'dictate', logSaveError: '' });
-  cancelLogReview = () => {
-    this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logSaveError: '', logTouchedFields: [], logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' } });
+  backToDictate = () => this.setState({ logStep: 'dictate', logSaveError: '', logAskingToDiscard: false });
+  // Cancel asks first (one tap would otherwise throw away the notes and the boxes).
+  cancelLogReview = () => this.setState({ logAskingToDiscard: true });
+  keepLogReview = () => this.setState({ logAskingToDiscard: false });
+  discardLogReview = () => {
+    this.setState({ logStep: 'dictate', logAskingToDiscard: false, logAiFailed: false, logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logSaveError: '', logTouchedFields: [], logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' } });
   };
   toggleQuickUpdate = () => this.setState(s => ({ quickUpdateOpen: !s.quickUpdateOpen }));
   setJobWorkspace = (w) => this.setState({ jobWorkspace: w });
@@ -5245,7 +5254,6 @@ class Component extends DCLogic {
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = 'en-US';
-    let finalText = this.state.logTranscript || '';
     rec.onstart = () => {
       console.log('[mic] log onstart');
       this._logRecActive = true;
@@ -5255,12 +5263,18 @@ class Component extends DCLogic {
     rec.onspeechstart = () => console.log('[mic] log onspeechstart');
     rec.onresult = (ev) => {
       let interim = '';
+      let heard = '';
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
-        const t = ev.results[i][0].transcript;
-        if (ev.results[i].isFinal) finalText += (finalText ? ' ' : '') + t;
+        const t = ev.results[i][0].transcript.trim();
+        if (ev.results[i].isFinal) heard += (heard ? ' ' : '') + t;
         else interim += t;
       }
-      this.setState({ logTranscript: finalText, _logInterim: interim });
+      // Finished words go straight into the text box, where they can be
+      // corrected before generating. Words still being heard show above it.
+      this.setState(s => ({
+        logTyped: heard ? [(s.logTyped || '').trim(), heard].filter(Boolean).join(' ') : s.logTyped,
+        _logInterim: interim,
+      }));
     };
     rec.onerror = (ev) => {
       console.log('[mic] log onerror', ev.error, ev.message || '');
@@ -5309,15 +5323,26 @@ class Component extends DCLogic {
     if (this.state.logRecording) { await this.stopLogRecordingAndWait(); }
     const raw = [this.state.logTranscript, this.state.logTyped].filter(Boolean).join('. ');
     if (!raw.trim()) { this.setState({ logExtractError: 'Add details first.' }); return; }
-    this.setState({ logAiLoading: true, logExtractError: '' });
-    const fields = await this.runExtraction(
+    this.setState({ logAiLoading: true, logExtractError: '', logAiFailed: false });
+    const fields = await this.requestExtraction(
       raw,
       ['customerUpdate', 'findings', 'partsUsed', 'laborTime', 'recommendations', 'estimatedCost'],
       'You are extracting structured shop-repair data from a mechanic\u2019s raw dictation or typed note. Be strictly faithful \u2014 never invent, escalate, or assume beyond what is stated. customerUpdate: a professional, customer-safe summary written from the information in the input \u2014 remove profanity, filler words, and irrelevant frustration, fix grammar, and organize it, but do not invent facts. Cover: work in progress, findings so far, parts that may be needed, and any next steps or approvals needed \u2014 the customer update should communicate all of that plainly. Only return an empty string if the input truly contains no job-relevant information at all (e.g. "testing the microphone" or "let\u2019s see if this works") \u2014 an input that mentions any work being done, something found, a part that might be needed, or a next step DOES have enough for a customer update; do not be overly conservative. findings: objective observations only, e.g. "blue light flickering, white light not functioning" \u2014 no interpretation, no recommended action. partsUsed: only parts actually installed/consumed \u2014 never a part that is merely proposed or possibly needed. Empty string if none actually used yet. laborTime: only work actually performed (e.g. "continued diagnosis of the lighting system"), not planned work; a short duration like "1.5 hrs" if a duration is stated, else a short phrase of the work done, else empty string. recommendations: planned or recommended next steps explicitly supported by the input (e.g. needing a part, needing customer approval, needing further inspection) \u2014 match the mechanic\u2019s exact stated strength, never escalate "inspect" into "replace" or similar. Empty string if none. estimatedCost: ONLY if the mechanic states an explicit dollar amount or range (e.g. "about $200", "$300\u2013$450") \u2014 copy it as stated. Leave empty if no amount was mentioned; never invent a price. Return an empty string for any field not clearly supported by the input \u2014 do not pad, guess, or invent.'
     );
+    if (!fields) {
+      // Say so plainly rather than opening empty boxes that look like "nothing found".
+      this.setState({
+        logAiLoading: false,
+        logAiFailed: true,
+        logExtractError: 'The AI couldn’t read your notes just now. Your notes are still here — check your signal and tap Generate update again, or fill in the boxes yourself.',
+      });
+      return;
+    }
     this.setState(s => ({
       logAiLoading: false,
       logStep: 'review',
+      logFromAi: true,
+      logAskingToDiscard: false,
       logRawNotesFinal: raw,
       // Generating again after "Back to my notes" refreshes only the boxes the
       // person hasn't changed by hand; their fixes are kept.
@@ -5329,6 +5354,22 @@ class Component extends DCLogic {
         laborTime: fields.laborTime || '',
         recommendations: fields.recommendations || '',
         estimatedCost: fields.estimatedCost || '',
+      }, s.logFields, s.logTouchedFields),
+    }));
+  };
+  // When the AI can't be reached: open the same boxes, empty, with the notes
+  // kept as private notes, so the update can still be written and saved.
+  fillLogBoxesMyself = () => {
+    const raw = [this.state.logTranscript, this.state.logTyped].filter(Boolean).join('. ');
+    this.setState(s => ({
+      logStep: 'review',
+      logFromAi: false,
+      logAiFailed: false,
+      logExtractError: '',
+      logAskingToDiscard: false,
+      logRawNotesFinal: raw,
+      logFields: this.keepTouchedLogFields({
+        customerUpdate: '', privateNotes: raw, findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '',
       }, s.logFields, s.logTouchedFields),
     }));
   };
@@ -5345,14 +5386,6 @@ class Component extends DCLogic {
     }));
   }
 
-  setLogFieldCustomerUpdate = (e) => this.setLogField('customerUpdate', e.target.value);
-  setLogFieldPrivateNotes = (e) => this.setLogField('privateNotes', e.target.value);
-  setLogFieldFindings = (e) => this.setLogField('findings', e.target.value);
-  setLogFieldParts = (e) => this.setLogField('partsUsed', e.target.value);
-  setLogFieldLabor = (e) => this.setLogField('laborTime', e.target.value);
-  setLogFieldRecommendations = (e) => this.setLogField('recommendations', e.target.value);
-  setLogFieldEstimatedCost = (e) => this.setLogField('estimatedCost', e.target.value);
-
   saveLogEntry = async () => {
     if (this.state.logSaveBusy) return;
     const jobId = this.state.selectedJobId;
@@ -5368,7 +5401,7 @@ class Component extends DCLogic {
     const payload = {
       activityType: 'work_log',
       visibility: 'public',
-      aiGenerated: true,
+      aiGenerated: !!this.state.logFromAi, // false when the boxes were filled in by hand
       body: (lf.customerUpdate || '').trim(),
       meta: {
         findings: (lf.findings || '').trim(),
@@ -5390,6 +5423,7 @@ class Component extends DCLogic {
         logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [],
         logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' },
         logTouchedFields: [],
+        logAskingToDiscard: false, logAiFailed: false,
         logSaveBusy: false, logSaveError: '',
       }));
       const j = this.state.jobs.find(x => x.id === jobId);
@@ -5413,7 +5447,9 @@ class Component extends DCLogic {
       }
     } catch (e) {
       console.error('[work-log] Failed to save work log activity to Supabase', e, 'payload was', payload);
-      this.setState({ logSaveBusy: false, logSaveError: (e && e.message) || 'Could not save \u2014 please try again. Your edits are preserved.' });
+      // The technical reason goes to the console; people see a plain message
+      // and keep everything on the screen.
+      this.setState({ logSaveBusy: false, logSaveError: 'Couldn\u2019t save this update. Everything is still here \u2014 check your signal and tap Save update again. If it keeps happening, let your shop owner know.' });
     }
   };
 
@@ -5575,6 +5611,29 @@ class Component extends DCLogic {
     return this.editFieldsFor(activity)
       .filter(f => valueOf(before, f.key) !== valueOf(after, f.key))
       .map(f => ({ label: f.label, was: valueOf(before, f.key) || '(empty)', now: valueOf(after, f.key) || '(empty)' }));
+  }
+  // How one box of the entry form looks. Shared by "check before saving"
+  // (creating) and "Edit entry", so both screens are the same form.
+  fieldBoxDisplay(field, value, onChange) {
+    const lineCount = Math.ceil(value.length / 36) + (value.match(/\n/g) || []).length;
+    const isPrivate = !!field.isPrivate;
+    return {
+      label: field.label,
+      hasTag: !!field.tag,
+      tag: field.tag || '',
+      value,
+      placeholder: field.placeholder || '',
+      singleLine: !!field.singleLine,
+      multiLine: !field.singleLine,
+      rows: Math.min(14, Math.max(2, lineCount)), // the box grows with the text
+      onChange,
+      boxStyle: isPrivate
+        ? 'background:#FBF6E8;border:1px dashed #B08A2E;border-radius:6px;padding:10px 12px;'
+        : 'background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:6px;padding:10px 12px;',
+      labelStyle: `flex:1;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.5px;color:${isPrivate ? '#7A5C14' : 'rgba(22,40,61,.75)'};`,
+      tagStyle: `font:700 9px 'IBM Plex Mono',monospace;padding:3px 6px;border-radius:3px;white-space:nowrap;color:${isPrivate ? '#7A5C14' : '#1F6F78'};background:${isPrivate ? '#F3E7C6' : '#E3EFEE'};`,
+      textStyle: `width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;padding:0;font:500 14px 'Public Sans',sans-serif;line-height:1.45;color:${isPrivate ? '#5C4A1A' : '#16283D'};`,
+    };
   }
   toggleActivityHistory = async (act) => {
     const isOpen = this.state.historyOpenActivityId === act.id;
@@ -6145,27 +6204,9 @@ class Component extends DCLogic {
           changeReason: h.changeReason,
         };
       });
-      const editFields = isEditing ? this.editFieldsFor(a).map(f => {
-        const value = s.editDraft[f.key] || '';
-        const lineCount = Math.ceil(value.length / 36) + (value.match(/\n/g) || []).length;
-        return {
-          label: f.label,
-          hasTag: !!f.tag,
-          tag: f.tag || '',
-          value,
-          placeholder: f.placeholder || '',
-          singleLine: !!f.singleLine,
-          multiLine: !f.singleLine,
-          rows: Math.min(14, Math.max(2, lineCount)),
-          onChange: (e) => this.setEditDraftField(f.key, e.target.value),
-          boxStyle: f.isPrivate
-            ? 'background:#FBF6E8;border:1px dashed #B08A2E;border-radius:6px;padding:10px 12px;'
-            : 'background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:6px;padding:10px 12px;',
-          labelStyle: `flex:1;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.5px;color:${f.isPrivate ? '#7A5C14' : 'rgba(22,40,61,.75)'};`,
-          tagStyle: `font:700 9px 'IBM Plex Mono',monospace;padding:3px 6px;border-radius:3px;white-space:nowrap;color:${f.isPrivate ? '#7A5C14' : '#1F6F78'};background:${f.isPrivate ? '#F3E7C6' : '#E3EFEE'};`,
-          textStyle: `width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;padding:0;font:500 14px 'Public Sans',sans-serif;line-height:1.45;color:${f.isPrivate ? '#5C4A1A' : '#16283D'};`,
-        };
-      }) : [];
+      const editFields = isEditing
+        ? this.editFieldsFor(a).map(f => this.fieldBoxDisplay(f, s.editDraft[f.key] || '', (e) => this.setEditDraftField(f.key, e.target.value)))
+        : [];
       const photos = (a.attachments || []).map(id => jobPhotosById[id]).filter(Boolean).map(p => ({ id: p.id, thumbUrl: p.thumbUrl, onOpen: () => this.openLightbox(p.id) }));
       // 5D: source pages of a document transcription, staff audience only.
       const docPageAttachments = this._docDisplay && this._docDisplay.isDocumentActivity(a)
@@ -7092,18 +7133,28 @@ class Component extends DCLogic {
       })(),
       logExtractButtonLabel: s.logAiLoading ? 'GENERATING\u2026' : s.logStopping ? 'STOPPING RECORDING\u2026' : !(logRaw.trim() || (s.logTyped || '').trim()) ? 'ADD DETAILS FIRST' : 'GENERATE UPDATE',
       runLogExtraction: this.runLogExtraction,
-      logFields: s.logFields,
-      setLogFieldCustomerUpdate: this.setLogFieldCustomerUpdate, setLogFieldPrivateNotes: this.setLogFieldPrivateNotes,
-      setLogFieldFindings: this.setLogFieldFindings, setLogFieldParts: this.setLogFieldParts,
-      setLogFieldLabor: this.setLogFieldLabor, setLogFieldRecommendations: this.setLogFieldRecommendations,
-      setLogFieldEstimatedCost: this.setLogFieldEstimatedCost,
+      logAiFailed: !!s.logAiFailed && s.logStep !== 'review',
+      fillLogBoxesMyself: this.fillLogBoxesMyself,
+      logReviewHeading: s.logFromAi
+        ? '\u2728 HERE\u2019S WHAT I UNDERSTOOD. CHECK IT, THEN SAVE.'
+        : 'FILL IN THE BOXES, THEN SAVE.',
+      // The same boxes as "Edit entry". Two keys are named differently while
+      // creating: the customer update and the private notes.
+      logReviewFields: s.logStep === 'review' ? this.constructor.WORK_LOG_EDIT_FIELDS.map(f => {
+        const key = f.key === 'body' ? 'customerUpdate' : f.key === 'rawNotes' ? 'privateNotes' : f.key;
+        return this.fieldBoxDisplay(f, s.logFields[key] || '', (e) => this.setLogField(key, e.target.value));
+      }) : [],
       logPhotoPickerDisplay,
       pickLogNewPhoto: this.pickLogNewPhoto,
       saveLogEntry: this.saveLogEntry,
-      logSaveButtonStyle: `flex:1;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px;border-radius:4px;cursor:${s.logSaveBusy ? 'default' : 'pointer'};background:${s.logSaveBusy ? '#B9C0C4' : '#1F6F78'};color:#fff;`,
+      logSaveButtonStyle: `min-height:48px;display:flex;align-items:center;justify-content:center;border-radius:6px;font:700 13.5px 'Public Sans',sans-serif;letter-spacing:.3px;color:#fff;cursor:${s.logSaveBusy ? 'default' : 'pointer'};background:${s.logSaveBusy ? '#B9C0C4' : '#1F6F78'};`,
       logSaveButtonLabel: s.logSaveBusy ? 'SAVING\u2026' : 'SAVE UPDATE',
       hasLogSaveError: !!s.logSaveError,
       logSaveErrorLabel: s.logSaveError,
+      logAskingToDiscard: !!s.logAskingToDiscard,
+      logNotAskingToDiscard: !s.logAskingToDiscard,
+      discardLogReview: this.discardLogReview,
+      keepLogReview: this.keepLogReview,
 
       jobPhotoCountLabel: `${s.jobPhotos.length}`,
       categoryFilterChips,
