@@ -598,7 +598,7 @@
       <div class="no-print" style="margin:14px 20px 0;padding:18px;display:flex;flex-direction:column;gap:12px;background:#F6F1E4;border-radius:6px;border:1px solid rgba(217,119,6,.35);">
         <div>
           <div style="font:800 16px 'Archivo',sans-serif;color:#16283D;">Log your work</div>
-          <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);margin-top:2px;line-height:1.45;">Say what you did and found. Include any <b>parts</b>, <b>time</b>, <b>cost</b> or <b>recommendations</b> &mdash; AI sorts it into the boxes for you.</div>
+          <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);margin-top:2px;line-height:1.45;">AI sorts what you say into the boxes for you.</div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
           <div style="{{ logMicButtonStyle }}" onClick="{{ toggleLogRecording }}">
@@ -612,9 +612,6 @@
         <sc-if value="{{ hasLogExtractError }}" hint-placeholder-val="{{ false }}">
           <div role="alert" style="width:100%;box-sizing:border-box;background:#FBEAEA;border:1px solid #C0392B;border-radius:6px;padding:10px 12px;font:600 13px 'Public Sans',sans-serif;color:#8A2D26;line-height:1.45;">{{ logExtractErrorLabel }}</div>
         </sc-if>
-        <sc-if value="{{ logAiFailed }}" hint-placeholder-val="{{ false }}">
-          <div style="min-height:44px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#fff;color:#16283D;border:1.5px solid rgba(22,40,61,.35);border-radius:6px;font:700 12.5px 'Public Sans',sans-serif;letter-spacing:.3px;cursor:pointer;" onClick="{{ fillLogBoxesMyself }}">FILL IN THE BOXES MYSELF</div>
-        </sc-if>
         <sc-if value="{{ hasLogTranscript }}" hint-placeholder-val="{{ false }}">
           <div style="width:100%;box-sizing:border-box;border:1px dashed rgba(22,40,61,.3);border-radius:4px;padding:8px 10px;font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);font-style:italic;line-height:1.45;">Hearing: {{ logTranscriptDisplay }}</div>
         </sc-if>
@@ -623,6 +620,8 @@
           <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);">Boxes you already changed will be kept when you generate again.</div>
         </sc-if>
         <div style="{{ logExtractButtonStyle }}" onClick="{{ runLogExtraction }}">{{ logExtractButtonLabel }}</div>
+        <!-- Always available: for when the AI isn't working, or they'd rather write it themselves. -->
+        <div style="min-height:44px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#fff;color:#16283D;border:1.5px solid rgba(22,40,61,.35);border-radius:6px;font:700 12.5px 'Public Sans',sans-serif;letter-spacing:.3px;cursor:pointer;" onClick="{{ fillLogBoxesMyself }}">FILL IN THE BOXES MYSELF</div>
       </div>
       </sc-if>
 
@@ -2844,7 +2843,6 @@ class Component extends DCLogic {
     logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' },
     logTouchedFields: [], // review boxes changed by hand; kept if the AI runs again
     logFromAi: false,          // the review boxes were filled by the AI (saved as ai_generated)
-    logAiFailed: false,        // the AI couldn't be reached; offer "Fill in the boxes myself"
     logAskingToDiscard: false, // Cancel was tapped; waiting for Discard / Keep it
     logSelectedPhotoIds: [],
     quickUpdateOpen: false,
@@ -3875,7 +3873,7 @@ class Component extends DCLogic {
     const isDifferentJob = id !== this.state.selectedJobId;
     if (isDifferentJob) this.discardLogDictation();
     const emptyLogBox = isDifferentJob ? {
-      logTranscript: '', logTyped: '', logRawNotesFinal: '', logMicError: '', logExtractError: '', logSaveError: '', logAiFailed: false,
+      logTranscript: '', logTyped: '', logRawNotesFinal: '', logMicError: '', logExtractError: '', logSaveError: '',
       logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' },
     } : {};
     this.setState({ ...emptyLogBox, screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', logTouchedFields: [], logAskingToDiscard: false, quickUpdateOpen: false, jobWorkspace: 'checkin', showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '', jobPhotos: [], serialNumbers: [], serialEdits: {} });
@@ -5238,7 +5236,7 @@ class Component extends DCLogic {
   cancelLogReview = () => this.setState({ logAskingToDiscard: true });
   keepLogReview = () => this.setState({ logAskingToDiscard: false });
   discardLogReview = () => {
-    this.setState({ logStep: 'dictate', logAskingToDiscard: false, logAiFailed: false, logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logSaveError: '', logTouchedFields: [], logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' } });
+    this.setState({ logStep: 'dictate', logAskingToDiscard: false, logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logSaveError: '', logTouchedFields: [], logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' } });
   };
   toggleQuickUpdate = () => this.setState(s => ({ quickUpdateOpen: !s.quickUpdateOpen }));
   setJobWorkspace = (w) => this.setState({ jobWorkspace: w });
@@ -5323,7 +5321,7 @@ class Component extends DCLogic {
     if (this.state.logRecording) { await this.stopLogRecordingAndWait(); }
     const raw = [this.state.logTranscript, this.state.logTyped].filter(Boolean).join('. ');
     if (!raw.trim()) { this.setState({ logExtractError: 'Add details first.' }); return; }
-    this.setState({ logAiLoading: true, logExtractError: '', logAiFailed: false });
+    this.setState({ logAiLoading: true, logExtractError: '' });
     const fields = await this.requestExtraction(
       raw,
       ['customerUpdate', 'findings', 'partsUsed', 'laborTime', 'recommendations', 'estimatedCost'],
@@ -5333,7 +5331,6 @@ class Component extends DCLogic {
       // Say so plainly rather than opening empty boxes that look like "nothing found".
       this.setState({
         logAiLoading: false,
-        logAiFailed: true,
         logExtractError: 'The AI couldn’t read your notes just now. Your notes are still here — check your signal and tap Generate update again, or fill in the boxes yourself.',
       });
       return;
@@ -5357,14 +5354,14 @@ class Component extends DCLogic {
       }, s.logFields, s.logTouchedFields),
     }));
   };
-  // When the AI can't be reached: open the same boxes, empty, with the notes
-  // kept as private notes, so the update can still be written and saved.
-  fillLogBoxesMyself = () => {
+  // Without the AI (it isn't working, or they'd rather write it themselves):
+  // open the same boxes, empty, with their notes kept as private notes.
+  fillLogBoxesMyself = async () => {
+    if (this.state.logRecording) { await this.stopLogRecordingAndWait(); }
     const raw = [this.state.logTranscript, this.state.logTyped].filter(Boolean).join('. ');
     this.setState(s => ({
       logStep: 'review',
       logFromAi: false,
-      logAiFailed: false,
       logExtractError: '',
       logAskingToDiscard: false,
       logRawNotesFinal: raw,
@@ -5423,7 +5420,7 @@ class Component extends DCLogic {
         logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [],
         logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' },
         logTouchedFields: [],
-        logAskingToDiscard: false, logAiFailed: false,
+        logAskingToDiscard: false,
         logSaveBusy: false, logSaveError: '',
       }));
       const j = this.state.jobs.find(x => x.id === jobId);
@@ -7133,7 +7130,6 @@ class Component extends DCLogic {
       })(),
       logExtractButtonLabel: s.logAiLoading ? 'GENERATING\u2026' : s.logStopping ? 'STOPPING RECORDING\u2026' : !(logRaw.trim() || (s.logTyped || '').trim()) ? 'ADD DETAILS FIRST' : 'GENERATE UPDATE',
       runLogExtraction: this.runLogExtraction,
-      logAiFailed: !!s.logAiFailed && s.logStep !== 'review',
       fillLogBoxesMyself: this.fillLogBoxesMyself,
       logReviewHeading: s.logFromAi
         ? '\u2728 HERE\u2019S WHAT I UNDERSTOOD. CHECK IT, THEN SAVE.'

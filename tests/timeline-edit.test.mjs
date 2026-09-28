@@ -150,7 +150,7 @@ test('starting a new entry or opening a job forgets earlier hand changes', () =>
   assert.match(html, clears('openLogWork'));
   assert.match(html, /this\.setState\(\{ \.\.\.emptyLogBox, screen: 'jobDetail', selectedJobId: id, [^\n]*logTouchedFields: \[\]/);
   assert.match(html, /discardLogReview = \(\) => \{\n[^\n]*logTouchedFields: \[\]/);
-  assert.match(html, /estimatedCost: '' \},\n\s*logTouchedFields: \[\],\n\s*logAskingToDiscard: false, logAiFailed: false,\n\s*logSaveBusy: false/, 'cleared after a successful save');
+  assert.match(html, /estimatedCost: '' \},\n\s*logTouchedFields: \[\],\n\s*logAskingToDiscard: false,\n\s*logSaveBusy: false/, 'cleared after a successful save');
 });
 
 // ---- Notes typed for one job must never follow the mechanic to another job ----
@@ -219,21 +219,38 @@ const fakeLogApp = (state, extra = {}) => {
   return app;
 };
 
-test('when the AI cannot be reached, the screen says so and offers to fill the boxes by hand', async () => {
+test('when the AI cannot be reached, the screen says so and the notes are kept', async () => {
   const run = new AsyncFunction(arrowBody('runLogExtraction'));
   const app = fakeLogApp({ logTyped: 'Changed the impeller.' }, { requestExtraction: async () => null });
   await run.call(app);
   assert.equal(app.state.logStep, undefined, 'stays on the talk/type screen');
-  assert.equal(app.state.logAiFailed, true);
   assert.match(app.state.logExtractError, /couldn’t read your notes/);
   assert.equal(app.state.logTyped, 'Changed the impeller.', 'notes are kept');
 
-  const fill = new Function(arrowBody('fillLogBoxesMyself'));
-  fill.call(app);
+  const fill = new AsyncFunction(arrowBody('fillLogBoxesMyself'));
+  await fill.call(app);
   assert.equal(app.state.logStep, 'review');
   assert.equal(app.state.logFromAi, false, 'saved as not AI-generated');
   assert.equal(app.state.logFields.privateNotes, 'Changed the impeller.');
   assert.equal(app.state.logFields.customerUpdate, '');
+});
+
+test('"Fill in the boxes myself" is always on the screen, not only when the AI fails', () => {
+  const panel = html.slice(html.indexOf('>Log your work</div>'), html.indexOf('<sc-if value="{{ isLogReviewStep }}"'));
+  assert.match(panel, /<div style="[^"]*" onClick="\{\{ fillLogBoxesMyself \}\}">FILL IN THE BOXES MYSELF<\/div>\n\s*<\/div>\n\s*<\/sc-if>/, 'last button in the box, not inside a condition');
+  assert.match(panel, />AI sorts what you say into the boxes for you\.<\/div>/);
+  assert.doesNotMatch(html, /logAiFailed/);
+});
+
+test('filling the boxes by hand stops the mic first so no words are lost', async () => {
+  const fill = new AsyncFunction(arrowBody('fillLogBoxesMyself'));
+  let stopped = false;
+  const app = fakeLogApp({ logRecording: true, logTyped: 'Started talking' }, {
+    stopLogRecordingAndWait: async function () { stopped = true; this.state.logTyped += ' and finished.'; },
+  });
+  await fill.call(app);
+  assert.equal(stopped, true);
+  assert.equal(app.state.logFields.privateNotes, 'Started talking and finished.');
 });
 
 test('when the AI answers, its boxes open for checking and are marked as AI', async () => {
@@ -310,7 +327,6 @@ test('the Log your work box asks for parts, time, cost and recommendations', () 
   assert.doesNotMatch(html, />What happened\?<\/div>/, 'old title is gone');
   const panel = html.slice(html.indexOf('>Log your work</div>'), html.indexOf('{{ runLogExtraction }}'));
   assert.ok(panel.length > 0 && html.indexOf('>Log your work</div>') > 0, 'new title is shown');
-  for (const word of ['parts', 'time', 'cost', 'recommendations']) assert.match(panel, new RegExp(`<b>${word}</b>`));
   assert.match(panel, /placeholder="Press REC and say what you did\. Include any parts, cost, time and recommendations\. Then press STOP and GENERATE UPDATE\."/);
   // The hint must name the buttons exactly as they appear on screen.
   assert.match(html, /logMicButtonLabel: [^\n]*'\\u25a0 STOP' : '\\u25cf REC'/);
