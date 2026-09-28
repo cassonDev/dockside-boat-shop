@@ -597,7 +597,7 @@
       <sc-if value="{{ isLogComposeStep }}" hint-placeholder-val="{{ true }}">
       <div class="no-print" style="margin:14px 20px 0;padding:18px;display:flex;flex-direction:column;gap:12px;background:#F6F1E4;border-radius:6px;border:1px solid rgba(217,119,6,.35);">
         <div>
-          <div style="font:800 16px 'Archivo',sans-serif;color:#16283D;">What happened?</div>
+          <div style="font:800 16px 'Archivo',sans-serif;color:#16283D;">Log your work</div>
           <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);margin-top:2px;line-height:1.45;">Say what you did and found. Include any <b>parts</b>, <b>time</b>, <b>cost</b> or <b>recommendations</b> &mdash; AI sorts it into the boxes for you.</div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
@@ -3869,7 +3869,7 @@ class Component extends DCLogic {
   };
   openJob = (id, opts) => {
     this._photoJobId = id;
-    // Notes in the "What happened?" box belong to one job. Opening a different
+    // Notes in the "Log your work" box belong to one job. Opening a different
     // job starts with an empty box, and any dictation still running is stopped,
     // so notes can never be saved onto the wrong boat.
     const isDifferentJob = id !== this.state.selectedJobId;
@@ -5219,7 +5219,7 @@ class Component extends DCLogic {
     }
   };
 
-  // ---------- log work (AI "What happened?" workflow) ----------
+  // ---------- log work (AI "Log your work" workflow) ----------
   openLogWork = () => this.setState({ logStep: 'dictate', logTouchedFields: [], logTranscript: '', logTyped: '', logRecording: false, logRecBusy: false, logStopping: false, logMicError: '', logRawNotesFinal: '', logSelectedPhotoIds: [] });
   closeLogWork = () => {
     if (this._logRec) { try { this._logRec.stop(); } catch (e) {} }

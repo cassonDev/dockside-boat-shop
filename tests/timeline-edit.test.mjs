@@ -171,7 +171,7 @@ const fakeAppOnJob = (jobId) => {
   return { fake, calls };
 };
 
-test('opening a different job empties the What happened box and stops dictation', () => {
+test('opening a different job empties the Log your work box and stops dictation', () => {
   const { fake, calls } = fakeAppOnJob('JOB-A');
   openJob.call(fake, 'JOB-B', { skipHistory: true });
   assert.equal(calls.discarded, 1);
@@ -306,8 +306,10 @@ test('creating uses the same boxes as editing, with a full-width Save and plain 
   assert.match(html, /Couldn(’|\\u2019)t save this update\. Everything is still here/);
 });
 
-test('the What happened box asks for parts, time, cost and recommendations', () => {
-  const panel = html.slice(html.indexOf('>What happened?</div>'), html.indexOf('{{ runLogExtraction }}'));
+test('the Log your work box asks for parts, time, cost and recommendations', () => {
+  assert.doesNotMatch(html, />What happened\?<\/div>/, 'old title is gone');
+  const panel = html.slice(html.indexOf('>Log your work</div>'), html.indexOf('{{ runLogExtraction }}'));
+  assert.ok(panel.length > 0 && html.indexOf('>Log your work</div>') > 0, 'new title is shown');
   for (const word of ['parts', 'time', 'cost', 'recommendations']) assert.match(panel, new RegExp(`<b>${word}</b>`));
   assert.match(panel, /placeholder="e\.g\. Replaced the water pump impeller, took about an hour\./);
 });
