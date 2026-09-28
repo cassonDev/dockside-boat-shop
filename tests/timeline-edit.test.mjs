@@ -148,7 +148,53 @@ test('the AI result goes through keepTouchedLogFields', () => {
 test('starting a new entry or opening a job forgets earlier hand changes', () => {
   const clears = (name) => new RegExp(`${name} = [^\\n]*logTouchedFields: \\[\\]`);
   assert.match(html, clears('openLogWork'));
-  assert.match(html, /this\.setState\(\{ screen: 'jobDetail', selectedJobId: id, [^\n]*logTouchedFields: \[\]/);
+  assert.match(html, /this\.setState\(\{ \.\.\.emptyLogBox, screen: 'jobDetail', selectedJobId: id, [^\n]*logTouchedFields: \[\]/);
   assert.match(html, /cancelLogReview = \(\) => \{\n[^\n]*logTouchedFields: \[\]/);
   assert.match(html, /estimatedCost: '' \},\n\s*logTouchedFields: \[\],\n\s*logSaveBusy: false/, 'cleared after a successful save');
+});
+
+// ---- Notes typed for one job must never follow the mechanic to another job ----
+
+const openJobSrc = html.match(/\n  openJob = \(id, opts\) => \{\n([\s\S]*?)\n  \};\n/);
+// eslint-disable-next-line no-new-func
+const openJob = new Function('id', 'opts', openJobSrc[1]);
+const discardLogDictation = method('discardLogDictation', []);
+
+const fakeAppOnJob = (jobId) => {
+  const calls = { discarded: 0, setState: null };
+  const fake = {
+    state: { selectedJobId: jobId },
+    setState: (update) => { calls.setState = update; },
+    discardLogDictation: () => { calls.discarded += 1; },
+    loadActivities: () => {}, loadJobPhotos: () => {}, loadSerialNumbers: () => {}, subscribeActivities: () => {},
+  };
+  return { fake, calls };
+};
+
+test('opening a different job empties the What happened box and stops dictation', () => {
+  const { fake, calls } = fakeAppOnJob('JOB-A');
+  openJob.call(fake, 'JOB-B', { skipHistory: true });
+  assert.equal(calls.discarded, 1);
+  assert.equal(calls.setState.selectedJobId, 'JOB-B');
+  assert.equal(calls.setState.logTyped, '');
+  assert.equal(calls.setState.logTranscript, '');
+  assert.equal(calls.setState.logRawNotesFinal, '');
+  assert.equal(calls.setState.logFields.customerUpdate, '');
+});
+
+test('reopening the same job keeps what is being typed', () => {
+  const { fake, calls } = fakeAppOnJob('JOB-A');
+  openJob.call(fake, 'JOB-A', { skipHistory: true });
+  assert.equal(calls.discarded, 0);
+  assert.equal('logTyped' in calls.setState, false);
+  assert.equal('logTranscript' in calls.setState, false);
+});
+
+test('stopping dictation ignores words that arrive afterwards', () => {
+  let stopped = false;
+  const rec = { onresult: () => {}, stop: () => { stopped = true; } };
+  discardLogDictation.call({ _logRec: rec });
+  assert.equal(stopped, true);
+  assert.equal(rec.onresult, null);
+  assert.doesNotThrow(() => discardLogDictation.call({ _logRec: null }));
 });

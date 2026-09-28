@@ -3869,7 +3869,16 @@ class Component extends DCLogic {
   };
   openJob = (id, opts) => {
     this._photoJobId = id;
-    this.setState({ screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', logTouchedFields: [],quickUpdateOpen: false, jobWorkspace: 'checkin', showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '', jobPhotos: [], serialNumbers: [], serialEdits: {} });
+    // Notes in the "What happened?" box belong to one job. Opening a different
+    // job starts with an empty box, and any dictation still running is stopped,
+    // so notes can never be saved onto the wrong boat.
+    const isDifferentJob = id !== this.state.selectedJobId;
+    if (isDifferentJob) this.discardLogDictation();
+    const emptyLogBox = isDifferentJob ? {
+      logTranscript: '', logTyped: '', logRawNotesFinal: '', logMicError: '', logExtractError: '', logSaveError: '',
+      logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' },
+    } : {};
+    this.setState({ ...emptyLogBox, screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', logTouchedFields: [],quickUpdateOpen: false, jobWorkspace: 'checkin', showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '', jobPhotos: [], serialNumbers: [], serialEdits: {} });
     if (!(opts && opts.skipHistory) && typeof window !== 'undefined' && window.history) {
       window.history.pushState({ jobId: id }, '', '/job/' + encodeURIComponent(id));
     }
@@ -5210,6 +5219,14 @@ class Component extends DCLogic {
     if (this._logRec) { try { this._logRec.stop(); } catch (e) {} }
     this.setState({ logStep: 'dictate', logRecording: false, logRecBusy: false });
   };
+  // Stops dictation and ignores any words that arrive after stopping, so they
+  // can't reappear in the box of the next job.
+  discardLogDictation() {
+    const rec = this._logRec;
+    if (!rec) return;
+    rec.onresult = null;
+    try { rec.stop(); } catch (e) {}
+  }
   backToDictate = () => this.setState({ logStep: 'dictate', logSaveError: '' });
   cancelLogReview = () => {
     this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logSaveError: '', logTouchedFields: [], logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' } });
