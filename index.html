@@ -616,6 +616,9 @@
           <div style="width:100%;box-sizing:border-box;background:#fff;border:1px dashed rgba(22,40,61,.3);border-radius:4px;padding:10px;font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.75);line-height:1.5;">{{ logTranscriptDisplay }}</div>
         </sc-if>
         <textarea style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 13px;font:500 14px 'Public Sans',sans-serif;color:#16283D;min-height:88px;resize:vertical;" placeholder="e.g. Changed the impeller today. Water pressure is back to normal. Also found a cracked cooling hose &mdash; customer should replace before next use." value="{{ logTyped }}" onChange="{{ setLogTyped }}"></textarea>
+        <sc-if value="{{ hasKeptLogEdits }}" hint-placeholder-val="{{ false }}">
+          <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);">Boxes you already changed will be kept when you generate again.</div>
+        </sc-if>
         <div style="{{ logExtractButtonStyle }}" onClick="{{ runLogExtraction }}">{{ logExtractButtonLabel }}</div>
       </div>
       </sc-if>
@@ -679,7 +682,7 @@
         </div>
         <div style="display:flex;gap:8px;">
           <div style="{{ logSaveButtonStyle }}" onClick="{{ saveLogEntry }}">{{ logSaveButtonLabel }}</div>
-          <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ backToDictate }}">EDIT</div>
+          <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ backToDictate }}">BACK TO MY NOTES</div>
           <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 12px 'Public Sans',sans-serif;padding:12px 16px;border-radius:4px;cursor:pointer;" onClick="{{ cancelLogReview }}">CANCEL</div>
         </div>
         <sc-if value="{{ hasLogSaveError }}" hint-placeholder-val="{{ false }}">
@@ -2842,6 +2845,7 @@ class Component extends DCLogic {
     logSaveBusy: false,
     logSaveError: '',
     logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' },
+    logTouchedFields: [], // review boxes changed by hand; kept if the AI runs again
     logSelectedPhotoIds: [],
     quickUpdateOpen: false,
     jobWorkspace: 'checkin',
@@ -3865,7 +3869,7 @@ class Component extends DCLogic {
   };
   openJob = (id, opts) => {
     this._photoJobId = id;
-    this.setState({ screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', quickUpdateOpen: false, jobWorkspace: 'checkin', showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '', jobPhotos: [], serialNumbers: [], serialEdits: {} });
+    this.setState({ screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', logTouchedFields: [],quickUpdateOpen: false, jobWorkspace: 'checkin', showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '', jobPhotos: [], serialNumbers: [], serialEdits: {} });
     if (!(opts && opts.skipHistory) && typeof window !== 'undefined' && window.history) {
       window.history.pushState({ jobId: id }, '', '/job/' + encodeURIComponent(id));
     }
@@ -5201,14 +5205,14 @@ class Component extends DCLogic {
   };
 
   // ---------- log work (AI "What happened?" workflow) ----------
-  openLogWork = () => this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRecording: false, logRecBusy: false, logStopping: false, logMicError: '', logRawNotesFinal: '', logSelectedPhotoIds: [] });
+  openLogWork = () => this.setState({ logStep: 'dictate', logTouchedFields: [], logTranscript: '', logTyped: '', logRecording: false, logRecBusy: false, logStopping: false, logMicError: '', logRawNotesFinal: '', logSelectedPhotoIds: [] });
   closeLogWork = () => {
     if (this._logRec) { try { this._logRec.stop(); } catch (e) {} }
     this.setState({ logStep: 'dictate', logRecording: false, logRecBusy: false });
   };
   backToDictate = () => this.setState({ logStep: 'dictate', logSaveError: '' });
   cancelLogReview = () => {
-    this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logSaveError: '', logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' } });
+    this.setState({ logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logSaveError: '', logTouchedFields: [], logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' } });
   };
   toggleQuickUpdate = () => this.setState(s => ({ quickUpdateOpen: !s.quickUpdateOpen }));
   setJobWorkspace = (w) => this.setState({ jobWorkspace: w });
@@ -5294,11 +5298,13 @@ class Component extends DCLogic {
       ['customerUpdate', 'findings', 'partsUsed', 'laborTime', 'recommendations', 'estimatedCost'],
       'You are extracting structured shop-repair data from a mechanic\u2019s raw dictation or typed note. Be strictly faithful \u2014 never invent, escalate, or assume beyond what is stated. customerUpdate: a professional, customer-safe summary written from the information in the input \u2014 remove profanity, filler words, and irrelevant frustration, fix grammar, and organize it, but do not invent facts. Cover: work in progress, findings so far, parts that may be needed, and any next steps or approvals needed \u2014 the customer update should communicate all of that plainly. Only return an empty string if the input truly contains no job-relevant information at all (e.g. "testing the microphone" or "let\u2019s see if this works") \u2014 an input that mentions any work being done, something found, a part that might be needed, or a next step DOES have enough for a customer update; do not be overly conservative. findings: objective observations only, e.g. "blue light flickering, white light not functioning" \u2014 no interpretation, no recommended action. partsUsed: only parts actually installed/consumed \u2014 never a part that is merely proposed or possibly needed. Empty string if none actually used yet. laborTime: only work actually performed (e.g. "continued diagnosis of the lighting system"), not planned work; a short duration like "1.5 hrs" if a duration is stated, else a short phrase of the work done, else empty string. recommendations: planned or recommended next steps explicitly supported by the input (e.g. needing a part, needing customer approval, needing further inspection) \u2014 match the mechanic\u2019s exact stated strength, never escalate "inspect" into "replace" or similar. Empty string if none. estimatedCost: ONLY if the mechanic states an explicit dollar amount or range (e.g. "about $200", "$300\u2013$450") \u2014 copy it as stated. Leave empty if no amount was mentioned; never invent a price. Return an empty string for any field not clearly supported by the input \u2014 do not pad, guess, or invent.'
     );
-    this.setState({
+    this.setState(s => ({
       logAiLoading: false,
       logStep: 'review',
       logRawNotesFinal: raw,
-      logFields: {
+      // Generating again after "Back to my notes" refreshes only the boxes the
+      // person hasn't changed by hand; their fixes are kept.
+      logFields: this.keepTouchedLogFields({
         customerUpdate: fields.customerUpdate || '',
         privateNotes: raw,
         findings: fields.findings || '',
@@ -5306,17 +5312,29 @@ class Component extends DCLogic {
         laborTime: fields.laborTime || '',
         recommendations: fields.recommendations || '',
         estimatedCost: fields.estimatedCost || '',
-      },
-    });
+      }, s.logFields, s.logTouchedFields),
+    }));
   };
+  // New boxes from the AI, keeping every box the person already changed by hand.
+  keepTouchedLogFields(freshFields, currentFields, touchedKeys) {
+    const merged = { ...freshFields };
+    touchedKeys.forEach(key => { merged[key] = currentFields[key]; });
+    return merged;
+  }
+  setLogField(key, value) {
+    this.setState(s => ({
+      logFields: { ...s.logFields, [key]: value },
+      logTouchedFields: s.logTouchedFields.includes(key) ? s.logTouchedFields : [...s.logTouchedFields, key],
+    }));
+  }
 
-  setLogFieldCustomerUpdate = (e) => this.setState({ logFields: { ...this.state.logFields, customerUpdate: e.target.value } });
-  setLogFieldPrivateNotes = (e) => this.setState({ logFields: { ...this.state.logFields, privateNotes: e.target.value } });
-  setLogFieldFindings = (e) => this.setState({ logFields: { ...this.state.logFields, findings: e.target.value } });
-  setLogFieldParts = (e) => this.setState({ logFields: { ...this.state.logFields, partsUsed: e.target.value } });
-  setLogFieldLabor = (e) => this.setState({ logFields: { ...this.state.logFields, laborTime: e.target.value } });
-  setLogFieldRecommendations = (e) => this.setState({ logFields: { ...this.state.logFields, recommendations: e.target.value } });
-  setLogFieldEstimatedCost = (e) => this.setState({ logFields: { ...this.state.logFields, estimatedCost: e.target.value } });
+  setLogFieldCustomerUpdate = (e) => this.setLogField('customerUpdate', e.target.value);
+  setLogFieldPrivateNotes = (e) => this.setLogField('privateNotes', e.target.value);
+  setLogFieldFindings = (e) => this.setLogField('findings', e.target.value);
+  setLogFieldParts = (e) => this.setLogField('partsUsed', e.target.value);
+  setLogFieldLabor = (e) => this.setLogField('laborTime', e.target.value);
+  setLogFieldRecommendations = (e) => this.setLogField('recommendations', e.target.value);
+  setLogFieldEstimatedCost = (e) => this.setLogField('estimatedCost', e.target.value);
 
   saveLogEntry = async () => {
     if (this.state.logSaveBusy) return;
@@ -5354,6 +5372,7 @@ class Component extends DCLogic {
         expandedDayKeys: Array.from(new Set([...s.expandedDayKeys, this.dayKeyFor(act.createdAt)])),
         logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [],
         logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' },
+        logTouchedFields: [],
         logSaveBusy: false, logSaveError: '',
       }));
       const j = this.state.jobs.find(x => x.id === jobId);
@@ -7037,6 +7056,7 @@ class Component extends DCLogic {
       openLogWork: this.openLogWork, closeLogWork: this.closeLogWork,
       backToDictate: this.backToDictate, cancelLogReview: this.cancelLogReview,
       isLogComposeStep: s.logStep !== 'review', isLogReviewStep: s.logStep === 'review',
+      hasKeptLogEdits: s.logStep !== 'review' && s.logTouchedFields.length > 0,
       quickUpdateOpen: s.quickUpdateOpen, toggleQuickUpdate: this.toggleQuickUpdate,
       quickUpdateToggleLabel: s.quickUpdateOpen ? '\u2013 HIDE CHECK-IN NOTE' : '+ CHECK-IN NOTE',
       logMicButtonStyle, logMicButtonLabel: logMicButtonBusy ? '\u2026' : (logMicRecording ? '\u25a0 STOP' : '\u25cf REC'),

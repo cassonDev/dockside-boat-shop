@@ -112,3 +112,43 @@ test('an edited entry shows EDITED instead of the AI badge', () => {
   assert.match(html, /<sc-if value="\{\{ act\.showAiBadge \}\}"[^>]*>\s*<div[^>]*>&#10024; AI-GENERATED<\/div>/);
   assert.match(html, /&#9998; EDITED/);
 });
+
+// ---- Creating an entry: "Back to my notes" must not lose fixes made by hand ----
+
+const keepTouchedLogFields = method('keepTouchedLogFields', ['freshFields', 'currentFields', 'touchedKeys']);
+const setLogField = method('setLogField', ['key', 'value']);
+
+test('the review button that goes back is called "Back to my notes", not "Edit"', () => {
+  assert.match(html, /onClick="\{\{ backToDictate \}\}">BACK TO MY NOTES<\/div>/);
+  assert.doesNotMatch(html, /onClick="\{\{ backToDictate \}\}">EDIT<\/div>/);
+});
+
+test('typing in a review box remembers that box as changed by hand', () => {
+  let state = { logFields: { customerUpdate: 'AI text', findings: '' }, logTouchedFields: [] };
+  const fakeApp = { setState: (update) => { state = { ...state, ...update(state) }; } };
+  setLogField.call(fakeApp, 'customerUpdate', 'My own words');
+  setLogField.call(fakeApp, 'customerUpdate', 'My own words.');
+  assert.deepEqual(state.logFields, { customerUpdate: 'My own words.', findings: '' });
+  assert.deepEqual(state.logTouchedFields, ['customerUpdate']);
+});
+
+test('generating again keeps boxes changed by hand and refreshes the rest', () => {
+  const fresh = { customerUpdate: 'New AI text', privateNotes: 'new dictation', findings: 'New finding', partsUsed: '', laborTime: '1 hr', recommendations: '', estimatedCost: '' };
+  const current = { customerUpdate: 'My own words', privateNotes: 'old dictation', findings: 'Old finding', partsUsed: 'Impeller', laborTime: '', recommendations: '', estimatedCost: '' };
+  assert.deepEqual(keepTouchedLogFields(fresh, current, ['customerUpdate', 'partsUsed']), {
+    ...fresh, customerUpdate: 'My own words', partsUsed: 'Impeller',
+  });
+  assert.deepEqual(keepTouchedLogFields(fresh, current, []), fresh);
+});
+
+test('the AI result goes through keepTouchedLogFields', () => {
+  assert.match(html, /logFields: this\.keepTouchedLogFields\(\{[\s\S]*?\}, s\.logFields, s\.logTouchedFields\)/);
+});
+
+test('starting a new entry or opening a job forgets earlier hand changes', () => {
+  const clears = (name) => new RegExp(`${name} = [^\\n]*logTouchedFields: \\[\\]`);
+  assert.match(html, clears('openLogWork'));
+  assert.match(html, /this\.setState\(\{ screen: 'jobDetail', selectedJobId: id, [^\n]*logTouchedFields: \[\]/);
+  assert.match(html, /cancelLogReview = \(\) => \{\n[^\n]*logTouchedFields: \[\]/);
+  assert.match(html, /estimatedCost: '' \},\n\s*logTouchedFields: \[\],\n\s*logSaveBusy: false/, 'cleared after a successful save');
+});
