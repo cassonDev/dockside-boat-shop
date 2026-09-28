@@ -80,5 +80,5 @@ test('home-screen icon: signed out, or shop has no logo -> default Casson Makes 
 });
 
 test('the app keeps the home-screen icon in sync after every update', () => {
-  assert.match(html, /\n  componentDidUpdate\(\) \{\n    this\.syncHomeScreenIcon\(\);\n  \}/);
+  assert.match(html, /\n  componentDidUpdate\(\) \{\n    this\.syncHomeScreenIcon\(\);\n/);
 });
