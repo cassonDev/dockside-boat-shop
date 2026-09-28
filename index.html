@@ -739,8 +739,11 @@
                         <sc-if value="{{ act.isPrivate }}" hint-placeholder-val="{{ false }}">
                           <div style="font:700 9px 'IBM Plex Mono',monospace;color:#8A6A1E;">&#128274; PRIVATE</div>
                         </sc-if>
-                        <sc-if value="{{ act.aiGenerated }}" hint-placeholder-val="{{ false }}">
+                        <sc-if value="{{ act.showAiBadge }}" hint-placeholder-val="{{ false }}">
                           <div style="font:700 9px 'IBM Plex Mono',monospace;color:#1F6F78;">&#10024; AI-GENERATED</div>
+                        </sc-if>
+                        <sc-if value="{{ act.isEdited }}" hint-placeholder-val="{{ false }}">
+                          <div style="font:700 9px 'IBM Plex Mono',monospace;color:#1F6F78;">&#9998; EDITED</div>
                         </sc-if>
                       </div>
                       <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);white-space:nowrap;">{{ act.createdLabel }}</div>
@@ -748,16 +751,31 @@
                     <div style="font:600 10.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);margin-bottom:6px;">{{ act.authorName }} <span style="color:rgba(22,40,61,.4);">&middot; {{ act.authorRoleLabel }}</span></div>
 
                     <sc-if value="{{ act.isEditing }}" hint-placeholder-val="{{ false }}">
-                      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
-                        <textarea style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.25);border-radius:4px;padding:9px;font:500 13px 'Public Sans',sans-serif;color:#16283D;min-height:70px;resize:vertical;" value="{{ act.editDraftBody }}" onChange="{{ act.onEditBodyChange }}"></textarea>
-                        <input placeholder="Reason for edit (optional)" style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:8px 10px;font:500 12px 'Public Sans',sans-serif;color:#16283D;" value="{{ act.editDraftReason }}" onChange="{{ act.onEditReasonChange }}"/>
-                        <div style="display:flex;gap:8px;">
-                          <div style="flex:1;background:#1F6F78;color:#fff;text-align:center;font:700 11.5px 'Public Sans',sans-serif;padding:9px;border-radius:4px;cursor:pointer;" onClick="{{ act.onSaveEdit }}">SAVE CHANGES</div>
-                          <div style="background:#EDE6D6;color:#16283D;text-align:center;font:700 11.5px 'Public Sans',sans-serif;padding:9px 14px;border-radius:4px;cursor:pointer;" onClick="{{ act.onCancelEdit }}">CANCEL</div>
-                        </div>
+                      <div class="no-print" style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+                        <sc-for list="{{ act.editFields }}" as="field" hint-placeholder-count="1">
+                          <div style="{{ field.boxStyle }}">
+                            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                              <div style="{{ field.labelStyle }}">{{ field.label }}</div>
+                              <sc-if value="{{ field.hasTag }}" hint-placeholder-val="{{ false }}">
+                                <div style="{{ field.tagStyle }}">{{ field.tag }}</div>
+                              </sc-if>
+                            </div>
+                            <sc-if value="{{ field.singleLine }}" hint-placeholder-val="{{ false }}">
+                              <input aria-label="{{ field.label }}" placeholder="{{ field.placeholder }}" style="{{ field.textStyle }}" value="{{ field.value }}" onChange="{{ field.onChange }}"/>
+                            </sc-if>
+                            <sc-if value="{{ field.multiLine }}" hint-placeholder-val="{{ true }}">
+                              <textarea aria-label="{{ field.label }}" rows="{{ field.rows }}" style="{{ field.textStyle }}" value="{{ field.value }}" onChange="{{ field.onChange }}"></textarea>
+                            </sc-if>
+                          </div>
+                        </sc-for>
+                        <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.65);">The earlier version stays in this entry&rsquo;s history.</div>
                         <sc-if value="{{ act.hasEditError }}" hint-placeholder-val="{{ false }}">
-                          <div style="font:600 11.5px 'Public Sans',sans-serif;color:#C0392B;">{{ act.editError }}</div>
+                          <div role="alert" style="background:#FBEAEA;border:1px solid #C0392B;border-radius:6px;padding:10px 12px;font:600 13px 'Public Sans',sans-serif;color:#8A2D26;line-height:1.45;">{{ act.editError }}</div>
                         </sc-if>
+                        <div style="display:flex;gap:8px;">
+                          <div style="{{ act.saveEditButtonStyle }}" onClick="{{ act.onSaveEdit }}">{{ act.saveEditLabel }}</div>
+                          <div style="min-height:48px;padding:0 18px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:#EDE6D6;color:#16283D;font:700 13px 'Public Sans',sans-serif;letter-spacing:.3px;cursor:pointer;" onClick="{{ act.onCancelEdit }}">CANCEL</div>
+                        </div>
                       </div>
                     </sc-if>
                     <sc-if value="{{ act.isNotEditing }}" hint-placeholder-val="{{ false }}">
@@ -767,7 +785,7 @@
                       </sc-if>
                     </sc-if>
 
-                    <sc-if value="{{ act.isWorkLog }}" hint-placeholder-val="{{ false }}">
+                    <sc-if value="{{ act.showWorkLogDetails }}" hint-placeholder-val="{{ false }}">
                       <sc-if value="{{ act.showNoCustomerUpdateNote }}" hint-placeholder-val="{{ false }}">
                         <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.4);font-style:italic;">No customer-facing update recorded for this entry.</div>
                       </sc-if>
@@ -809,29 +827,41 @@
                       </div>
                     </sc-if>
 
-                    <div class="no-print" style="display:flex;align-items:center;gap:14px;margin-top:8px;flex-wrap:wrap;">
+                    <sc-if value="{{ act.showCardFooter }}" hint-placeholder-val="{{ false }}">
+                    <div class="no-print" style="display:flex;flex-direction:column;gap:6px;margin-top:10px;">
                       <sc-if value="{{ act.isEdited }}" hint-placeholder-val="{{ false }}">
-                        <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);cursor:pointer;" onClick="{{ act.onToggleHistory }}">EDITED &middot; {{ act.editedLabel }} &middot; v{{ act.version }} &mdash; VIEW HISTORY</div>
+                        <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.65);">Edited by {{ act.editedByName }} &middot; {{ act.editedLabel }}</div>
                       </sc-if>
-                      <sc-if value="{{ act.canEdit }}" hint-placeholder-val="{{ false }}">
-                        <div style="font:700 10.5px 'IBM Plex Mono',monospace;color:#1F6F78;cursor:pointer;" onClick="{{ act.onStartEdit }}">EDIT</div>
-                      </sc-if>
+                      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <sc-if value="{{ act.canEdit }}" hint-placeholder-val="{{ false }}">
+                          <div style="min-height:44px;padding:0 16px;display:flex;align-items:center;gap:8px;box-sizing:border-box;background:#fff;color:#1F6F78;border:1.5px solid #1F6F78;border-radius:6px;font:700 12.5px 'Public Sans',sans-serif;letter-spacing:.3px;cursor:pointer;" onClick="{{ act.onStartEdit }}">&#9998; EDIT ENTRY</div>
+                        </sc-if>
+                        <sc-if value="{{ act.isEdited }}" hint-placeholder-val="{{ false }}">
+                          <div style="min-height:44px;padding:0 10px;display:flex;align-items:center;color:#16283D;font:700 12.5px 'Public Sans',sans-serif;letter-spacing:.3px;cursor:pointer;" onClick="{{ act.onToggleHistory }}">{{ act.historyToggleLabel }}</div>
+                        </sc-if>
+                      </div>
                     </div>
+                    </sc-if>
 
                     <sc-if value="{{ act.historyOpen }}" hint-placeholder-val="{{ false }}">
-                      <div class="no-print" style="margin-top:8px;background:#F6F1E4;border-radius:4px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;">
-                        <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;">VERSION HISTORY</div>
-                        <sc-for list="{{ act.history }}" as="h" hint-placeholder-count="1">
-                          <div style="border-top:1px solid rgba(22,40,61,.12);padding-top:6px;">
-                            <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);">v{{ h.version }} &middot; {{ h.editedByName }} &middot; {{ h.editedLabel }}</div>
-                            <div style="font:500 12px 'Public Sans',sans-serif;color:#16283D;margin-top:2px;">{{ h.previousBody }}</div>
-                            <sc-if value="{{ h.hasReason }}" hint-placeholder-val="{{ false }}">
-                              <div style="font:500 11px 'Public Sans',sans-serif;color:rgba(22,40,61,.5);margin-top:2px;">Reason: {{ h.changeReason }}</div>
+                      <div class="no-print" style="margin-top:8px;background:#F6F1E4;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:12px;">
+                        <sc-for list="{{ act.edits }}" as="ed" hint-placeholder-count="1">
+                          <div style="display:flex;flex-direction:column;gap:6px;">
+                            <div style="font:700 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.75);letter-spacing:.5px;">WHAT CHANGED &middot; {{ ed.editedLabel }} &middot; {{ ed.editedByName }}</div>
+                            <sc-for list="{{ ed.changes }}" as="ch" hint-placeholder-count="1">
+                              <div style="border-top:1px solid rgba(22,40,61,.12);padding-top:6px;display:flex;flex-direction:column;gap:2px;">
+                                <div style="font:700 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.75);letter-spacing:.5px;">{{ ch.label }}</div>
+                                <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.75);line-height:1.45;white-space:pre-wrap;"><b>Was:</b> {{ ch.was }}</div>
+                                <div style="font:500 12.5px 'Public Sans',sans-serif;color:#16283D;line-height:1.45;white-space:pre-wrap;"><b>Now:</b> {{ ch.now }}</div>
+                              </div>
+                            </sc-for>
+                            <sc-if value="{{ ed.hasReason }}" hint-placeholder-val="{{ false }}">
+                              <div style="font:500 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.65);">Reason: {{ ed.changeReason }}</div>
                             </sc-if>
                           </div>
                         </sc-for>
-                        <sc-if value="{{ act.historyEmpty }}" hint-placeholder-val="{{ false }}">
-                          <div style="font:500 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.45);">Loading history&hellip;</div>
+                        <sc-if value="{{ act.historyLoading }}" hint-placeholder-val="{{ false }}">
+                          <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.65);">Loading&hellip;</div>
                         </sc-if>
                       </div>
                     </sc-if>
@@ -2836,8 +2866,7 @@ class Component extends DCLogic {
     activityComposerBusy: false,
     activityComposerError: '',
     editingActivityId: null,
-    editDraftBody: '',
-    editDraftReason: '',
+    editDraft: {},
     editBusy: false,
     editError: '',
     historyOpenActivityId: null,
@@ -4181,6 +4210,21 @@ class Component extends DCLogic {
     document_transcription: { label: 'DOCUMENT',      category: 'notes',  compact: false },
     serial_number_captured: { label: 'SERIAL NUMBER', category: 'photos', compact: true },
   };
+  // The boxes shown when editing a timeline entry, in order. `body` is the
+  // entry's main text (for a work log, the customer update); every other key
+  // lives in the entry's meta. Only these two tags are shown, by choice.
+  static WORK_LOG_EDIT_FIELDS = [
+    { key: 'body', label: 'CUSTOMER UPDATE', tag: 'CUSTOMER SEES THIS' },
+    { key: 'rawNotes', label: 'PRIVATE MECHANIC NOTES', tag: 'STAFF ONLY', isPrivate: true },
+    { key: 'findings', label: 'FINDINGS' },
+    { key: 'partsUsed', label: 'PARTS USED', singleLine: true, placeholder: 'None' },
+    { key: 'laborTime', label: 'LABOR', singleLine: true },
+    { key: 'recommendations', label: 'RECOMMENDATIONS' },
+    { key: 'estimatedCost', label: 'ESTIMATED COST', singleLine: true, placeholder: 'Leave blank unless an amount was stated' },
+  ];
+  static NOTE_EDIT_FIELDS = [
+    { key: 'body', label: 'CUSTOMER NOTE', tag: 'CUSTOMER SEES THIS' },
+  ];
   static ACTIVITY_FILTERS = [
     { key: 'all', label: 'ALL' },
     { key: 'work', label: 'WORK' },
@@ -5425,27 +5469,77 @@ class Component extends DCLogic {
   toggleActivityExpand = (id) => this.setState(s => ({
     expandedActivityIds: s.expandedActivityIds.includes(id) ? s.expandedActivityIds.filter(x => x !== id) : [...s.expandedActivityIds, id],
   }));
-  startEditActivity = (act) => this.setState({ editingActivityId: act.id, editDraftBody: act.body, editDraftReason: '', editError: '' });
-  cancelEditActivity = () => this.setState({ editingActivityId: null, editDraftBody: '', editDraftReason: '', editError: '' });
-  setEditDraftBody = (e) => this.setState({ editDraftBody: e.target.value });
-  setEditDraftReason = (e) => this.setState({ editDraftReason: e.target.value });
+  startEditActivity = (act) => this.setState({ editingActivityId: act.id, editDraft: this.editDraftFor(act), editError: '' });
+  cancelEditActivity = () => this.setState({ editingActivityId: null, editDraft: {}, editError: '' });
+  setEditDraftField = (key, value) => this.setState(s => ({ editDraft: { ...s.editDraft, [key]: value } }));
   saveEditActivity = async () => {
+    if (this.state.editBusy) return;
     const id = this.state.editingActivityId;
-    const body = (this.state.editDraftBody || '').trim();
+    const activity = this.state.jobActivities.find(a => a.id === id);
     const p = this.state.profile;
-    if (!body) { this.setState({ editError: 'Note text cannot be empty.' }); return; }
+    if (!activity || !p) return;
+    const draft = this.state.editDraft;
+    const isEmpty = this.editFieldsFor(activity).every(f => !(draft[f.key] || '').trim());
+    if (isEmpty) { this.setState({ editError: 'Add something before saving.' }); return; }
+    const patch = this.editPatchFor(activity, draft);
+    if (!patch) { this.cancelEditActivity(); return; } // nothing changed, nothing to save
     this.setState({ editBusy: true, editError: '' });
     try {
-      const updated = await this._dataMod.editActivity(id, { body }, { id: p.id, name: p.name }, this.state.editDraftReason);
-      this.setState(s => ({
-        jobActivities: s.jobActivities.map(a => a.id === id ? updated : a),
-        editingActivityId: null, editDraftBody: '', editDraftReason: '', editBusy: false,
-      }));
+      const updated = await this._dataMod.editActivity(id, patch, { id: p.id, name: p.name }, '');
+      this.setState(s => {
+        // Drop the cached history so "What changed" reloads with this edit in it.
+        const activityHistory = { ...s.activityHistory };
+        delete activityHistory[id];
+        return {
+          jobActivities: s.jobActivities.map(a => a.id === id ? updated : a),
+          editingActivityId: null, editDraft: {}, editBusy: false, activityHistory,
+          historyOpenActivityId: s.historyOpenActivityId === id ? null : s.historyOpenActivityId,
+        };
+      });
     } catch (e) {
+      // The technical reason goes to the console; people see a plain message
+      // and keep everything they typed.
       console.error('Failed to save activity edit', e);
-      this.setState({ editBusy: false, editError: (e && e.message) || 'Could not save edit.' });
+      this.setState({ editBusy: false, editError: 'Couldn’t save your changes. Your text is still here — check your signal and tap Save changes again. If it keeps happening, let your shop owner know.' });
     }
   };
+  editFieldsFor(activity) {
+    return activity.activityType === 'work_log' ? this.constructor.WORK_LOG_EDIT_FIELDS : this.constructor.NOTE_EDIT_FIELDS;
+  }
+  // Starting values for the edit form, one per box.
+  editDraftFor(activity) {
+    const meta = activity.meta || {};
+    const draft = {};
+    this.editFieldsFor(activity).forEach(f => {
+      draft[f.key] = (f.key === 'body' ? activity.body : meta[f.key]) || '';
+    });
+    return draft;
+  }
+  // What to save after an edit, or null when nothing changed. Anything else
+  // stored in the entry's meta (not shown in the form) is kept as it was.
+  editPatchFor(activity, draft) {
+    const before = this.editDraftFor(activity);
+    const meta = { ...(activity.meta || {}) };
+    let body = activity.body || '';
+    let changed = false;
+    this.editFieldsFor(activity).forEach(f => {
+      const value = (draft[f.key] || '').trim();
+      if (value === before[f.key].trim()) return;
+      changed = true;
+      if (f.key === 'body') body = value;
+      else meta[f.key] = value;
+    });
+    if (!changed) return null;
+    return activity.activityType === 'work_log' ? { body, meta } : { body };
+  }
+  // The boxes that differ between two versions of an entry ({ body, meta }),
+  // for the "What changed" list.
+  activityChanges(activity, before, after) {
+    const valueOf = (version, key) => ((key === 'body' ? version.body : (version.meta || {})[key]) || '').trim();
+    return this.editFieldsFor(activity)
+      .filter(f => valueOf(before, f.key) !== valueOf(after, f.key))
+      .map(f => ({ label: f.label, was: valueOf(before, f.key) || '(empty)', now: valueOf(after, f.key) || '(empty)' }));
+  }
   toggleActivityHistory = async (act) => {
     const isOpen = this.state.historyOpenActivityId === act.id;
     if (isOpen) { this.setState({ historyOpenActivityId: null }); return; }
@@ -5994,15 +6088,48 @@ class Component extends DCLogic {
       const bodyDisplay = (!isLong || expanded) ? a.body : (a.body.slice(0, 220).trim() + '\u2026');
       const isEditing = s.editingActivityId === a.id;
       const isEdited = a.version > 1;
+      // Same rule as before: the author or a shop owner may edit work logs and customer notes.
+      const canEditEntry = (a.activityType === 'customer_note' || a.activityType === 'work_log')
+        && (this.isShopOwner() || !!(s.profile && s.profile.id === a.authorId));
       const historyOpen = s.historyOpenActivityId === a.id;
-      const historyList = (s.activityHistory[a.id] || []).map(h => ({
-        version: h.version,
-        editedByName: h.editedByName || '\u2014',
-        editedLabel: new Date(h.editedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
-        previousBody: h.previousBody,
-        hasReason: !!h.changeReason,
-        changeReason: h.changeReason,
-      }));
+      const historyRows = s.activityHistory[a.id];
+      // Each saved edit, newest first, with only the boxes it changed. A history
+      // row holds the entry as it was BEFORE that edit; what it became is the
+      // next row's "before", or the entry as it is now.
+      const historyByVersion = {};
+      (historyRows || []).forEach(h => { historyByVersion[h.version] = h; });
+      const edits = (historyRows || []).slice().sort((x, y) => y.version - x.version).map(h => {
+        const next = historyByVersion[h.version + 1];
+        const after = next ? { body: next.previousBody, meta: next.previousMeta } : { body: a.body, meta: a.meta };
+        return {
+          editedByName: h.editedByName || '\u2014',
+          editedLabel: new Date(h.editedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
+          changes: this.activityChanges(a, { body: h.previousBody, meta: h.previousMeta }, after),
+          hasReason: !!h.changeReason,
+          changeReason: h.changeReason,
+        };
+      });
+      const editFields = isEditing ? this.editFieldsFor(a).map(f => {
+        const value = s.editDraft[f.key] || '';
+        const lineCount = Math.ceil(value.length / 36) + (value.match(/\n/g) || []).length;
+        return {
+          label: f.label,
+          hasTag: !!f.tag,
+          tag: f.tag || '',
+          value,
+          placeholder: f.placeholder || '',
+          singleLine: !!f.singleLine,
+          multiLine: !f.singleLine,
+          rows: Math.min(14, Math.max(2, lineCount)),
+          onChange: (e) => this.setEditDraftField(f.key, e.target.value),
+          boxStyle: f.isPrivate
+            ? 'background:#FBF6E8;border:1px dashed #B08A2E;border-radius:6px;padding:10px 12px;'
+            : 'background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:6px;padding:10px 12px;',
+          labelStyle: `flex:1;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.5px;color:${f.isPrivate ? '#7A5C14' : 'rgba(22,40,61,.75)'};`,
+          tagStyle: `font:700 9px 'IBM Plex Mono',monospace;padding:3px 6px;border-radius:3px;white-space:nowrap;color:${f.isPrivate ? '#7A5C14' : '#1F6F78'};background:${f.isPrivate ? '#F3E7C6' : '#E3EFEE'};`,
+          textStyle: `width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;padding:0;font:500 14px 'Public Sans',sans-serif;line-height:1.45;color:${f.isPrivate ? '#5C4A1A' : '#16283D'};`,
+        };
+      }) : [];
       const photos = (a.attachments || []).map(id => jobPhotosById[id]).filter(Boolean).map(p => ({ id: p.id, thumbUrl: p.thumbUrl, onOpen: () => this.openLightbox(p.id) }));
       // 5D: source pages of a document transcription, staff audience only.
       const docPageAttachments = this._docDisplay && this._docDisplay.isDocumentActivity(a)
@@ -6030,8 +6157,10 @@ class Component extends DCLogic {
         authorName: a.authorName || 'System',
         authorRoleLabel: (a.authorRole || '').replace(/_/g, ' ').toUpperCase() || '\u2014',
         isPrivate,
-        aiGenerated: a.aiGenerated,
+        // A person's edit replaces the AI badge with EDITED.
+        showAiBadge: a.aiGenerated && !isEdited,
         isWorkLog: a.activityType === 'work_log',
+        showWorkLogDetails: a.activityType === 'work_log' && !isEditing,
         findings: (a.meta && a.meta.findings) || '',
         partsUsed: (a.meta && a.meta.partsUsed) || '',
         laborTime: (a.meta && a.meta.laborTime) || '',
@@ -6054,23 +6183,24 @@ class Component extends DCLogic {
         cardStyle: `border-radius:6px;padding:12px 14px;background:${isPrivate ? '#FBF6E8' : '#fff'};border:1px ${isPrivate ? 'dashed #B08A2E' : 'solid rgba(22,40,61,.12)'};border-left:3px solid ${isPrivate ? '#B08A2E' : '#1F6F78'};`,
         isEditing,
         isNotEditing: !isEditing,
-        editDraftBody: s.editDraftBody,
-        editDraftReason: s.editDraftReason,
-        onEditBodyChange: this.setEditDraftBody,
-        onEditReasonChange: this.setEditDraftReason,
+        editFields,
         onSaveEdit: this.saveEditActivity,
         onCancelEdit: this.cancelEditActivity,
+        saveEditLabel: s.editBusy ? 'SAVING…' : 'SAVE CHANGES',
+        saveEditButtonStyle: `flex:1;min-height:48px;display:flex;align-items:center;justify-content:center;border-radius:6px;font:700 13px 'Public Sans',sans-serif;letter-spacing:.3px;color:#fff;background:${s.editBusy ? '#B9C0C4' : '#1F6F78'};cursor:${s.editBusy ? 'default' : 'pointer'};`,
         hasEditError: !!s.editError,
         editError: s.editError,
-        canEdit: (a.activityType === 'customer_note' || a.activityType === 'work_log') && !isEditing && (this.isShopOwner() || (s.profile && s.profile.id === a.authorId)),
+        canEdit: canEditEntry && !isEditing,
         onStartEdit: () => this.startEditActivity(a),
         isEdited,
-        version: a.version,
+        showCardFooter: !isEditing && (isEdited || canEditEntry),
+        editedByName: a.editedByName || '—',
         editedLabel: a.editedAt ? new Date(a.editedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '',
         onToggleHistory: () => this.toggleActivityHistory(a),
-        historyOpen,
-        history: historyList,
-        historyEmpty: historyOpen && historyList.length === 0 && !s.activityHistory[a.id],
+        historyToggleLabel: historyOpen ? 'HIDE WHAT CHANGED' : 'SEE WHAT CHANGED',
+        historyOpen: historyOpen && !isEditing,
+        edits,
+        historyLoading: historyOpen && !historyRows,
       };
     };
 

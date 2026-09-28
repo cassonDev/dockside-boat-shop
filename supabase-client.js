@@ -498,11 +498,11 @@ export async function createActivity(workOrderId, activity, author) {
   return activityFromRow(data);
 }
 
-// Edits a customer_note (only editable type). Writes the current body/meta
-// to activity_history as the prior version, then updates the row in place
-// with the new body/meta, bumped version, and editor/timestamp — so the
-// card can show "Edited by X" while the full chain of prior versions stays
-// queryable via fetchActivityHistory.
+// Edits a work log or customer note (the author or a shop owner). Writes the
+// current body/meta to activity_history as the prior version, then updates the
+// row in place with the new body/meta (a work log's meta holds its details),
+// bumped version, and editor/timestamp — so the card can show "Edited by X"
+// while every prior version stays queryable via fetchActivityHistory.
 export async function editActivity(activityId, patch, editor, changeReason) {
   const { data: current, error: fetchErr } = await supabase.from('activities').select('*').eq('id', activityId).single();
   if (fetchErr) throw fetchErr;
