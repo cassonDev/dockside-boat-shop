@@ -305,3 +305,9 @@ test('creating uses the same boxes as editing, with a full-width Save and plain 
   assert.doesNotMatch(html, /logSaveError: \(e && e\.message\)/);
   assert.match(html, /Couldn(’|\\u2019)t save this update\. Everything is still here/);
 });
+
+test('the What happened box asks for parts, time, cost and recommendations', () => {
+  const panel = html.slice(html.indexOf('>What happened?</div>'), html.indexOf('{{ runLogExtraction }}'));
+  for (const word of ['parts', 'time', 'cost', 'recommendations']) assert.match(panel, new RegExp(`<b>${word}</b>`));
+  assert.match(panel, /placeholder="e\.g\. Replaced the water pump impeller, took about an hour\./);
+});

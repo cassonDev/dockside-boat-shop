@@ -598,7 +598,7 @@
       <div class="no-print" style="margin:14px 20px 0;padding:18px;display:flex;flex-direction:column;gap:12px;background:#F6F1E4;border-radius:6px;border:1px solid rgba(217,119,6,.35);">
         <div>
           <div style="font:800 16px 'Archivo',sans-serif;color:#16283D;">What happened?</div>
-          <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.55);margin-top:2px;">Speak or type naturally &mdash; AI will organize everything for you.</div>
+          <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);margin-top:2px;line-height:1.45;">Say what you did and found. Include any <b>parts</b>, <b>time</b>, <b>cost</b> or <b>recommendations</b> &mdash; AI sorts it into the boxes for you.</div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
           <div style="{{ logMicButtonStyle }}" onClick="{{ toggleLogRecording }}">
@@ -618,7 +618,7 @@
         <sc-if value="{{ hasLogTranscript }}" hint-placeholder-val="{{ false }}">
           <div style="width:100%;box-sizing:border-box;border:1px dashed rgba(22,40,61,.3);border-radius:4px;padding:8px 10px;font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);font-style:italic;line-height:1.45;">Hearing: {{ logTranscriptDisplay }}</div>
         </sc-if>
-        <textarea style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 13px;font:500 14px 'Public Sans',sans-serif;color:#16283D;min-height:88px;resize:vertical;" placeholder="e.g. Changed the impeller today. Water pressure is back to normal. Also found a cracked cooling hose &mdash; customer should replace before next use." value="{{ logTyped }}" onChange="{{ setLogTyped }}"></textarea>
+        <textarea style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 13px;font:500 14px 'Public Sans',sans-serif;color:#16283D;min-height:88px;resize:vertical;" placeholder="e.g. Replaced the water pump impeller, took about an hour. Pressure is back to normal. Found a cracked cooling hose &mdash; recommend replacing it, about $85 for the part." value="{{ logTyped }}" onChange="{{ setLogTyped }}"></textarea>
         <sc-if value="{{ hasKeptLogEdits }}" hint-placeholder-val="{{ false }}">
           <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);">Boxes you already changed will be kept when you generate again.</div>
         </sc-if>
