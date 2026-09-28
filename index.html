@@ -3032,13 +3032,20 @@ class Component extends DCLogic {
     }
   }
 
-  componentDidUpdate(prevProps, prevState) {
+  componentDidUpdate() {
     this.syncHomeScreenIcon();
     // Leaving the job screen (any way out) stops dictation, so the mic never
     // keeps listening on other screens. Words already heard stay in the box.
-    if (prevState && prevState.screen === 'jobDetail' && this.state.screen !== 'jobDetail' && this._logRec) {
-      try { this._logRec.stop(); } catch (e) {}
-    }
+    // The app framework passes only the previous props here (not the previous
+    // state), so the screen from the last update is remembered on the component.
+    const screen = this.state.screen;
+    if (this._screenAtLastUpdate === 'jobDetail' && screen !== 'jobDetail') this.stopLogDictationNow();
+    this._screenAtLastUpdate = screen;
+  }
+  // Turns the mic off right away. Words already heard stay in the box.
+  stopLogDictationNow() {
+    if (!this._logRec) return;
+    try { this._logRec.stop(); } catch (e) {}
   }
 
   // Home-screen icon (Safari "Add to Home Screen"): signed in to a shop with a
@@ -3073,6 +3080,7 @@ class Component extends DCLogic {
   }
 
   componentWillUnmount() {
+    this.stopLogDictationNow();
     Object.values(this._savedTimers || {}).forEach(clearTimeout);
     if (this._authSub) { try { this._authSub.unsubscribe(); } catch (e) {} }
     if (this._onResize) window.removeEventListener('resize', this._onResize);
