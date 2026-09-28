@@ -350,17 +350,31 @@ test('1: boxes use 16px text so iPhones do not zoom in when tapped', () => {
   assert.match(html, /<textarea rows="\{\{ logTypedRows \}\}" style="[^"]*font:500 16px/);
 });
 
-test('2: leaving the job screen stops the mic', () => {
-  const body = html.match(/\n  componentDidUpdate\(prevProps, prevState\) \{\n([\s\S]*?)\n  \}\n/)[1];
+test('2: leaving the job screen stops the mic (called the way the app framework calls it)', () => {
+  // The framework calls componentDidUpdate(prevProps) only — never with the
+  // previous state — so this test passes no previous state either.
+  const body = html.match(/\n  componentDidUpdate\(\) \{\n([\s\S]*?)\n  \}\n/)[1];
   // eslint-disable-next-line no-new-func
-  const didUpdate = new Function('prevProps', 'prevState', body);
+  const didUpdate = new Function(body);
   let stopped = 0;
-  const app = { syncHomeScreenIcon() {}, _logRec: { stop() { stopped += 1; } }, state: { screen: 'dashboard' } };
-  didUpdate.call(app, {}, { screen: 'jobDetail' });
-  assert.equal(stopped, 1, 'left the job → mic stopped');
-  app.state.screen = 'jobDetail';
-  didUpdate.call(app, {}, { screen: 'jobDetail' });
-  assert.equal(stopped, 1, 'still on the job → untouched');
+  const rec = { stop() { stopped += 1; } };
+  const app = {
+    syncHomeScreenIcon() {}, _logRec: rec, state: { screen: 'jobDetail' },
+    stopLogDictationNow() { if (this._logRec) this._logRec.stop(); },
+  };
+  didUpdate.call(app);                       // on the job screen, recording
+  assert.equal(stopped, 0);
+  didUpdate.call(app);                       // still on the job (e.g. typing)
+  assert.equal(stopped, 0);
+  app.state = { screen: 'dashboard' };       // back to the job list
+  didUpdate.call(app);
+  assert.equal(stopped, 1, 'mic stopped on leaving the job');
+  didUpdate.call(app);                       // later updates on the list
+  assert.equal(stopped, 1, 'only once');
+});
+
+test('2b: closing the app screen also turns the mic off', () => {
+  assert.match(html, /\n  componentWillUnmount\(\) \{\n    this\.stopLogDictationNow\(\);/);
 });
 
 test('3: "Fill in the boxes myself" never empties a box that has something in it', async () => {
