@@ -311,5 +311,8 @@ test('the Log your work box asks for parts, time, cost and recommendations', () 
   const panel = html.slice(html.indexOf('>Log your work</div>'), html.indexOf('{{ runLogExtraction }}'));
   assert.ok(panel.length > 0 && html.indexOf('>Log your work</div>') > 0, 'new title is shown');
   for (const word of ['parts', 'time', 'cost', 'recommendations']) assert.match(panel, new RegExp(`<b>${word}</b>`));
-  assert.match(panel, /placeholder="e\.g\. Replaced the water pump impeller, took about an hour\./);
+  assert.match(panel, /placeholder="Press REC and say what you did\. Include any parts, cost, time and recommendations\. Then press STOP and GENERATE UPDATE\."/);
+  // The hint must name the buttons exactly as they appear on screen.
+  assert.match(html, /logMicButtonLabel: [^\n]*'\\u25a0 STOP' : '\\u25cf REC'/);
+  assert.match(html, /: 'GENERATE UPDATE',/);
 });
