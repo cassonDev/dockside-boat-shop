@@ -148,9 +148,9 @@ test('the AI result goes through keepTouchedLogFields', () => {
 test('starting a new entry or opening a job forgets earlier hand changes', () => {
   const clears = (name) => new RegExp(`${name} = [^\\n]*logTouchedFields: \\[\\]`);
   assert.match(html, clears('openLogWork'));
-  assert.match(html, /this\.setState\(\{ \.\.\.emptyLogBox, screen: 'jobDetail', selectedJobId: id, [^\n]*logTouchedFields: \[\]/);
+  assert.match(html, /const freshLogWork = isDifferentJob \? \{\n\s*logStep: 'dictate', logTouchedFields: \[\]/, 'opening a different job');
   assert.match(html, /discardLogReview = \(\) => \{\n[^\n]*logTouchedFields: \[\]/);
-  assert.match(html, /estimatedCost: '' \},\n\s*logTouchedFields: \[\],\n\s*logAskingToDiscard: false, logAiFailed: false,\n\s*logSaveBusy: false/, 'cleared after a successful save');
+  assert.match(html, /estimatedCost: '' \},\n\s*logTouchedFields: \[\],\n\s*logAskingToDiscard: false,\n\s*logSaveBusy: false/, 'cleared after a successful save');
 });
 
 // ---- Notes typed for one job must never follow the mechanic to another job ----
@@ -182,12 +182,22 @@ test('opening a different job empties the Log your work box and stops dictation'
   assert.equal(calls.setState.logFields.customerUpdate, '');
 });
 
-test('reopening the same job keeps what is being typed', () => {
+test('reopening the same job keeps everything as it was left', () => {
   const { fake, calls } = fakeAppOnJob('JOB-A');
   openJob.call(fake, 'JOB-A', { skipHistory: true });
   assert.equal(calls.discarded, 0);
-  assert.equal('logTyped' in calls.setState, false);
-  assert.equal('logTranscript' in calls.setState, false);
+  for (const key of ['logTyped', 'logTranscript', 'logStep', 'logFields', 'logTouchedFields', 'logFromAi', 'logSelectedPhotoIds', 'editingActivityId', 'editDraft']) {
+    assert.equal(key in calls.setState, false, `${key} is kept`);
+  }
+});
+
+test('opening a different job also drops a half-finished edit and the check screen', () => {
+  const { fake, calls } = fakeAppOnJob('JOB-A');
+  openJob.call(fake, 'JOB-B', { skipHistory: true });
+  assert.equal(calls.setState.logStep, 'dictate');
+  assert.deepEqual(calls.setState.logTouchedFields, []);
+  assert.equal(calls.setState.editingActivityId, null);
+  assert.equal(calls.setState.logFromAi, false);
 });
 
 test('stopping dictation ignores words that arrive afterwards', () => {
@@ -219,21 +229,38 @@ const fakeLogApp = (state, extra = {}) => {
   return app;
 };
 
-test('when the AI cannot be reached, the screen says so and offers to fill the boxes by hand', async () => {
+test('when the AI cannot be reached, the screen says so and the notes are kept', async () => {
   const run = new AsyncFunction(arrowBody('runLogExtraction'));
   const app = fakeLogApp({ logTyped: 'Changed the impeller.' }, { requestExtraction: async () => null });
   await run.call(app);
   assert.equal(app.state.logStep, undefined, 'stays on the talk/type screen');
-  assert.equal(app.state.logAiFailed, true);
   assert.match(app.state.logExtractError, /couldn’t read your notes/);
   assert.equal(app.state.logTyped, 'Changed the impeller.', 'notes are kept');
 
-  const fill = new Function(arrowBody('fillLogBoxesMyself'));
-  fill.call(app);
+  const fill = new AsyncFunction(arrowBody('fillLogBoxesMyself'));
+  await fill.call(app);
   assert.equal(app.state.logStep, 'review');
   assert.equal(app.state.logFromAi, false, 'saved as not AI-generated');
   assert.equal(app.state.logFields.privateNotes, 'Changed the impeller.');
   assert.equal(app.state.logFields.customerUpdate, '');
+});
+
+test('"Fill in the boxes myself" is always on the screen, not only when the AI fails', () => {
+  const panel = html.slice(html.indexOf('>Log your work</div>'), html.indexOf('<sc-if value="{{ isLogReviewStep }}"'));
+  assert.match(panel, /<div style="[^"]*" onClick="\{\{ fillLogBoxesMyself \}\}">FILL IN THE BOXES MYSELF<\/div>\n\s*<\/div>\n\s*<\/sc-if>/, 'last button in the box, not inside a condition');
+  assert.match(panel, />AI sorts what you say into the boxes for you\.<\/div>/);
+  assert.doesNotMatch(html, /logAiFailed/);
+});
+
+test('filling the boxes by hand stops the mic first so no words are lost', async () => {
+  const fill = new AsyncFunction(arrowBody('fillLogBoxesMyself'));
+  let stopped = false;
+  const app = fakeLogApp({ logRecording: true, logTyped: 'Started talking' }, {
+    stopLogRecordingAndWait: async function () { stopped = true; this.state.logTyped += ' and finished.'; },
+  });
+  await fill.call(app);
+  assert.equal(stopped, true);
+  assert.equal(app.state.logFields.privateNotes, 'Started talking and finished.');
 });
 
 test('when the AI answers, its boxes open for checking and are marked as AI', async () => {
@@ -310,6 +337,98 @@ test('the Log your work box asks for parts, time, cost and recommendations', () 
   assert.doesNotMatch(html, />What happened\?<\/div>/, 'old title is gone');
   const panel = html.slice(html.indexOf('>Log your work</div>'), html.indexOf('{{ runLogExtraction }}'));
   assert.ok(panel.length > 0 && html.indexOf('>Log your work</div>') > 0, 'new title is shown');
-  for (const word of ['parts', 'time', 'cost', 'recommendations']) assert.match(panel, new RegExp(`<b>${word}</b>`));
-  assert.match(panel, /placeholder="e\.g\. Replaced the water pump impeller, took about an hour\./);
+  assert.match(panel, /placeholder="Press REC and say what you did\. Include any parts, cost, time and recommendations\. Then press STOP and GENERATE UPDATE\."/);
+  // The hint must name the buttons exactly as they appear on screen.
+  assert.match(html, /logMicButtonLabel: [^\n]*'\\u25a0 STOP' : '\\u25cf REC'/);
+  assert.match(html, /: 'GENERATE UPDATE',/);
+});
+
+// ---- Second peer review: the 14 fixes Cassandra chose ----
+
+test('1: boxes use 16px text so iPhones do not zoom in when tapped', () => {
+  assert.match(html, /textStyle: `[^`]*font:500 16px 'Public Sans'/);
+  assert.match(html, /<textarea rows="\{\{ logTypedRows \}\}" style="[^"]*font:500 16px/);
+});
+
+test('2: leaving the job screen stops the mic', () => {
+  const body = html.match(/\n  componentDidUpdate\(prevProps, prevState\) \{\n([\s\S]*?)\n  \}\n/)[1];
+  // eslint-disable-next-line no-new-func
+  const didUpdate = new Function('prevProps', 'prevState', body);
+  let stopped = 0;
+  const app = { syncHomeScreenIcon() {}, _logRec: { stop() { stopped += 1; } }, state: { screen: 'dashboard' } };
+  didUpdate.call(app, {}, { screen: 'jobDetail' });
+  assert.equal(stopped, 1, 'left the job → mic stopped');
+  app.state.screen = 'jobDetail';
+  didUpdate.call(app, {}, { screen: 'jobDetail' });
+  assert.equal(stopped, 1, 'still on the job → untouched');
+});
+
+test('3: "Fill in the boxes myself" never empties a box that has something in it', async () => {
+  const fill = new AsyncFunction(arrowBody('fillLogBoxesMyself'));
+  const app = fakeLogApp({
+    logTyped: 'New notes', logFromAi: true,
+    logFields: { ...emptyLogFields, customerUpdate: 'AI wrote this', partsUsed: 'Impeller', privateNotes: 'old notes' },
+  });
+  await fill.call(app);
+  assert.equal(app.state.logFields.customerUpdate, 'AI wrote this');
+  assert.equal(app.state.logFields.partsUsed, 'Impeller');
+  assert.equal(app.state.logFields.privateNotes, 'New notes', 'private notes follow the latest notes unless changed by hand');
+  assert.equal(app.state.logFromAi, true, 'still counts as AI-written');
+});
+
+test('4: the Log your work box grows with the notes (4 to 14 lines)', () => {
+  const rows = new Function('s', `return ${html.match(/logTypedRows: (Math\.min\([^\n]*\)),\n/)[1]};`);
+  assert.equal(rows({ logTyped: '' }), 4);
+  assert.equal(rows({ logTyped: 'x'.repeat(32 * 8) }), 8);
+  assert.equal(rows({ logTyped: 'x'.repeat(32 * 40) }), 14);
+});
+
+test('5: the old "+ Check-in note" is gone', () => {
+  assert.doesNotMatch(html, /CHECK-IN NOTE|toggleQuickUpdate|quickUpdateOpen|submitActivity/);
+});
+
+test('6: a short "saved" message shows after saving, and goes away by itself', () => {
+  assert.match(html, /<sc-if value="\{\{ logJustSaved \}\}"[^>]*>\s*<div role="status"[^>]*>&#10003; Update saved\./);
+  assert.match(html, /<sc-if value="\{\{ act\.justSaved \}\}"[^>]*>\s*<div role="status"[^>]*>&#10003; Changes saved\./);
+  assert.match(html, /logJustSaved: true,\n\s*\}\)\);\n\s*this\.showSavedBriefly\('log'/);
+  assert.match(html, /justSavedActivityId: id,\n[\s\S]{0,40}\}\);\n\s*this\.showSavedBriefly\('edit'/);
+  assert.match(html, /setLogTyped = \(e\) => this\.setState\(\{ logTyped: e\.target\.value, logJustSaved: false \}\)/, 'typing hides it');
+});
+
+test('7: the label beside REC says PRESS TO TALK', () => {
+  assert.match(html, /logMicStatusLabel: [^\n]*'PRESS TO TALK'\)/);
+});
+
+test('8: edit Cancel asks only when something was changed', () => {
+  // eslint-disable-next-line no-new-func
+  const cancel = new Function(html.match(/\n  cancelEditActivity = \(\) => \{\n([\s\S]*?)\n  \};\n/)[1]);
+  const entry = workLog();
+  const make = (draft) => ({
+    state: { editingActivityId: 'E1', jobActivities: [{ ...entry, id: 'E1' }], editDraft: draft },
+    editPatchFor: app.editPatchFor, editDraftFor: app.editDraftFor, editFieldsFor: app.editFieldsFor,
+    setState(u) { this.state = { ...this.state, ...u }; },
+    discardEdit() { this.state.editingActivityId = null; },
+  });
+  const unchanged = make(app.editDraftFor(entry));
+  cancel.call(unchanged);
+  assert.equal(unchanged.state.editingActivityId, null, 'nothing changed → closes');
+  const changed = make({ ...app.editDraftFor(entry), laborTime: '2 hrs' });
+  cancel.call(changed);
+  assert.equal(changed.state.editAskingToDiscard, true, 'changed → asks first');
+  assert.equal(changed.state.editingActivityId, 'E1');
+});
+
+test('9: filter chips with nothing in them are hidden (ALL and the chosen one stay)', () => {
+  assert.match(html, /\.filter\(f => f\.key === 'all' \|\| f\.key === activityFilter \|\| \(activityCategoryCounts\[f\.key\] \|\| 0\) > 0\)/);
+});
+
+test('10–14: readable photo labels, plain mic error, clearer card details, Hearing below the box, better contrast', () => {
+  assert.match(html, />PHOTOS &mdash; TAP TO ATTACH</);
+  assert.match(html, /\n\s*\+ PHOTO\n/);
+  assert.match(html, /<div role="alert" style="[^"]*font:600 13px[^"]*">\{\{ logMicErrorLabel \}\}/);
+  assert.match(html, /flex-direction:column;gap:4px;font:500 13\.5px[^"]*">\n\s*<sc-if value="\{\{ act\.hasFindings \}\}"[^>]*><div><b>Findings:/);
+  const box = html.indexOf('onChange="{{ setLogTyped }}"></textarea>');
+  const hearing = html.indexOf('Hearing: {{ logTranscriptDisplay }}');
+  assert.ok(box > 0 && hearing > box, 'Hearing line comes after the box');
+  assert.match(html, /background:\$\{disabled \? '#DDE1E4' : '#B45309'\};color:\$\{disabled \? '#4E5B68' : '#fff'\}/);
 });

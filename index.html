@@ -622,7 +622,6 @@
     <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(22,40,61,.12);margin-top:14px;">
       <div style="padding:14px 20px;border-bottom:1px solid rgba(22,40,61,.1);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
         <div style="font:700 13px 'Archivo',sans-serif;color:#16283D;">JOB TIMELINE <span style="font:600 11px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);">({{ activityCountLabel }})</span></div>
-        <div class="no-print" style="font:700 11px 'Public Sans',sans-serif;color:#1F6F78;cursor:pointer;padding:8px 4px;" onClick="{{ toggleQuickUpdate }}">{{ quickUpdateToggleLabel }}</div>
       </div>
 
       <div class="no-print" style="padding:12px 20px 0;display:flex;gap:6px;flex-wrap:wrap;">
@@ -635,8 +634,11 @@
       <div class="no-print" style="margin:14px 20px 0;padding:18px;display:flex;flex-direction:column;gap:12px;background:#F6F1E4;border-radius:6px;border:1px solid rgba(217,119,6,.35);">
         <div>
           <div style="font:800 16px 'Archivo',sans-serif;color:#16283D;">Log your work</div>
-          <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);margin-top:2px;line-height:1.45;">Say what you did and found. Include any <b>parts</b>, <b>time</b>, <b>cost</b> or <b>recommendations</b> &mdash; AI sorts it into the boxes for you.</div>
+          <div style="font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);margin-top:2px;line-height:1.45;">AI sorts what you say into the boxes for you.</div>
         </div>
+        <sc-if value="{{ logJustSaved }}" hint-placeholder-val="{{ false }}">
+          <div role="status" style="background:#E7F4EC;border:1px solid #2E7D4F;border-radius:6px;padding:10px 12px;font:600 13px 'Public Sans',sans-serif;color:#1E5C38;">&#10003; Update saved. It&rsquo;s in the timeline below.</div>
+        </sc-if>
         <div style="display:flex;align-items:center;gap:12px;">
           <div style="{{ logMicButtonStyle }}" onClick="{{ toggleLogRecording }}">
             <div style="color:#fff;font:700 11px 'Archivo',sans-serif;">{{ logMicButtonLabel }}</div>
@@ -644,22 +646,21 @@
           <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;">{{ logMicStatusLabel }}</div>
         </div>
         <sc-if value="{{ hasLogMicError }}" hint-placeholder-val="{{ false }}">
-          <div style="width:100%;box-sizing:border-box;background:#FBEAEA;border:1px solid #C0392B;border-radius:4px;padding:8px 10px;font:600 11.5px 'Public Sans',sans-serif;color:#C0392B;">{{ logMicErrorLabel }}</div>
+          <div role="alert" style="width:100%;box-sizing:border-box;background:#FBEAEA;border:1px solid #C0392B;border-radius:6px;padding:10px 12px;font:600 13px 'Public Sans',sans-serif;color:#8A2D26;line-height:1.45;">{{ logMicErrorLabel }}</div>
         </sc-if>
         <sc-if value="{{ hasLogExtractError }}" hint-placeholder-val="{{ false }}">
           <div role="alert" style="width:100%;box-sizing:border-box;background:#FBEAEA;border:1px solid #C0392B;border-radius:6px;padding:10px 12px;font:600 13px 'Public Sans',sans-serif;color:#8A2D26;line-height:1.45;">{{ logExtractErrorLabel }}</div>
         </sc-if>
-        <sc-if value="{{ logAiFailed }}" hint-placeholder-val="{{ false }}">
-          <div style="min-height:44px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#fff;color:#16283D;border:1.5px solid rgba(22,40,61,.35);border-radius:6px;font:700 12.5px 'Public Sans',sans-serif;letter-spacing:.3px;cursor:pointer;" onClick="{{ fillLogBoxesMyself }}">FILL IN THE BOXES MYSELF</div>
-        </sc-if>
+        <textarea rows="{{ logTypedRows }}" style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 13px;font:500 16px 'Public Sans',sans-serif;line-height:1.45;color:#16283D;resize:vertical;" placeholder="Press REC and say what you did. Include any parts, cost, time and recommendations. Then press STOP and GENERATE UPDATE." value="{{ logTyped }}" onChange="{{ setLogTyped }}"></textarea>
         <sc-if value="{{ hasLogTranscript }}" hint-placeholder-val="{{ false }}">
           <div style="width:100%;box-sizing:border-box;border:1px dashed rgba(22,40,61,.3);border-radius:4px;padding:8px 10px;font:500 12.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);font-style:italic;line-height:1.45;">Hearing: {{ logTranscriptDisplay }}</div>
         </sc-if>
-        <textarea style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:12px 13px;font:500 14px 'Public Sans',sans-serif;color:#16283D;min-height:88px;resize:vertical;" placeholder="e.g. Replaced the water pump impeller, took about an hour. Pressure is back to normal. Found a cracked cooling hose &mdash; recommend replacing it, about $85 for the part." value="{{ logTyped }}" onChange="{{ setLogTyped }}"></textarea>
         <sc-if value="{{ hasKeptLogEdits }}" hint-placeholder-val="{{ false }}">
           <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.7);">Boxes you already changed will be kept when you generate again.</div>
         </sc-if>
         <div style="{{ logExtractButtonStyle }}" onClick="{{ runLogExtraction }}">{{ logExtractButtonLabel }}</div>
+        <!-- Always available: for when the AI isn't working, or they'd rather write it themselves. -->
+        <div style="min-height:44px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:#fff;color:#16283D;border:1.5px solid rgba(22,40,61,.35);border-radius:6px;font:700 12.5px 'Public Sans',sans-serif;letter-spacing:.3px;cursor:pointer;" onClick="{{ fillLogBoxesMyself }}">FILL IN THE BOXES MYSELF</div>
       </div>
       </sc-if>
 
@@ -686,7 +687,7 @@
         </sc-for>
 
         <div>
-          <div style="font:600 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.45);margin-bottom:4px;">ATTACH PHOTOS FROM GALLERY</div>
+          <div style="font:600 10px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.75);letter-spacing:.5px;margin-bottom:6px;">PHOTOS &mdash; TAP TO ATTACH</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
             <sc-for list="{{ logPhotoPickerDisplay }}" as="photo" hint-placeholder-count="0">
               <div style="{{ photo.wrapStyle }}" onClick="{{ photo.onToggle }}">
@@ -696,9 +697,8 @@
                 </sc-if>
               </div>
             </sc-for>
-            <label style="width:52px;height:52px;border:1px dashed rgba(22,40,61,.35);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;">
-              <div style="font:700 16px 'Archivo',sans-serif;color:rgba(22,40,61,.4);">+</div>
-              <div style="font:700 6.5px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.4);">NEW</div>
+            <label style="height:52px;padding:0 14px;box-sizing:border-box;border:1.5px dashed rgba(22,40,61,.45);border-radius:6px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font:700 12.5px 'Public Sans',sans-serif;color:#16283D;letter-spacing:.3px;">
+              + PHOTO
               <input type="file" accept="image/*" style="display:none;" onChange="{{ pickLogNewPhoto }}"/>
             </label>
           </div>
@@ -725,22 +725,6 @@
       </div>
       </sc-if>
 
-      <sc-if value="{{ quickUpdateOpen }}" hint-placeholder-val="{{ false }}">
-      <div class="no-print" style="margin:14px 20px 0;padding:12px;background:#fff;border:1px solid rgba(22,40,61,.15);border-radius:6px;display:flex;flex-direction:column;gap:8px;">
-        <div style="font:700 9px 'IBM Plex Mono',monospace;color:rgba(22,40,61,.5);letter-spacing:.5px;">CHECK-IN NOTE &middot; NO AI &mdash; e.g. &ldquo;waiting on parts&rdquo;, &ldquo;customer called&rdquo;, &ldquo;boat picked up&rdquo;</div>
-        <textarea placeholder="Add a quick note to this job's timeline&hellip;" style="width:100%;box-sizing:border-box;border:1px solid rgba(22,40,61,.2);border-radius:4px;padding:10px 11px;font:500 13.5px 'Public Sans',sans-serif;color:#16283D;min-height:56px;resize:vertical;background:#fff;" value="{{ newActivityBody }}" onChange="{{ setNewActivityBody }}"></textarea>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-          <label style="display:flex;align-items:center;gap:8px;font:600 12px 'Public Sans',sans-serif;color:#16283D;cursor:pointer;">
-            <input type="checkbox" checked="{{ newActivityShowToCustomer }}" onChange="{{ toggleNewActivityVisibility }}" style="width:17px;height:17px;accent-color:#16A34A;cursor:pointer;"/>
-            Show to Customer
-          </label>
-          <div style="{{ postActivityButtonStyle }}" onClick="{{ submitActivity }}">{{ postActivityButtonLabel }}</div>
-        </div>
-        <sc-if value="{{ hasActivityComposerError }}" hint-placeholder-val="{{ false }}">
-          <div style="font:600 12px 'Public Sans',sans-serif;color:#C0392B;">{{ activityComposerError }}</div>
-        </sc-if>
-      </div>
-      </sc-if>
 
       <sc-if value="{{ selectedJob.hasIntakeNote }}" hint-placeholder-val="{{ false }}">
         <div style="margin:14px 20px 0;background:#FBF6E8;border:1px dashed #B08A2E;border-radius:4px;padding:10px 12px;">
@@ -809,10 +793,21 @@
                         <sc-if value="{{ act.hasEditError }}" hint-placeholder-val="{{ false }}">
                           <div role="alert" style="background:#FBEAEA;border:1px solid #C0392B;border-radius:6px;padding:10px 12px;font:600 13px 'Public Sans',sans-serif;color:#8A2D26;line-height:1.45;">{{ act.editError }}</div>
                         </sc-if>
-                        <div style="display:flex;gap:8px;">
-                          <div style="{{ act.saveEditButtonStyle }}" onClick="{{ act.onSaveEdit }}">{{ act.saveEditLabel }}</div>
-                          <div style="min-height:48px;padding:0 18px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:#EDE6D6;color:#16283D;font:700 13px 'Public Sans',sans-serif;letter-spacing:.3px;cursor:pointer;" onClick="{{ act.onCancelEdit }}">CANCEL</div>
-                        </div>
+                        <sc-if value="{{ act.editAskingToDiscard }}" hint-placeholder-val="{{ false }}">
+                          <div style="background:#FBEAEA;border:1px solid #C0463C;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:10px;">
+                            <div style="font:600 13px 'Public Sans',sans-serif;color:#8A2D26;line-height:1.45;">Discard your changes to this entry?</div>
+                            <div style="display:flex;gap:8px;">
+                              <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#FBEAEA;color:#8A2D26;border:1px solid #C0463C;border-radius:6px;font:700 12.5px 'Public Sans',sans-serif;cursor:pointer;" onClick="{{ act.onDiscardEdit }}">DISCARD</div>
+                              <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;background:#1F6F78;color:#fff;border-radius:6px;font:700 12.5px 'Public Sans',sans-serif;cursor:pointer;" onClick="{{ act.onKeepEditing }}">KEEP EDITING</div>
+                            </div>
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ act.editNotAskingToDiscard }}" hint-placeholder-val="{{ true }}">
+                          <div style="display:flex;gap:8px;">
+                            <div style="{{ act.saveEditButtonStyle }}" onClick="{{ act.onSaveEdit }}">{{ act.saveEditLabel }}</div>
+                            <div style="min-height:48px;padding:0 18px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:#EDE6D6;color:#16283D;font:700 13px 'Public Sans',sans-serif;letter-spacing:.3px;cursor:pointer;" onClick="{{ act.onCancelEdit }}">CANCEL</div>
+                          </div>
+                        </sc-if>
                       </div>
                     </sc-if>
                     <sc-if value="{{ act.isNotEditing }}" hint-placeholder-val="{{ false }}">
@@ -826,12 +821,12 @@
                       <sc-if value="{{ act.showNoCustomerUpdateNote }}" hint-placeholder-val="{{ false }}">
                         <div style="font:500 13px 'Public Sans',sans-serif;color:rgba(22,40,61,.4);font-style:italic;">No customer-facing update recorded for this entry.</div>
                       </sc-if>
-                      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:10px;font:500 11.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.65);">
-                        <sc-if value="{{ act.hasFindings }}" hint-placeholder-val="{{ false }}"><span><b>Findings:</b> {{ act.findings }}</span></sc-if>
-                        <sc-if value="{{ act.hasParts }}" hint-placeholder-val="{{ false }}"><span><b>Parts:</b> {{ act.partsUsed }}</span></sc-if>
-                        <sc-if value="{{ act.hasLabor }}" hint-placeholder-val="{{ false }}"><span><b>Labor:</b> {{ act.laborTime }}</span></sc-if>
-                        <sc-if value="{{ act.hasRecommendations }}" hint-placeholder-val="{{ false }}"><span><b>Recommends:</b> {{ act.recommendations }}</span></sc-if>
-                        <sc-if value="{{ act.hasEstimatedCost }}" hint-placeholder-val="{{ false }}"><span><b>Est. Cost:</b> {{ act.estimatedCost }}</span></sc-if>
+                      <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;font:500 13.5px 'Public Sans',sans-serif;color:rgba(22,40,61,.85);line-height:1.45;">
+                        <sc-if value="{{ act.hasFindings }}" hint-placeholder-val="{{ false }}"><div><b>Findings:</b> {{ act.findings }}</div></sc-if>
+                        <sc-if value="{{ act.hasParts }}" hint-placeholder-val="{{ false }}"><div><b>Parts:</b> {{ act.partsUsed }}</div></sc-if>
+                        <sc-if value="{{ act.hasLabor }}" hint-placeholder-val="{{ false }}"><div><b>Labor:</b> {{ act.laborTime }}</div></sc-if>
+                        <sc-if value="{{ act.hasRecommendations }}" hint-placeholder-val="{{ false }}"><div><b>Recommends:</b> {{ act.recommendations }}</div></sc-if>
+                        <sc-if value="{{ act.hasEstimatedCost }}" hint-placeholder-val="{{ false }}"><div><b>Est. Cost:</b> {{ act.estimatedCost }}</div></sc-if>
                       </div>
                       <sc-if value="{{ act.hasRawNotes }}" hint-placeholder-val="{{ false }}">
                         <div style="margin-top:8px;background:#FBF6E8;border:1px dashed #B08A2E;border-radius:4px;padding:8px 10px;">
@@ -866,6 +861,9 @@
 
                     <sc-if value="{{ act.showCardFooter }}" hint-placeholder-val="{{ false }}">
                     <div class="no-print" style="display:flex;flex-direction:column;gap:6px;margin-top:10px;">
+                      <sc-if value="{{ act.justSaved }}" hint-placeholder-val="{{ false }}">
+                        <div role="status" style="background:#E7F4EC;border:1px solid #2E7D4F;border-radius:6px;padding:10px 12px;font:600 13px 'Public Sans',sans-serif;color:#1E5C38;">&#10003; Changes saved.</div>
+                      </sc-if>
                       <sc-if value="{{ act.isEdited }}" hint-placeholder-val="{{ false }}">
                         <div style="font:500 12px 'Public Sans',sans-serif;color:rgba(22,40,61,.65);">Edited by {{ act.editedByName }} &middot; {{ act.editedLabel }}</div>
                       </sc-if>
@@ -2921,10 +2919,11 @@ class Component extends DCLogic {
     logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' },
     logTouchedFields: [], // review boxes changed by hand; kept if the AI runs again
     logFromAi: false,          // the review boxes were filled by the AI (saved as ai_generated)
-    logAiFailed: false,        // the AI couldn't be reached; offer "Fill in the boxes myself"
     logAskingToDiscard: false, // Cancel was tapped; waiting for Discard / Keep it
+    logJustSaved: false,       // show "Update saved" briefly after saving
+    justSavedActivityId: null, // show "Changes saved" briefly on the entry just edited
+    editAskingToDiscard: false, // edit Cancel tapped with unsaved changes; waiting for Discard / Keep editing
     logSelectedPhotoIds: [],
-    quickUpdateOpen: false,
     jobWorkspace: 'checkin',
 
     jobPhotos: [],
@@ -2942,10 +2941,6 @@ class Component extends DCLogic {
     activityFilter: 'all',
     expandedDayKeys: [],
     expandedActivityIds: [],
-    newActivityBody: '',
-    newActivityVisibility: 'private',
-    activityComposerBusy: false,
-    activityComposerError: '',
     editingActivityId: null,
     editDraft: {},
     editBusy: false,
@@ -3122,8 +3117,13 @@ class Component extends DCLogic {
     }
   }
 
-  componentDidUpdate() {
+  componentDidUpdate(prevProps, prevState) {
     this.syncHomeScreenIcon();
+    // Leaving the job screen (any way out) stops dictation, so the mic never
+    // keeps listening on other screens. Words already heard stay in the box.
+    if (prevState && prevState.screen === 'jobDetail' && this.state.screen !== 'jobDetail' && this._logRec) {
+      try { this._logRec.stop(); } catch (e) {}
+    }
   }
 
   // Home-screen icon (Safari "Add to Home Screen"): signed in to a shop with a
@@ -3158,6 +3158,7 @@ class Component extends DCLogic {
   }
 
   componentWillUnmount() {
+    Object.values(this._savedTimers || {}).forEach(clearTimeout);
     if (this._authSub) { try { this._authSub.unsubscribe(); } catch (e) {} }
     if (this._onResize) window.removeEventListener('resize', this._onResize);
     if (this._onPopState && typeof window !== 'undefined') window.removeEventListener('popstate', this._onPopState);
@@ -3956,15 +3957,19 @@ class Component extends DCLogic {
   openJob = (id, opts) => {
     this._photoJobId = id;
     // Notes in the "Log your work" box belong to one job. Opening a different
-    // job starts with an empty box, and any dictation still running is stopped,
-    // so notes can never be saved onto the wrong boat.
+    // job starts fresh (empty box, dictation stopped, no half-finished edit),
+    // so notes can never be saved onto the wrong boat. Coming back to the SAME
+    // job keeps everything exactly as it was left: notes, the check screen,
+    // its boxes, and an entry being edited.
     const isDifferentJob = id !== this.state.selectedJobId;
     if (isDifferentJob) this.discardLogDictation();
-    const emptyLogBox = isDifferentJob ? {
-      logTranscript: '', logTyped: '', logRawNotesFinal: '', logMicError: '', logExtractError: '', logSaveError: '', logAiFailed: false,
+    const freshLogWork = isDifferentJob ? {
+      logStep: 'dictate', logTouchedFields: [], logAskingToDiscard: false, logFromAi: false, logSelectedPhotoIds: [],
+      logTranscript: '', logTyped: '', logRawNotesFinal: '', logMicError: '', logExtractError: '', logSaveError: '',
       logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' },
+      editingActivityId: null, editDraft: {}, editError: '', editAskingToDiscard: false,
     } : {};
-    this.setState({ ...emptyLogBox, screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, logStep: 'dictate', logTouchedFields: [], logAskingToDiscard: false, quickUpdateOpen: false, jobWorkspace: 'checkin', showScanModal: false, photoCategoryFilter: 'all', logSelectedPhotoIds: [], activityFilter: 'all', expandedActivityIds: [], editingActivityId: null, historyOpenActivityId: null, newActivityBody: '', activityComposerError: '', jobPhotos: [], serialNumbers: [], serialEdits: {} });
+    this.setState({ ...freshLogWork, screen: 'jobDetail', selectedJobId: id, jobNotFoundCode: null, jobWorkspace: 'checkin', showScanModal: false, photoCategoryFilter: 'all', activityFilter: 'all', expandedActivityIds: [], historyOpenActivityId: null, jobPhotos: [], serialNumbers: [], serialEdits: {} });
     if (!(opts && opts.skipHistory) && typeof window !== 'undefined' && window.history) {
       window.history.pushState({ jobId: id }, '', '/job/' + encodeURIComponent(id));
     }
@@ -5364,9 +5369,8 @@ class Component extends DCLogic {
   cancelLogReview = () => this.setState({ logAskingToDiscard: true });
   keepLogReview = () => this.setState({ logAskingToDiscard: false });
   discardLogReview = () => {
-    this.setState({ logStep: 'dictate', logAskingToDiscard: false, logAiFailed: false, logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logSaveError: '', logTouchedFields: [], logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' } });
+    this.setState({ logStep: 'dictate', logAskingToDiscard: false, logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [], logSaveError: '', logTouchedFields: [], logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' } });
   };
-  toggleQuickUpdate = () => this.setState(s => ({ quickUpdateOpen: !s.quickUpdateOpen }));
   setJobWorkspace = (w) => this.setState({ jobWorkspace: w });
   toggleLogRecording = () => {
     if (this.state.logRecBusy) { console.log('[mic] log toggle ignored \u2014 session busy'); return; }
@@ -5443,13 +5447,20 @@ class Component extends DCLogic {
     this.setState({ logStopping: true });
     return new Promise((resolve) => { this._logStopResolve = resolve; this.stopLogRecording(); });
   };
-  setLogTyped = (e) => this.setState({ logTyped: e.target.value });
+  setLogTyped = (e) => this.setState({ logTyped: e.target.value, logJustSaved: false });
+  // Runs `hide` a few seconds after a save, so the saved message goes away by
+  // itself. One timer per message ('log' or 'edit').
+  showSavedBriefly(name, hide) {
+    this._savedTimers = this._savedTimers || {};
+    clearTimeout(this._savedTimers[name]);
+    this._savedTimers[name] = setTimeout(hide, 5000);
+  }
 
   runLogExtraction = async () => {
     if (this.state.logRecording) { await this.stopLogRecordingAndWait(); }
     const raw = [this.state.logTranscript, this.state.logTyped].filter(Boolean).join('. ');
     if (!raw.trim()) { this.setState({ logExtractError: 'Add details first.' }); return; }
-    this.setState({ logAiLoading: true, logExtractError: '', logAiFailed: false });
+    this.setState({ logAiLoading: true, logExtractError: '' });
     const fields = await this.requestExtraction(
       raw,
       ['customerUpdate', 'findings', 'partsUsed', 'laborTime', 'recommendations', 'estimatedCost'],
@@ -5459,7 +5470,6 @@ class Component extends DCLogic {
       // Say so plainly rather than opening empty boxes that look like "nothing found".
       this.setState({
         logAiLoading: false,
-        logAiFailed: true,
         logExtractError: 'The AI couldn’t read your notes just now. Your notes are still here — check your signal and tap Generate update again, or fill in the boxes yourself.',
       });
       return;
@@ -5483,21 +5493,27 @@ class Component extends DCLogic {
       }, s.logFields, s.logTouchedFields),
     }));
   };
-  // When the AI can't be reached: open the same boxes, empty, with the notes
-  // kept as private notes, so the update can still be written and saved.
-  fillLogBoxesMyself = () => {
+  // Without the AI (it isn't working, or they'd rather write it themselves):
+  // open the same boxes with their notes as private notes. Boxes that already
+  // have something in them (from an earlier Generate) are never emptied.
+  fillLogBoxesMyself = async () => {
+    if (this.state.logRecording) { await this.stopLogRecordingAndWait(); }
     const raw = [this.state.logTranscript, this.state.logTyped].filter(Boolean).join('. ');
-    this.setState(s => ({
-      logStep: 'review',
-      logFromAi: false,
-      logAiFailed: false,
-      logExtractError: '',
-      logAskingToDiscard: false,
-      logRawNotesFinal: raw,
-      logFields: this.keepTouchedLogFields({
-        customerUpdate: '', privateNotes: raw, findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '',
-      }, s.logFields, s.logTouchedFields),
-    }));
+    this.setState(s => {
+      const keepsAiText = ['customerUpdate', 'findings', 'partsUsed', 'laborTime', 'recommendations', 'estimatedCost']
+        .some(key => (s.logFields[key] || '').trim());
+      return {
+        logStep: 'review',
+        logFromAi: !!s.logFromAi && keepsAiText, // hand-filled from scratch → not AI-generated
+        logExtractError: '',
+        logAskingToDiscard: false,
+        logRawNotesFinal: raw,
+        logFields: {
+          ...s.logFields,
+          privateNotes: s.logTouchedFields.includes('privateNotes') ? s.logFields.privateNotes : raw,
+        },
+      };
+    });
   };
   // New boxes from the AI, keeping every box the person already changed by hand.
   keepTouchedLogFields(freshFields, currentFields, touchedKeys) {
@@ -5549,9 +5565,11 @@ class Component extends DCLogic {
         logStep: 'dictate', logTranscript: '', logTyped: '', logRawNotesFinal: '', logSelectedPhotoIds: [],
         logFields: { customerUpdate: '', privateNotes: '', findings: '', partsUsed: '', laborTime: '', recommendations: '', estimatedCost: '' },
         logTouchedFields: [],
-        logAskingToDiscard: false, logAiFailed: false,
+        logAskingToDiscard: false,
         logSaveBusy: false, logSaveError: '',
+        logJustSaved: true,
       }));
+      this.showSavedBriefly('log', () => this.setState({ logJustSaved: false }));
       const j = this.state.jobs.find(x => x.id === jobId);
       if (j && j.status === 'open') {
         try {
@@ -5637,38 +5655,21 @@ class Component extends DCLogic {
     this._activitiesChannel = null;
   };
   setActivityFilter = (key) => this.setState({ activityFilter: key });
-  setNewActivityBody = (e) => this.setState({ newActivityBody: e.target.value });
-  toggleNewActivityVisibility = () => this.setState(s => ({ newActivityVisibility: s.newActivityVisibility === 'public' ? 'private' : 'public' }));
-  submitActivity = async () => {
-    if (this.state.activityComposerBusy) return;
-    const body = (this.state.newActivityBody || '').trim();
-    const jobId = this.state.selectedJobId;
-    const p = this.state.profile;
-    if (!body) { this.setState({ activityComposerError: 'Type a note before posting.' }); return; }
-    if (!jobId || !p) { this.setState({ activityComposerError: 'Could not post — no job selected or not signed in.' }); return; }
-    this.setState({ activityComposerBusy: true, activityComposerError: '' });
-    const visibility = this.state.newActivityVisibility;
-    const activityType = visibility === 'public' ? 'customer_note' : 'mechanic_note';
-    try {
-      const act = await this._dataMod.createActivity(jobId, { activityType, visibility, body }, { id: p.id, name: p.name, role: p.role });
-      this.setState(s => ({
-        jobActivities: [...s.jobActivities, act],
-        newActivityBody: '', activityComposerBusy: false, activityComposerError: '', quickUpdateOpen: false,
-        expandedDayKeys: Array.from(new Set([...s.expandedDayKeys, this.dayKeyFor(act.createdAt)])),
-      }));
-    } catch (e) {
-      console.error('Failed to post activity', e);
-      this.setState({ activityComposerBusy: false, activityComposerError: (e && e.message) || 'Could not post. Please try again.' });
-    }
-  };
   toggleDay = (key) => this.setState(s => ({
     expandedDayKeys: s.expandedDayKeys.includes(key) ? s.expandedDayKeys.filter(k => k !== key) : [...s.expandedDayKeys, key],
   }));
   toggleActivityExpand = (id) => this.setState(s => ({
     expandedActivityIds: s.expandedActivityIds.includes(id) ? s.expandedActivityIds.filter(x => x !== id) : [...s.expandedActivityIds, id],
   }));
-  startEditActivity = (act) => this.setState({ editingActivityId: act.id, editDraft: this.editDraftFor(act), editError: '' });
-  cancelEditActivity = () => this.setState({ editingActivityId: null, editDraft: {}, editError: '' });
+  startEditActivity = (act) => this.setState({ editingActivityId: act.id, editDraft: this.editDraftFor(act), editError: '', editAskingToDiscard: false });
+  // Cancel asks first only when something was actually changed.
+  cancelEditActivity = () => {
+    const activity = this.state.jobActivities.find(a => a.id === this.state.editingActivityId);
+    if (activity && this.editPatchFor(activity, this.state.editDraft)) { this.setState({ editAskingToDiscard: true }); return; }
+    this.discardEdit();
+  };
+  keepEditing = () => this.setState({ editAskingToDiscard: false });
+  discardEdit = () => this.setState({ editingActivityId: null, editDraft: {}, editError: '', editAskingToDiscard: false });
   setEditDraftField = (key, value) => this.setState(s => ({ editDraft: { ...s.editDraft, [key]: value } }));
   saveEditActivity = async () => {
     if (this.state.editBusy) return;
@@ -5680,7 +5681,7 @@ class Component extends DCLogic {
     const isEmpty = this.editFieldsFor(activity).every(f => !(draft[f.key] || '').trim());
     if (isEmpty) { this.setState({ editError: 'Add something before saving.' }); return; }
     const patch = this.editPatchFor(activity, draft);
-    if (!patch) { this.cancelEditActivity(); return; } // nothing changed, nothing to save
+    if (!patch) { this.discardEdit(); return; } // nothing changed, nothing to save
     this.setState({ editBusy: true, editError: '' });
     try {
       const updated = await this._dataMod.editActivity(id, patch, { id: p.id, name: p.name }, '');
@@ -5690,10 +5691,12 @@ class Component extends DCLogic {
         delete activityHistory[id];
         return {
           jobActivities: s.jobActivities.map(a => a.id === id ? updated : a),
-          editingActivityId: null, editDraft: {}, editBusy: false, activityHistory,
+          editingActivityId: null, editDraft: {}, editBusy: false, editAskingToDiscard: false, activityHistory,
           historyOpenActivityId: s.historyOpenActivityId === id ? null : s.historyOpenActivityId,
+          justSavedActivityId: id,
         };
       });
+      this.showSavedBriefly('edit', () => this.setState(s => (s.justSavedActivityId === id ? { justSavedActivityId: null } : null)));
     } catch (e) {
       // The technical reason goes to the console; people see a plain message
       // and keep everything they typed.
@@ -5741,7 +5744,7 @@ class Component extends DCLogic {
   // How one box of the entry form looks. Shared by "check before saving"
   // (creating) and "Edit entry", so both screens are the same form.
   fieldBoxDisplay(field, value, onChange) {
-    const lineCount = Math.ceil(value.length / 36) + (value.match(/\n/g) || []).length;
+    const lineCount = Math.ceil(value.length / 32) + (value.match(/\n/g) || []).length;
     const isPrivate = !!field.isPrivate;
     return {
       label: field.label,
@@ -5758,7 +5761,7 @@ class Component extends DCLogic {
         : 'background:#fff;border:1px solid rgba(22,40,61,.2);border-radius:6px;padding:10px 12px;',
       labelStyle: `flex:1;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.5px;color:${isPrivate ? '#7A5C14' : 'rgba(22,40,61,.75)'};`,
       tagStyle: `font:700 9px 'IBM Plex Mono',monospace;padding:3px 6px;border-radius:3px;white-space:nowrap;color:${isPrivate ? '#7A5C14' : '#1F6F78'};background:${isPrivate ? '#F3E7C6' : '#E3EFEE'};`,
-      textStyle: `width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;padding:0;font:500 14px 'Public Sans',sans-serif;line-height:1.45;color:${isPrivate ? '#5C4A1A' : '#16283D'};`,
+      textStyle: `width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;padding:0;font:500 16px 'Public Sans',sans-serif;line-height:1.45;color:${isPrivate ? '#5C4A1A' : '#16283D'};`,
     };
   }
   toggleActivityHistory = async (act) => {
@@ -6286,7 +6289,9 @@ class Component extends DCLogic {
       const m = ACT_META[a.activityType];
       if (m) activityCategoryCounts[m.category] = (activityCategoryCounts[m.category] || 0) + 1;
     });
-    const activityFilterChips = this.constructor.ACTIVITY_FILTERS.map(f => ({
+    const activityFilterChips = this.constructor.ACTIVITY_FILTERS
+      .filter(f => f.key === 'all' || f.key === activityFilter || (activityCategoryCounts[f.key] || 0) > 0)
+      .map(f => ({
       key: f.key,
       label: `${f.label} (${activityCategoryCounts[f.key] || 0})`,
       style: `font:700 10.5px 'IBM Plex Mono',monospace;padding:7px 11px;border-radius:3px;cursor:pointer;background:${activityFilter === f.key ? '#16283D' : '#EDE6D6'};color:${activityFilter === f.key ? '#fff' : '#16283D'};`,
@@ -6389,8 +6394,13 @@ class Component extends DCLogic {
         editFields,
         onSaveEdit: this.saveEditActivity,
         onCancelEdit: this.cancelEditActivity,
+        editAskingToDiscard: isEditing && !!s.editAskingToDiscard,
+        editNotAskingToDiscard: !(isEditing && s.editAskingToDiscard),
+        onDiscardEdit: this.discardEdit,
+        onKeepEditing: this.keepEditing,
+        justSaved: s.justSavedActivityId === a.id,
         saveEditLabel: s.editBusy ? 'SAVING…' : 'SAVE CHANGES',
-        saveEditButtonStyle: `flex:1;min-height:48px;display:flex;align-items:center;justify-content:center;border-radius:6px;font:700 13px 'Public Sans',sans-serif;letter-spacing:.3px;color:#fff;background:${s.editBusy ? '#B9C0C4' : '#1F6F78'};cursor:${s.editBusy ? 'default' : 'pointer'};`,
+        saveEditButtonStyle: `flex:1;min-height:48px;display:flex;align-items:center;justify-content:center;border-radius:6px;font:700 13px 'Public Sans',sans-serif;letter-spacing:.3px;color:${s.editBusy ? '#4E5B68' : '#fff'};background:${s.editBusy ? '#DDE1E4' : '#1F6F78'};cursor:${s.editBusy ? 'default' : 'pointer'};`,
         hasEditError: !!s.editError,
         editError: s.editError,
         canEdit: canEditEntry && !isEditing,
@@ -6423,10 +6433,6 @@ class Component extends DCLogic {
 
     const activityCountLabel = `${s.jobActivities.length}`;
     const noActivities = s.jobActivities.length === 0;
-    const newActivityShowToCustomer = s.newActivityVisibility === 'public';
-    const postActivityButtonStyle = `background:${s.activityComposerBusy ? '#B9C0C4' : '#1F6F78'};color:#fff;font:700 12px 'Public Sans',sans-serif;padding:10px 18px;border-radius:4px;cursor:pointer;text-align:center;`;
-    const postActivityButtonLabel = s.activityComposerBusy ? 'POSTING\u2026' : 'POST';
-    const hasActivityComposerError = !!s.activityComposerError;
 
 
 
@@ -6647,7 +6653,7 @@ class Component extends DCLogic {
     const micButtonStyle = `width:64px;height:64px;border-radius:50%;background:${micButtonBusy ? '#B9C0C4' : micRecording ? '#C0392B' : '#D97706'};display:flex;align-items:center;justify-content:center;cursor:${micButtonBusy ? 'default' : 'pointer'};pointer-events:${micButtonBusy ? 'none' : 'auto'};${micRecording ? 'animation:dk-pulse 1.6s infinite;' : ''}`;
     const logMicRecording = s.logRecording;
     const logMicButtonBusy = s.logRecBusy;
-    const logMicButtonStyle = `width:64px;height:64px;border-radius:50%;background:${logMicButtonBusy ? '#B9C0C4' : logMicRecording ? '#C0392B' : '#D97706'};display:flex;align-items:center;justify-content:center;cursor:${logMicButtonBusy ? 'default' : 'pointer'};pointer-events:${logMicButtonBusy ? 'none' : 'auto'};${logMicRecording ? 'animation:dk-pulse 1.6s infinite;' : ''}`;
+    const logMicButtonStyle = `width:64px;height:64px;border-radius:50%;background:${logMicButtonBusy ? '#7D8790' : logMicRecording ? '#C0392B' : '#B45309'};display:flex;align-items:center;justify-content:center;cursor:${logMicButtonBusy ? 'default' : 'pointer'};pointer-events:${logMicButtonBusy ? 'none' : 'auto'};${logMicRecording ? 'animation:dk-pulse 1.6s infinite;' : ''}`;
 
     const intakeRaw = (s.intakeTranscript + (s._intakeInterim ? ' ' + s._intakeInterim : ''));
     const logRaw = (s.logTranscript + (s._logInterim ? ' ' + s._logInterim : ''));
@@ -7233,10 +7239,6 @@ class Component extends DCLogic {
       inviteMessageColor: s.inviteError ? '#C0392B' : '#1F6F78',
 
       activityFilterChips, activityDayGroups, activityCountLabel, noActivities,
-      newActivityBody: s.newActivityBody, setNewActivityBody: this.setNewActivityBody,
-      newActivityShowToCustomer, toggleNewActivityVisibility: this.toggleNewActivityVisibility,
-      postActivityButtonStyle, postActivityButtonLabel, submitActivity: this.submitActivity,
-      hasActivityComposerError, activityComposerError: s.activityComposerError,
       archiveSelectedJob: this.archiveSelectedJob,
 
       stats: {
@@ -7310,10 +7312,8 @@ class Component extends DCLogic {
       backToDictate: this.backToDictate, cancelLogReview: this.cancelLogReview,
       isLogComposeStep: s.logStep !== 'review', isLogReviewStep: s.logStep === 'review',
       hasKeptLogEdits: s.logStep !== 'review' && s.logTouchedFields.length > 0,
-      quickUpdateOpen: s.quickUpdateOpen, toggleQuickUpdate: this.toggleQuickUpdate,
-      quickUpdateToggleLabel: s.quickUpdateOpen ? '\u2013 HIDE CHECK-IN NOTE' : '+ CHECK-IN NOTE',
       logMicButtonStyle, logMicButtonLabel: logMicButtonBusy ? '\u2026' : (logMicRecording ? '\u25a0 STOP' : '\u25cf REC'),
-      logMicStatusLabel: logMicButtonBusy ? 'ONE MOMENT\u2026' : (logMicRecording ? 'LISTENING\u2026' : 'TAP TO DICTATE'),
+      logMicStatusLabel: logMicButtonBusy ? 'ONE MOMENT\u2026' : (logMicRecording ? 'LISTENING\u2026' : 'PRESS TO TALK'),
       logMicErrorLabel: s.logMicError,
       hasLogMicError: !!s.logMicError,
       hasLogExtractError: !!s.logExtractError,
@@ -7321,14 +7321,16 @@ class Component extends DCLogic {
       hasLogTranscript: !!logRaw.trim(),
       logTranscriptDisplay: logRaw.trim(),
       logTyped: s.logTyped, setLogTyped: this.setLogTyped,
+      logJustSaved: !!s.logJustSaved && s.logStep !== 'review',
+      // The box grows with the notes (at least 4 lines, so the hint fits; at most 14, then it scrolls).
+      logTypedRows: Math.min(14, Math.max(4, Math.ceil((s.logTyped || '').length / 32) + ((s.logTyped || '').match(/\n/g) || []).length)),
       toggleLogRecording: this.toggleLogRecording,
       logExtractButtonStyle: (() => {
         const disabled = s.logStopping || s.logAiLoading || !(logRaw.trim() || (s.logTyped || '').trim());
-        return `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:14px;border-radius:4px;cursor:${disabled ? 'default' : 'pointer'};background:${disabled ? '#B9C0C4' : '#D97706'};color:#fff;`;
+        return `text-align:center;font:700 13px 'Public Sans',sans-serif;padding:14px;border-radius:4px;cursor:${disabled ? 'default' : 'pointer'};background:${disabled ? '#DDE1E4' : '#B45309'};color:${disabled ? '#4E5B68' : '#fff'};`;
       })(),
       logExtractButtonLabel: s.logAiLoading ? 'GENERATING\u2026' : s.logStopping ? 'STOPPING RECORDING\u2026' : !(logRaw.trim() || (s.logTyped || '').trim()) ? 'ADD DETAILS FIRST' : 'GENERATE UPDATE',
       runLogExtraction: this.runLogExtraction,
-      logAiFailed: !!s.logAiFailed && s.logStep !== 'review',
       fillLogBoxesMyself: this.fillLogBoxesMyself,
       logReviewHeading: s.logFromAi
         ? '\u2728 HERE\u2019S WHAT I UNDERSTOOD. CHECK IT, THEN SAVE.'
@@ -7342,7 +7344,7 @@ class Component extends DCLogic {
       logPhotoPickerDisplay,
       pickLogNewPhoto: this.pickLogNewPhoto,
       saveLogEntry: this.saveLogEntry,
-      logSaveButtonStyle: `min-height:48px;display:flex;align-items:center;justify-content:center;border-radius:6px;font:700 13.5px 'Public Sans',sans-serif;letter-spacing:.3px;color:#fff;cursor:${s.logSaveBusy ? 'default' : 'pointer'};background:${s.logSaveBusy ? '#B9C0C4' : '#1F6F78'};`,
+      logSaveButtonStyle: `min-height:48px;display:flex;align-items:center;justify-content:center;border-radius:6px;font:700 13.5px 'Public Sans',sans-serif;letter-spacing:.3px;color:${s.logSaveBusy ? '#4E5B68' : '#fff'};cursor:${s.logSaveBusy ? 'default' : 'pointer'};background:${s.logSaveBusy ? '#DDE1E4' : '#1F6F78'};`,
       logSaveButtonLabel: s.logSaveBusy ? 'SAVING\u2026' : 'SAVE UPDATE',
       hasLogSaveError: !!s.logSaveError,
       logSaveErrorLabel: s.logSaveError,
